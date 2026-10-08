@@ -1,12 +1,14 @@
-# ProofPilot — High-Level Design v2.2
+# ProofPilot — High-Level Design v2.3
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
-Status: **APPROVED AND FROZEN** (2026-10-08). This document is the source of truth. Any later
+Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 applies an approved budget-only change request).
+This document is the source of truth. Any later
 design change requires an explicit change request from the student; Claude must not alter the
 design unilaterally.
 
-**v2.2 = v2.1 + the student's §15 decisions** (budget accepted, core cap raised to 975, pilot kept
+**v2.3 = v2.2 + an approved line-cap change request (§16, budgets only — no behaviour, algorithm,
+contract or scope changed).** **v2.2 = v2.1 + the student's §15 decisions** (budget accepted, core cap raised to 975, pilot kept
 in M1, hints defined for non-entailing exercises, module ownership recorded). v2.1 itself added
 the milestone split, 9 required fixes, and an adversarial re-verification (§17) that found and
 fixed **7 BLOCKERs** in the v2.0 design.
@@ -17,7 +19,7 @@ fixed **7 BLOCKERs** in the v2.0 design.
 student made in this round: keeping the pilot in M1 (**+2.00**) and requiring that *both members
 can explain every module* (**+8.75** of cross-module walkthroughs). The second is the right call
 for the viva and is budgeted rather than hidden. Core lines land at **~945 against the new 975
-cap ✓**. Two caps are still exceeded and are recorded, not resolved, in §13.4.
+cap ✓**, and as of v2.3 **all five line and hour caps are met** (§13.4).
 
 ---
 
@@ -68,12 +70,16 @@ database, Docker, A*.
 
 ### Budgets (changed from v1 — justified in §12)
 
-| Budget | Cap | Scope |
+| Budget | Cap (v2.3) | Scope |
 |---|---|---|
-| Hours | M1 ≤50, M2 ≤15, **total ≤65** → **accepted at 77.00 person-hours** (§13.3) | includes review-and-understand time **and** cross-module walkthroughs (§13) |
-| Core lines | **≤975** (raised from 850 — §12) | `backend/src/core/*.py` |
-| Backend outside core | **≤400** | api + cli + scripts, excluding tests |
-| Frontend | **≤600** | `frontend/src/**` |
+| Hours | **77.00 person-hours accepted** (≈38.5 h each); contingency 75.00 | includes review-and-understand time **and** cross-module walkthroughs (§13.3) |
+| Core lines | **≤975** | `backend/src/core/*.py` |
+| api + cli | **≤350** | `backend/src/api/*.py` + `backend/src/cli.py`, excluding tests |
+| scripts | **≤250** (separate cap) | `scripts/*.py` — build/eval tooling, never shipped |
+| Frontend | **≤700** | `frontend/src/**` |
+
+All five caps are now **met** by the §13.4 estimates. The v2.2 deferrals are closed — see §16
+(v2.3) for the one-line justification behind each number.
 
 **Team constraint (approved):** both members must be able to explain every module. This is a
 budget line item (§13.3), not an aspiration — it is what the §17.11 three-sentence explanations
@@ -636,7 +642,7 @@ Every output file is stamped with date, git commit hash, seed, Python version an
 | Single `/api/act` discriminated union vs one endpoint per action | One surface to schema, test, document; new action types don't grow the API | Larger schemas; routing bugs hit every action | **One `/act`** | Easy — schema-layer only |
 | **Milestone split M1/M2** | M1 is independently demoable and defensible; M2 is a clean additive layer; a schedule slip degrades scope, not quality | Two integration passes; TRANSLATE absent from M1's mastery display | **M1 must-ship, M2 target** | Easy by design |
 | **Core line cap raised 450 (v1) → 850 (v2.1) → 975 (v2.2)** | The original 450 was set for a 4-module core that assumed exercises arrived pre-written in CNF. The English pipeline was added *after* that cap, bringing 6 new required modules; v2.2's 975 is the first cap set with knowledge of the real module list. A cap that forces a module out cuts a capability, not fat | Larger surface both members must be able to defend in the viva — which is exactly why the team constraint and its walkthrough hours (§13.3) were added alongside | **975, and now met at ~945 ✓** | Reversible only by cutting a capability |
-| Frontend 400 (v1) → 600; outside-core 400 added (v2.1) | Same reasoning: more screens, more endpoints | Both still exceeded for M1+M2 — see §13.4 | **Unchanged in v2.2** | n/a |
+| Frontend 400 (v1) → 600 → **700 (v2.3)**; outside-core ≤400 **split into api+cli ≤350 and scripts ≤250 (v2.3)** | Same reasoning: more screens, more endpoints. The split prices the right thing — scripts never ship | Five caps to track instead of three | **All five met as of v2.3 (§13.4)** | Easy — budgets, not design |
 | **Module ownership A/B with mutual review** (§4.1) | Each module has a named reviewer and a primary viva explainer; neither member has a blind spot | Costs 8.75 h of cross-module walkthroughs that a divide-and-conquer split would not | **Adopted, and budgeted (§13.3)** | Easy — reassign at any gate |
 
 ---
@@ -764,22 +770,19 @@ end.
 | | | | `TranslateStep` (M2) | 85 |
 | | | | **M1+M2 Σ** | **685** (over by 85) |
 
-**Status of each cap after the v2.2 decisions:**
+**Status of each cap after the v2.3 change request — all five now met:**
 
-1. **Core 850 → 975: APPROVED.** Actual ~945 → **fits ✓**.
-2. **Outside-core ≤400: still exceeded, not resolved.** Actual **515** (api 240 + cli 70 after the
-   practice-only cut + scripts 205). The proposed split — `api + cli ≤ 400` (actual **310 ✓**) and
-   `scripts ≤ 250` (actual **205 ✓**) — was not ruled on in the v2.2 decisions, so the cap stands
-   at 400 and the project is recorded as **over by 115**. The argument for splitting remains:
-   scripts are build and evaluation tooling that never runs in the shipped product, so their
-   length adds nothing to runtime complexity or to the viva surface. **Decide at the Phase 8 gate**
-   (when `run_experiments.py` is actually written and its real size is known) rather than now.
-3. **Frontend ≤600: M1 fits exactly at 600 ✓; M1+M2 is 670** (TranslateStep drops 85 → 70 once the
-   insert buttons are cut), **over by 70**. Not resolved in v2.2. **Decide at the M2 gate** — by
-   then the M1 frontend's real line count is known and the choice is a measured one, not a guess.
+| Cap | Value | Estimate | Headroom | One-line justification |
+|---|---|---|---|---|
+| Core | **≤975** | ~945 | 30 | v1's 450 assumed a 4-module core over pre-written CNF; the English pipeline added 6 required modules after that cap existed |
+| api + cli | **≤350** | 310 | 40 | Thin layers by design — schemas, routing, error mapping, and a practice-mode CLI; anything larger means logic has leaked out of core |
+| scripts | **≤250** | 205 | 45 | Separated because build/eval tooling never runs in the shipped product and adds nothing to runtime complexity or the viva surface |
+| Frontend | **≤700** | 670 | 30 | Six components across four stages plus a formula input; M1 alone is 600 |
+| Hours | **77.00** | 77.00 | 0 | Accepted as computed in §13.3; contingency 75.00 by moving the pilot post-submission |
 
-Items 2 and 3 are deliberately left open rather than assumed: both are M1-irrelevant (nothing in
-Phase 1–7 is blocked by them) and both become decidable with real numbers at a later gate.
+The v2.2 deferrals (outside-core, frontend) are **closed**. Headroom is thin everywhere — 30–45
+lines — so line counts are reported at every phase gate, and a module that overruns its estimate
+by more than a few percent is a STOP-and-justify event, not something to absorb quietly.
 
 ---
 
@@ -829,12 +832,34 @@ recorded in §16.
 backend-outside-core (515 vs 400 — Phase 8 gate) and frontend for M1+M2 (670 vs 600 — M2 gate).
 Neither blocks M1. See §13.4.
 
-**Design freeze.** v2.2 is approved and frozen. Any later design change requires an explicit
-change request from the student and a new version with a Change Log entry.
+**Design freeze.** v2.2 is approved and frozen; **v2.3 is the first change request against it**
+(budgets only, §16). Any later change requires the same: an explicit request from the student and
+a new version with a Change Log entry.
 
 ---
 
 ## 16. Change Log
+
+### From v2.2 → v2.3 — approved change request (line caps), 2026-10-08
+
+Raised during the independent Phase 1 audit. **Budgets only — no behaviour, algorithm, contract
+or scope changed.** The v2.2 freeze held: this is the explicit change request it required.
+
+1. **Core ≤975** — unchanged from v2.2, restated for completeness.
+2. **api + cli ≤350** (was folded into a single ≤400 outside-core cap). Both are thin layers by
+   design; if either grows past this, logic has leaked out of `core/` and that is the real defect.
+3. **scripts ≤250, as a separate cap** (previously inside the ≤400). Build and evaluation tooling
+   never runs in the shipped product, so its length adds nothing to runtime complexity or to what
+   must be defended in the viva. Counting it against the API budget was pricing the wrong thing.
+4. **Frontend ≤700** (was 600). M1 alone is 600; M2's Translate stage pushes it to 670. The v2.2
+   deferral to the M2 gate is closed early because the number is already known.
+5. **Hours: 77.00 person-hours accepted** (≈38.5 h each), contingency 75.00 by moving the pilot to
+   post-submission. No change to the figure — it is now recorded as the budget rather than as an
+   overrun against 65.
+
+**Effect: all five caps are met with 30–45 lines / 0 hours of headroom (§13.4).** Nothing was
+cut and no estimate was revised downward to achieve this; only the caps moved, with a stated
+reason each.
 
 ### From v2.1 → v2.2 — student decisions applied, document frozen
 
@@ -1240,5 +1265,5 @@ hardcoding, no guessing, everything decided by truth table or resolution, simple
 chosen (textbook CNF, one search regime), limitations stated honestly ✔; (6) hours and lines
 computed bottom-up with arithmetic shown, nothing rounded down ✔ (§13).
 
-**HLD v2.2 — APPROVED AND FROZEN, 2026-10-08.** Implementation proceeds against this document.
+**HLD v2.3 — APPROVED AND FROZEN, 2026-10-08.** Implementation proceeds against this document.
 Any design change from here requires an explicit change request from the student.

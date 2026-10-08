@@ -1,6 +1,6 @@
 # CLAUDE.md — ProofPilot rules and constraints
 
-**Design: see `docs/HLD.md` v2.2 — APPROVED AND FROZEN (2026-10-08).** Any design change requires
+**Design: see `docs/HLD.md` v2.3 — APPROVED AND FROZEN (2026-10-08).** Any design change requires
 an explicit change request from the student; never alter the design unilaterally. That document is
 the single source of truth for architecture,
 grammar, algorithms, data model, API contract, budgets, milestones and test names. This file holds
@@ -44,11 +44,13 @@ must be disclosed. Therefore:
   No ML, no LLMs, no RL, no NLP library, no database, no Docker, no auth, no WebSockets, no cloud.
 - DO NOT BUILD: A*, set-of-support (stretch only), first-order logic or unification, accounts, a
   database, a teacher dashboard, LLM features, Docker, free-form NLP.
-- Budgets (measured and reported at every gate): **core ≤975 lines** · backend outside core ≤400 ·
-  frontend ≤600. Hours: **77.00 person-hours accepted** for a 2-person team (≈38.5 h each).
-  `docs/HLD.md` §13.4 records two caps as currently exceeded — backend outside core (515, decide
-  at the Phase 8 gate) and frontend for M1+M2 (670, decide at the M2 gate). **Exceeding a budget
-  means STOP and justify, never silently absorb and never re-base the cap onto the actual.**
+- Budgets (measured and reported at **every** gate), per `docs/HLD.md` v2.3 §13.4 — all five are
+  currently met, with only 30–45 lines of headroom each:
+  **core ≤975** · **api + cli ≤350** · **scripts ≤250** · **frontend ≤700** ·
+  **77.00 person-hours** for the 2-person team (≈38.5 h each; contingency 75.00 by moving the
+  pilot post-submission).
+  **Exceeding a budget means STOP and justify. Never silently absorb it, and never re-base a cap
+  onto the actual.**
 - Both members must be able to explain every module. Joint walkthroughs are budgeted (§13.3), and
   `docs/HLD.md` §17.11 holds the three-sentence explanation of each module.
 
@@ -77,8 +79,9 @@ must be disclosed. Therefore:
 5. Never swallow exceptions. Validate at the boundaries.
 6. If a test fails twice with the same approach, stop, state the root cause, then fix it. Never
    weaken or delete a test to make it pass.
-7. Dependencies: only fastapi, uvicorn, pydantic, pyyaml, pytest, httpx, matplotlib (backend) and
-   react, react-dom, vite + its React plugin (frontend). Ask before adding anything.
+7. Dependencies: runtime = fastapi, uvicorn, pydantic, pyyaml (`requirements.txt`);
+   dev = pytest, httpx, matplotlib, ruff (`requirements-dev.txt`); frontend = react, react-dom,
+   vite + its React plugin. Ask before adding anything, and put it in the right file.
 8. Windows-friendly: PowerShell commands in the README, `pathlib` for paths, Makefile optional.
 9. Type hints, short docstrings, comments that explain WHY.
 10. Never invent results. Every number in docs comes from a script run, stamped with date and git
@@ -94,5 +97,5 @@ decisions made and alternatives rejected · bugs, risks and gaps found and how h
 sentences for the viva · the `AI_USAGE_LOG.md` entry being added · proposed commit message.
 Wait for "approved", then commit and push.
 
-`docs/HLD.md` §15 Open Questions are resolved and v2.2 is frozen. Implementation proceeds
+`docs/HLD.md` §15 Open Questions are resolved and v2.3 is frozen. Implementation proceeds
 milestone by milestone: **M1 first and complete**, M2 only after M1 ships.
