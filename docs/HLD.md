@@ -1,4 +1,4 @@
-# ProofPilot — High-Level Design v2.4
+# ProofPilot — High-Level Design v2.5
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
@@ -94,8 +94,17 @@ rule-based fallback hint, never by hanging.
 ## 3. Supported-Language Specification (`core/english.py`)
 
 ### 3.1 Normalization (whole sentence, before parsing)
-Lowercase → expand contractions (`isn't→is not`, `doesn't→does not`, `won't→will not`,
-`can't→can not`) → strip trailing punctuation → split the paragraph on `. ! ? ;`.
+**Unicode folding first, in one place** (`english.normalize_text`): curly quotes `‘ ’ “ ”` → ASCII,
+en/em dashes `– —` → `-`, non-breaking spaces → space. Then lowercase → expand contractions
+(`isn't→is not`, `doesn't→does not`, `won't→will not`, `can't→can not`) → split into sentences.
+The order is load-bearing: a curly apostrophe surviving to the contraction table leaves `isn’t`
+as a content word and the negation is lost before `facts.py` sees it.
+
+**Sentence splitting (v2.5).** A terminator `. ! ? ;` ends a sentence only when the next
+non-space character is uppercase, or nothing follows; and a `.` between two digits never splits.
+This keeps `3.5`, `1,000.50` and `e.g.` intact. `Dr. Rao` still splits — distinguishing an
+abbreviation from a sentence end needs a lexicon, which is topic knowledge the no-hardcoding
+principle forbids, so the fragment stays visible on the Facts screen instead (§14).
 
 ### 3.2 Grammar
 
@@ -160,9 +169,20 @@ is unambiguous because `unless` is symmetric in neither reading.)
 *"A if and only if B"* as *"B if A"* — the wrong formula, silently. Tested by
 `test_keyword_longest_first_ordering` and `test_either_neither_before_bare_or`.
 
-**Negation composes by XOR.** `facts.py` extracts a fact phrase's *own* polarity from embedded
-`not`/`no`/`never`; the grammar layer flips it once more if a leading clause negation is present.
-So *"it is not the case that it does not rain"* → **R** (positive).
+**Negation composes by XOR, and the two layers are strictly separated** (v2.5 clarification):
+
+- **Structural negation** is a negator that *begins* a clause — `not` or `it is not the case
+  that`, exactly as the production above writes it. `english.py` strips it and records a `Not`
+  node. Two structural negations cancel rather than stack.
+- **Embedded negation** is `not`/`no`/`never` appearing anywhere else inside the phrase.
+  `english.py` must **not** touch it; it stays in the phrase text and `facts.py` resolves it when
+  it computes the fact's polarity.
+
+So *"It is not raining"* yields `Atom("it is not raining")` from the parser — **not** a `Not`
+node — and becomes ¬R only after `facts.py` reads the embedded negation. Whereas *"it is not the
+case that it does not rain"* yields `Not(Atom("it does not rain"))`, and the two polarities
+cancel to **R** (positive). Getting this boundary backwards would corrupt every later stage, so
+it is pinned by `test_embedded_negation_stays_inside_the_fact_phrase`.
 
 ### 3.4 Errors (never guess)
 
@@ -854,6 +874,46 @@ a new version with a Change Log entry.
 
 ## 16. Change Log
 
+### From v2.4 → v2.5 — approved change request (budget metric, grammar clarifications), 2026-10-08
+
+> **Version note.** The student's instruction said "change request → HLD v2.4", but v2.4 was
+> already frozen and pushed. Folding new changes into a frozen version would break the audit
+> trail, so this is recorded as v2.5. No content differs from what was asked.
+
+1. **The cap metric changes from total lines to CODE lines** (blank, comment and docstring lines
+   excluded). The caps exist to bound logic complexity and explainability; docstrings and
+   WHY-comments are *required* by engineering rule 9 and make the code more explainable, so
+   counting them against the budget penalised exactly the thing the rules ask for. New caps:
+   **core ≤650**, **api + cli ≤250**, **scripts ≤180**, **frontend ≤550** code lines. Total lines
+   are still reported, but not capped. This also restores consistency with the original project
+   scope rule of "300–600 lines of core AI logic".
+2. **`scripts/loc.py`** measures and enforces this, using `tokenize` rather than regex (a regex
+   cannot distinguish a docstring from a string literal that happens to start a line). It prints
+   a per-bucket table and exits non-zero on a breach; it runs as a CI step.
+3. **Quantifier list extended** to the compound indefinites — `someone`, `somebody`, `anyone`,
+   `anybody`, `everybody`, `something`, `anything`, `everything`, `nothing`. Matching is
+   token-based, so `everyone` was never caught by `every`; accepting one of these silently turns
+   a quantified claim into a propositional atom that misrepresents it.
+4. **Negation layering stated explicitly (§3.3).** The rule was already derivable — the `clause`
+   production makes the negator a prefix, and §3.3 said the grammar flips polarity only for a
+   *leading* negation — but §17.2 labelled *"It is not raining"* as **clause-level** negation when
+   that sentence's negation is **embedded** and belongs to `facts.py`. The final formula was
+   right, the attribution was not. Row corrected and the rule restated so it cannot be misread.
+5. **Sentence-splitting rule defined (§3.1).** A terminator breaks a sentence only when the next
+   non-space character is uppercase or nothing follows, and never between two digits. This keeps
+   `3.5`, `1,000.50` and `e.g.` intact. `Dr. Rao` still splits, which is recorded as a limitation
+   rather than fixed: telling it from a real sentence end needs an abbreviation lexicon, and that
+   is topic knowledge the no-hardcoding principle forbids.
+6. **Unicode folding happens in exactly one place** — `english.normalize_text`, applied before
+   anything else reads the text. Curly quotes, en and em dashes, and non-breaking spaces fold to
+   ASCII. Order matters: a curly apostrophe reaching the contraction table would leave `isn’t` as
+   a content word and the negation would be lost before `facts.py` ever saw it.
+7. **`either`/`both`/`neither` bracket only when their connective is present.** An earlier fix
+   rejected them outright, which broke *"Both lights are on"* — a legitimate fact. If the
+   governed connective is absent the word is ordinary phrase content; if the *opposite*
+   connective is present it is `AMBIGUOUS_AND_OR`, because *"Either A and B"* would otherwise
+   parse as the exact opposite of what it says.
+
 ### From v2.3 → v2.4 — approved change request (config loads at the edge), 2026-10-08
 
 Raised by the Phase 1 audit. **Architectural boundary only — no algorithm, grammar, contract,
@@ -1075,7 +1135,8 @@ each with a stated reason.**
 | `clause iff clause` | "We play if and only if it is dry." | P↔D = `{¬P,D},{¬D,P}` | contains "only if" **and** "if" as substrings | longest-first picks `if and only if` — reading it as `B if A` would be silently wrong |
 | `both and_junction` | "Both the bus comes and we walk." | B∧W = `{B},{W}` | "Both A and B and C." | A∧B∧C — n-ary |
 | `junction` | "The lights are on." | L = `{L}` | "It rains and it is cold or it is windy." | **`AMBIGUOUS_AND_OR`** |
-| negation (clause-level) | "It is not raining." | ¬R = `{¬R}` | "It is not the case that it does not rain." | **R** (XOR composition, §3.3) |
+| negation (**structural**, leading) | "It is not the case that it rains." | `Not(Atom)` → ¬R | "It is not the case that it does not rain." | **R** — two polarities cancel (§3.3) |
+| negation (**embedded**, mid-phrase) | "It is not raining." | `Atom` here; ¬R only after `facts.py` reads the embedded *not* (§3.3) | "The bus never comes." | `Atom`; polarity resolved by `facts.py` |
 | *(not a production)* | — | — | "We sell bread and butter." | mis-splits to `bread ∧ butter` — **documented** §14.2, visible on the Facts screen |
 | *(limit)* | — | — | "It is." | **`EMPTY_FACT_PHRASE`** |
 
