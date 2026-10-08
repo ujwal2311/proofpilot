@@ -1,0 +1,4 @@
+# Normalize to LF in the repository. Developed on Windows, CI runs Ubuntu -- without this,
+# line-ending churn shows up as spurious diffs and can break shell scripts on the runner.
+* text=auto eol=lf
+*.png binary
