@@ -203,3 +203,31 @@ Recorded in the design change log that from Phase 8 the determinism job will als
 outputs, comparing figures by hashing the plotted data rather than the image bytes. Added a
 contributing guide. Corrected an earlier entry in this log that had wrongly claimed no conda
 installation existed. No application logic was written in this phase.
+
+---
+
+**Date:** 2026-10-08
+**Phase:** 1 → 2 — v2.4 change request, then `core/logic.py` (test-first)
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/src/core/logic.py`, `backend/tests/test_logic.py`.
+**Files modified:** `docs/HLD.md` (v2.3 → v2.4), `CLAUDE.md`, `README.md`,
+`docs/READING_GUIDE.md`, `AI_USAGE_LOG.md`.
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Applied the approved v2.4 change request, which reverses the architecture so that no
+module under `core` reads a file: the API, the command-line interface and the scripts load
+`data/exercises.json` and pass dataclasses inward. This added an `Exercise` type and a loader
+module to the design and closed a finding carried since the first design review, where `Exercise`
+was referenced in a signature but never defined.
+
+Then implemented the first logic module, tests before code. Claude wrote the test file, ran it to
+confirm it failed for the right reason, then wrote the implementation. Because the suite passed on
+the first attempt, Claude mutation-tested its own tests by introducing eight deliberate defects
+into the implementation — reordering the diagnosis checks, deleting the tautology and duplicate
+checks, loosening the double-cancellation rule, dropping case normalization, mis-resolving, and
+swapping the missing/extra report. Seven were caught. The eighth, replacing the canonical sort
+with an unsorted tuple, was not: the ordering test had been comparing two equal sets, which
+iterate identically within a single process and so could never detect it. The test was rewritten
+to assert the output is actually sorted and re-verified against the same defect under three
+different hash seeds. This is recorded because the weakness was in work produced in this session
+and was found only by deliberately attacking it. No application logic was written beyond
+`logic.py`.
