@@ -87,15 +87,19 @@ must be disclosed. Therefore:
 10. Never invent results. Every number in docs comes from a script run, stamped with date and git
     commit hash. Planning estimates must be labelled as estimates, never as results.
 11. Every numeric limit and seed lives in `core/config.py` and nowhere else.
-12. Git: small commits with meaningful messages. Push after every approved gate. Never force-push.
-    Never commit `.env`, virtual environments or `node_modules`.
+12. Git: small commits with meaningful messages. Never force-push. Never commit `.env`, virtual
+    environments or `node_modules`. (For when to push, see GATES — that rule lives in one place.)
 
 # GATES
 
 At the end of every phase, STOP and print a PHASE REPORT: files and line counts · pytest summary ·
 decisions made and alternatives rejected · bugs, risks and gaps found and how handled · 4–6 plain
 sentences for the viva · the `AI_USAGE_LOG.md` entry being added · proposed commit message.
-Wait for "approved", then commit and push.
+
+**The push rule is ABSOLUTE and stated only here. Never `git push` unless the student's latest
+message contains the word "approved" for that specific gate. There are no carve-outs — not for
+repository creation, not for CI fixes, not for "finishing" a phase that was explicitly requested.
+Committing locally is always fine; publishing is not.** If in doubt, commit and ask.
 
 `docs/HLD.md` §15 Open Questions are resolved and v2.3 is frozen. Implementation proceeds
 milestone by milestone: **M1 first and complete**, M2 only after M1 ships.
