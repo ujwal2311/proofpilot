@@ -296,5 +296,117 @@
       "find": "if seen.get(pair, relation) != relation:",
       "replace": "if False:"
     }
+  ],
+  "entail": [
+    {
+      "id": "N1",
+      "desc": "consistency check removed",
+      "find": "if _first_model(kb_clauses, symbols) is None:\n        return Entailment(Verdict.INCONSISTENT_PREMISES)",
+      "replace": "if False:\n        return Entailment(Verdict.INCONSISTENT_PREMISES)"
+    },
+    {
+      "id": "N2",
+      "desc": "a clause is read as a conjunction, not a disjunction",
+      "find": "    return any(\n        (not row[literal[1:]]) if literal.startswith(\"~\") else row[literal] for literal in clause\n    )",
+      "replace": "    return all(\n        (not row[literal[1:]]) if literal.startswith(\"~\") else row[literal] for literal in clause\n    )"
+    },
+    {
+      "id": "N3",
+      "desc": "negative literals evaluated with the wrong sign",
+      "find": "(not row[literal[1:]]) if literal.startswith(\"~\") else row[literal]",
+      "replace": "row[literal[1:]] if literal.startswith(\"~\") else row[literal]"
+    },
+    {
+      "id": "N4",
+      "desc": "rows enumerated in reverse, so the counterexample is the LAST",
+      "find": "for counter in range(2 ** len(symbols)):",
+      "replace": "for counter in reversed(range(2 ** len(symbols))):"
+    },
+    {
+      "id": "N5",
+      "desc": "symbols returned unsorted",
+      "find": "return tuple(sorted({literal.lstrip(\"~\") for clause in clauses for literal in clause}))",
+      "replace": "return tuple({literal.lstrip(\"~\") for clause in clauses for literal in clause})"
+    },
+    {
+      "id": "N6",
+      "desc": "fact-count guard removed",
+      "find": "if len(symbols) > MAX_FACTS:",
+      "replace": "if False:"
+    },
+    {
+      "id": "N7",
+      "desc": "tautological-conclusion warning removed",
+      "find": "if _first_model(negated_goal_clauses, symbols) is None:",
+      "replace": "if False:"
+    },
+    {
+      "id": "N8",
+      "desc": "NOT_ENTAILED reports no counterexample",
+      "find": "return Entailment(Verdict.NOT_ENTAILED, witness, warnings)",
+      "replace": "return Entailment(Verdict.NOT_ENTAILED, None, warnings)"
+    },
+    {
+      "id": "N9",
+      "desc": "the two verdicts are swapped",
+      "find": "    if witness is None:\n        return Entailment(Verdict.ENTAILED, None, warnings)",
+      "replace": "    if witness is not None:\n        return Entailment(Verdict.ENTAILED, None, warnings)"
+    },
+    {
+      "id": "N10",
+      "desc": "the goal is ignored when looking for a counterexample",
+      "find": "witness = _first_model([*kb_clauses, *negated_goal_clauses], symbols)",
+      "replace": "witness = _first_model(list(kb_clauses), symbols)"
+    }
+  ],
+  "relevance": [
+    {
+      "id": "R1",
+      "desc": "the inconsistency refusal is removed",
+      "find": "if entailment.verdict is Verdict.INCONSISTENT_PREMISES:",
+      "replace": "if False:"
+    },
+    {
+      "id": "R2",
+      "desc": "reachability is not transitive (single pass)",
+      "find": "    growing = True\n    while growing:",
+      "replace": "    growing = True\n    for _once in range(1):"
+    },
+    {
+      "id": "R3",
+      "desc": "a kept clause no longer contributes its own facts",
+      "find": "reached |= _symbols(clause)",
+      "replace": "pass"
+    },
+    {
+      "id": "R4",
+      "desc": "kept and dropped are swapped",
+      "find": "return Relevance(tuple(sorted(kept, key=canonical)), tuple(sorted(remaining, key=canonical)))",
+      "replace": "return Relevance(tuple(sorted(remaining, key=canonical)), tuple(sorted(kept, key=canonical)))"
+    },
+    {
+      "id": "R5",
+      "desc": "output returned unsorted",
+      "find": "return Relevance(tuple(sorted(kept, key=canonical)), tuple(sorted(remaining, key=canonical)))",
+      "replace": "return Relevance(tuple(kept), tuple(remaining))"
+    },
+    {
+      "id": "R6",
+      "desc": "the search starts from nothing instead of the goal's facts",
+      "find": "reached = {symbol for clause in goal_clauses for symbol in _symbols(clause)}",
+      "replace": "reached = set()"
+    },
+    {
+      "id": "R7",
+      "desc": "a clause must contain ALL reached facts to be kept",
+      "find": "if _symbols(clause) & reached:",
+      "replace": "if _symbols(clause) <= reached:"
+    },
+    {
+      "id": "R8",
+      "desc": "everything is kept regardless of reachability",
+      "find": "if _symbols(clause) & reached:",
+      "replace": "if True:"
+    }
   ]
 }

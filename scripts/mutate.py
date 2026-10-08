@@ -13,8 +13,10 @@ CONVENTIONS, because they affect the score:
   * NOT-APPLIED means the anchor text no longer exists. Mutants are tied to the code as written,
     so refactoring retires them; they are reported, never silently skipped, and never scored.
 
-The target file is restored with `git checkout` in a finally block, so a hanging mutant cannot
-leave the tree modified -- which is exactly what happened once before this driver existed.
+The target is restored from an in-memory copy in a finally block, and the restore is verified
+before the next mutant runs. It was `git checkout` at first, which silently failed on a module
+that had not been committed yet and left two files mutated -- restoring from memory has no such
+precondition.
 """
 
 import json
@@ -48,7 +50,8 @@ def run_one(target: Path, mutant: dict) -> tuple[str, str]:
     except subprocess.TimeoutExpired:
         return "caught", f"hung past {TIMEOUT_SECONDS}s -- non-terminating, counted as caught"
     finally:
-        subprocess.run(["git", "checkout", "--", str(target)], cwd=ROOT, check=True)
+        target.write_text(original, encoding="utf-8", newline="")
+        assert target.read_text(encoding="utf-8") == original, f"failed to restore {target}"
 
 
 def main(only: str | None = None) -> int:

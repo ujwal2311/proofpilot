@@ -453,3 +453,52 @@ one, because the distribution step already flattens as it rebuilds. The other tw
 test gaps: ordering was being asserted on a result small enough to come out ordered by chance, and
 a normalisation step that unwraps a single-item group was never exercised because the parser
 cannot produce one. Both are now covered, and all fifteen are detected.
+
+---
+
+**Date:** 2026-10-09
+**Phase:** 5 — `core/entail.py` and `core/relevance.py` (test-first), plus the 4c gate work
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/src/core/entail.py`, `backend/src/core/relevance.py`,
+`backend/tests/test_entail.py`, `backend/tests/test_relevance.py`,
+`backend/tests/test_differential.py`, `scripts/mutate.py`, `data/mutants.json`,
+`docs/experiments/differential.md`.
+**Files modified:** `docs/HLD.md` (v2.7 → v2.8), `CLAUDE.md`, `README.md`,
+`docs/READING_GUIDE.md`, `backend/src/core/english.py`,
+`docs/experiments/mutation_log.md`, `AI_USAGE_LOG.md`.
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Built the two modules that decide whether a conclusion follows and which premises it
+can reach. Entailment is settled by examining every possible assignment of truth values rather
+than by searching for a proof, which is what allows the proof search to be skipped entirely when
+the answer is already known. The counterexample shown to a student is the first qualifying row in
+a fixed order, so the same argument produces the same explanation on any machine. The relevance
+filter refuses to run on contradictory premises rather than trusting the caller to have checked,
+because its correctness argument depends on that check and a contradiction hiding in the
+discarded part would destroy the only proof.
+
+The most valuable new tests compare the two methods against each other rather than against the
+author's own expectations. Seven hundred and sixty randomly generated arguments were decided both
+by the truth table and by saturating under the resolution rule, and the two agreed every time.
+The resolution side is written inside the test rather than reusing the search module, partly
+because the search answers a harder question and did not finish in reasonable time on random
+input — the first attempt had to be abandoned — and partly because sharing no code makes the
+comparison worth something. A second differential test confirms that filtering the premises never
+changes the verdict.
+
+The mutation driver and its definitions were committed so that every number in the mutation log
+can be regenerated with one command, and the conventions that affect the score were written down:
+a timeout counts as detected, and a defect whose anchor text no longer exists is reported as
+retired rather than silently skipped. Run against the committed code, all forty-eight existing
+defects were detected.
+
+A second process failure is recorded. The driver restored each file using version control, which
+silently does nothing for a file that has not yet been committed; both new modules were in that
+state, so two files were left holding injected defects. This is the same outcome as the failure
+in the previous phase, from a different cause. The driver now keeps its own copy of the original
+and verifies the file matches before continuing, which has no such precondition.
+
+Of eighteen deliberate defects injected into the new modules, sixteen were caught immediately.
+Both survivors were the same weakness wearing two hats: a property was being asserted on an
+example too small to distinguish right from wrong — one satisfying row, where first and last
+coincide, and three symbols that happened to come out in order. Both tests were widened and all
+eighteen are now detected.

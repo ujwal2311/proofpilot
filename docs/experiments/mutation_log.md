@@ -308,3 +308,62 @@ deleted or rewritten, so their anchors are gone by construction.
 
 `C7` (distribution direction flipped) is the timeout case: it recurses without bound and is
 counted as caught under the convention above.
+
+---
+
+## `core/entail.py` and `core/relevance.py` — Phase 5 (2026-10-09)
+
+Run with the committed driver. Suite at the time: 336 tests.
+
+| ID | Module | Injected defect | Caught? |
+|---|---|---|---|
+| N1 | entail | Consistency check removed | yes |
+| N2 | entail | A clause read as a conjunction, not a disjunction | yes |
+| N3 | entail | Negative literals evaluated with the wrong sign | yes |
+| N4 | entail | Rows enumerated in reverse (counterexample becomes the last) | **NO** -> fixed |
+| N5 | entail | Symbols returned unsorted | **NO** -> fixed |
+| N6 | entail | Fact-count guard removed | yes |
+| N7 | entail | Tautological-conclusion warning removed | yes |
+| N8 | entail | `NOT_ENTAILED` reports no counterexample | yes |
+| N9 | entail | The two verdicts swapped | yes |
+| N10 | entail | The goal ignored when looking for a counterexample | yes |
+| R1 | relevance | The inconsistency refusal removed | yes |
+| R2 | relevance | Reachability not transitive (single pass) | yes |
+| R3 | relevance | A kept clause no longer contributes its facts | yes |
+| R4 | relevance | Kept and dropped swapped | yes |
+| R5 | relevance | Output returned unsorted | yes |
+| R6 | relevance | Search starts from nothing instead of the goal's facts | yes |
+| R7 | relevance | A clause must contain ALL reached facts to be kept | yes |
+| R8 | relevance | Everything kept regardless of reachability | yes |
+
+**Score: 16/18 first pass -> 18/18 after the fixes.** `relevance.py` was 8/8 from the start.
+
+**Survivor analysis — both were the same weakness, in two forms.**
+
+- **N4** — the determinism test used cases with exactly **one** satisfying row, so "first" and
+  "last" coincided and reversing the enumeration changed nothing. Replaced with a case having
+  several satisfying rows, where counter order picks a specific one.
+- **N5** — sortedness was asserted over three symbols, which can come out ordered by chance.
+  Widened to eight and asserted against `sorted()` directly. Symbol order is load-bearing, not
+  cosmetic: it fixes which bit each symbol occupies and therefore which row is reported.
+
+### Second process failure, recorded
+
+The driver restored the target with `git checkout`, which **silently fails on a file git does
+not track**. Both new modules were untracked, so the restore did nothing and two files were left
+mutated — the same outcome as the shell-loop failure in Phase 4c, from a different cause. The
+driver now restores from an in-memory copy and **asserts the file matches** before the next
+mutant runs; that has no precondition on version control.
+
+## Running total
+
+| Module | Scored mutants | Caught |
+|---|---|---|
+| `logic.py` | 7 | 7 |
+| `search.py` | 6 | 6 |
+| `english.py` | 10 | 10 |
+| `facts.py` | 10 | 10 |
+| `cnf.py` | 15 | 15 |
+| `entail.py` | 10 | 10 |
+| `relevance.py` | 8 | 8 |
+| **Total** | **66** | **66** |
