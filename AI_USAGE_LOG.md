@@ -78,3 +78,51 @@ would have exhausted the search to the node cap — and all 7 are fixed in v2.1 
 Change Log. Budgets are reported as computed (66.25 h and roughly 945 core lines after all
 permitted cuts, against caps of 65 h and 850 lines) rather than adjusted to fit the targets. No
 code was written in this phase.
+
+---
+
+**Date:** 2026-10-08
+**Phase:** 0 — High-Level Design v2.2 (student decisions applied; design frozen)
+**Tool:** Claude Code (Opus 5)
+**Files modified:** `docs/HLD.md` (v2.1 → v2.2), `CLAUDE.md` (caps updated), `AI_USAGE_LOG.md`.
+**What the student changed by hand:** none — the student supplied all decisions in writing
+(budget accepted for a 2-person team, core cap raised to 975, pilot kept in M1 as the final
+activity, the exact three hint texts for non-entailing exercises, and the A/B module ownership
+split) and Claude applied them.
+**Purpose:** Applied the student's resolutions to the two open questions and added two new
+requirements: a hint ladder for exercises whose conclusion does not follow
+(`HINT_NOT_FOLLOW_1/2/3`, §6.6.1) and a module ownership table with mutual review (§4.1). Added
+the team constraint that both members must be able to explain every module, and budgeted it
+explicitly as 8.75 person-hours of joint walkthroughs rather than assuming it was free. Restated
+the honest total as 77.00 person-hours (≈38.5 h each), up from the 66.25 h approved in v2.1, with
+a full reconciliation showing that the entire increase traces to the two decisions made in this
+round. Recorded two line-budget caps as still exceeded (backend outside core 515 vs 400; frontend
+M1+M2 670 vs 600) and deferred both to the gates where measured numbers will exist, rather than
+re-basing the caps onto the actuals. Updated the verification report (§17) so traceability, the
+scenario table and the budget check reflect v2.2. `docs/HLD.md` v2.2 is now marked APPROVED AND
+FROZEN. No code was written in this phase.
+
+---
+
+**Date:** 2026-10-08
+**Phase:** 1 — Scaffold and GitHub repository (M1 only)
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/src/__init__.py`, `backend/src/core/__init__.py`,
+`backend/src/api/__init__.py`, `backend/tests/__init__.py`, `backend/tests/test_smoke.py`,
+`pytest.ini`, `requirements.txt`, `.gitignore`, `.gitattributes`, `LICENSE`, `README.md`,
+`.github/workflows/ci.yml`, `frontend/.env.example`, and `.gitkeep` placeholders in `data/`,
+`scripts/`, `docs/report/`, `docs/pilot/`, `docs/experiments/`.
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Created the M1 repository skeleton against the frozen design. Claude created the
+directory structure and package files, wrote one smoke test that verifies the pytest path
+configuration resolves and that nothing under `src/core` imports a web framework (checked in a
+clean subprocess so pytest's own imports cannot mask a violation), pinned `requirements.txt` to
+the dependency versions actually installed and verified in this session rather than guessed,
+configured a GitHub Actions workflow running pytest on push, wrote the MIT license and a README
+stub, and initialised the git repository. Claude then created the public GitHub repository via
+`gh repo create` under the student's already-authenticated account (no credentials were handled),
+added a description and ten topics, and pushed two commits. After the first CI run passed, Claude
+pinned the runner to `ubuntu-24.04` and upgraded the two actions to clear a Node 20 deprecation
+warning, because the `ubuntu-latest` label is scheduled to migrate to Ubuntu 26 on 2026-10-19,
+mid-project. Repository: https://github.com/ujwal2311/proofpilot — CI green on both commits.
+No logic was implemented in this phase.
