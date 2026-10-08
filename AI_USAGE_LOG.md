@@ -417,3 +417,39 @@ the same confusing screen and the proof would depend on them undoing it. The gua
 exercise containing two distinct phrases that reduce to the same key unless the author has
 declared that collision, and it is itself tested against a deliberately broken fixture so there
 is evidence it can fail.
+
+---
+
+**Date:** 2026-10-08
+**Phase:** 4c — `core/cnf.py`, formula to clause form (test-first)
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/src/core/cnf.py`, `backend/tests/test_cnf.py`.
+**Files modified:** `docs/experiments/mutation_log.md`, `AI_USAGE_LOG.md`.
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Implemented the textbook three-step conversion from a parsed sentence to clause
+form, tests before code. Negating the conclusion was placed in this module rather than the
+entailment module, because it is the same three steps applied to a different input, whereas the
+entailment module's job is truth tables rather than rewriting formulas. The module is kept
+ignorant of facts and symbols: the caller supplies a mapping from phrase to literal, so polarity
+and symbol assignment remain the fact module's business.
+
+The central test is a property rather than a table: three hundred randomly generated formulas are
+converted and then compared against the original on every possible assignment of truth values,
+in both the plain and the negated direction. That checks the conversion preserves meaning, not
+merely satisfiability, which matters because both the student's proof and the entailment verdict
+are computed from these clauses.
+
+A process failure occurred during mutation testing and is recorded because it was avoidable. One
+injected defect sent the conversion into unbounded recursion; the shell loop driving the run timed
+out partway through and left the file in its mutated state, and because the module had not yet
+been committed there was no copy to restore from. The file was repaired by hand, committed
+immediately, and the driver rewritten so that each mutant runs with its own time limit and the
+file is restored from version control in all cases, including failure. Committing before
+mutation work is now the practice.
+
+Fifteen defects were injected. Twelve of fourteen were caught on the first pass. One survivor was
+redundant code, which was deleted: the helper that flattens nested groupings can never encounter
+one, because the distribution step already flattens as it rebuilds. The other two were genuine
+test gaps: ordering was being asserted on a result small enough to come out ordered by chance, and
+a normalisation step that unwraps a single-item group was never exercised because the parser
+cannot produce one. Both are now covered, and all fifteen are detected.

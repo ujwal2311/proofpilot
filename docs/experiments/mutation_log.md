@@ -217,3 +217,59 @@ the total. Pinned by `test_measure_counts_every_line_exactly_once`.
 | `english.py` | 19 | 19 | 0 | 2 |
 | `facts.py` | 18 | 18 | 0 | 1 |
 | **Total** | **52** | **52** | **1** | **3** |
+
+---
+
+## `core/cnf.py` — Phase 4c (2026-10-08)
+
+Suite at the time: 309 tests.
+
+**Method change.** The first run was driven from a shell loop, and the "distribution direction
+flipped" mutant sent `distribute` into unbounded recursion. The loop timed out and left the file
+mutated — with no committed copy to restore from, because the module was still untracked. The
+driver was rewritten in Python with a per-mutant timeout and a `git checkout` restore in a
+`finally` block, and the module is now committed before any mutation run. A hang is recorded as
+*caught*, since a non-terminating conversion is a defect the suite surfaced.
+
+| ID | Injected defect | Caught? |
+|---|---|---|
+| C1 | `Implies` loses its negation | yes |
+| C2 | `Iff` keeps only one direction | yes |
+| C3 | `Iff` joins with Or instead of And | yes |
+| C4 | De Morgan: ¬(A∧B) yields And | yes |
+| C5 | De Morgan: ¬(A∨B) yields Or | yes |
+| C6 | Double negation stacks instead of cancelling | yes |
+| C7 | Distribution direction flipped | yes *(hung — unbounded recursion)* |
+| C8 | Distribution skipped entirely | yes |
+| C9 | Tautology removal disabled | yes |
+| C10 | Duplicate removal disabled | yes |
+| C11 | Clauses returned unsorted | **NO** → fixed |
+| C12 | Goal is not negated | yes |
+| C13 | `_flatten` ignores nesting | **NO** → code deleted |
+| C14 | A negative `literal_of` no longer cancels the `Not` | yes |
+| C15 | `distribute` drops its single-operand unwrap | **NO** → fixed |
+
+**Score: 12/14 first pass → 15/15 after the fixes.**
+
+**Survivor analysis.**
+
+- **C11 — test gap.** Sortedness was asserted on a two-clause result, which can come out ordered
+  by luck, and determinism was checked by calling twice *in one process*, where equal sets
+  iterate identically. Re-pointed at the 25-clause worst case.
+- **C13 — redundant code, deleted.** `distribute` rebuilds bottom-up and flattens as it goes, so
+  the helper never sees an operand of its own kind; the recursion could not change any outcome.
+  Reduced to a one-level `_parts` with the reasoning recorded in its docstring.
+- **C15 — test gap.** `distribute` unwraps a one-item And/Or, which is a real normalisation
+  contract (callers may match on node type without peeling wrappers) but was never asserted,
+  because the parser cannot build a one-item junction. Pinned by a direct call.
+
+## Running total
+
+| Module | Scored mutants | Caught | Unobservable (proved) | Redundant code deleted |
+|---|---|---|---|---|
+| `logic.py` | 8 | 8 | 0 | 0 |
+| `search.py` | 7 | 7 | 1 | 0 |
+| `english.py` | 19 | 19 | 0 | 2 |
+| `facts.py` | 18 | 18 | 0 | 1 |
+| `cnf.py` | 15 | 15 | 0 | 1 |
+| **Total** | **67** | **67** | **1** | **4** |
