@@ -1,6 +1,6 @@
 # CLAUDE.md — ProofPilot rules and constraints
 
-**Design: see `docs/HLD.md` v2.3 — APPROVED AND FROZEN (2026-10-08).** Any design change requires
+**Design: see `docs/HLD.md` v2.4 — APPROVED AND FROZEN (2026-10-08).** Any design change requires
 an explicit change request from the student; never alter the design unilaterally. That document is
 the single source of truth for architecture,
 grammar, algorithms, data model, API contract, budgets, milestones and test names. This file holds
@@ -46,7 +46,7 @@ must be disclosed. Therefore:
   No ML, no LLMs, no RL, no NLP library, no database, no Docker, no auth, no WebSockets, no cloud.
 - DO NOT BUILD: A*, set-of-support (stretch only), first-order logic or unification, accounts, a
   database, a teacher dashboard, LLM features, Docker, free-form NLP.
-- Budgets (measured and reported at **every** gate), per `docs/HLD.md` v2.3 §13.4 — all five are
+- Budgets (measured and reported at **every** gate), per `docs/HLD.md` v2.4 §13.4 — all five are
   currently met, with only 30–45 lines of headroom each:
   **core ≤975** · **api + cli ≤350** · **scripts ≤250** · **frontend ≤700** ·
   **77.00 person-hours** for the 2-person team (≈38.5 h each; contingency 75.00 by moving the
@@ -103,5 +103,5 @@ message contains the word "approved" for that specific gate. There are no carve-
 repository creation, not for CI fixes, not for "finishing" a phase that was explicitly requested.
 Committing locally is always fine; publishing is not.** If in doubt, commit and ask.
 
-`docs/HLD.md` §15 Open Questions are resolved and v2.3 is frozen. Implementation proceeds
+`docs/HLD.md` §15 Open Questions are resolved and v2.4 is frozen. Implementation proceeds
 milestone by milestone: **M1 first and complete**, M2 only after M1 ships.

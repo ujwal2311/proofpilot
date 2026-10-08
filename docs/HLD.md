@@ -1,13 +1,13 @@
-# ProofPilot — High-Level Design v2.3
+# ProofPilot — High-Level Design v2.4
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
-Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 applies an approved budget-only change request).
+Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests).
 This document is the source of truth. Any later
 design change requires an explicit change request from the student; Claude must not alter the
 design unilaterally.
 
-**v2.3 = v2.2 + an approved line-cap change request (§16, budgets only — no behaviour, algorithm,
+**v2.4 = v2.3 + config-at-the-edge (§16). v2.3 = v2.2 + an approved line-cap change request (§16, budgets only — no behaviour, algorithm,
 contract or scope changed).** **v2.2 = v2.1 + the student's §15 decisions** (budget accepted, core cap raised to 975, pilot kept
 in M1, hints defined for non-entailing exercises, module ownership recorded). v2.1 itself added
 the milestone split, 9 required fixes, and an adversarial re-verification (§17) that found and
@@ -215,12 +215,19 @@ flowchart LR
     F[CLI]
 
     A -- "fetch JSON, state round-tripped" --> B
-    B -- "function calls, dataclasses" --> Core
-    Core -- "loaded at startup" --> D1
+    D1 -- "loaded at the EDGE" --> B
+    D1 -- "loaded at the EDGE" --> F
+    B -- "Exercise dataclasses in, results out" --> Core
     B -- "fills templates" --> D3
-    D2 -. "evaluation only, never tuning" .-> Core
+    D2 -. "evaluation only, never tuning" .-> S[scripts/heldout_eval.py]
+    S -- "Paragraph text in" --> Core
     F -- "direct import, no HTTP" --> Core
 ```
+
+**Core reads no files.** Every data file is loaded by an edge — the API, the CLI, or a script —
+and passed in as plain dataclasses. Core therefore imports nothing outside the standard library
+(enforced by the allowlist in `test_smoke.py`) and every module is unit-testable from literals
+with no fixture files on disk.
 
 | Module | Owns | Does NOT own | M |
 |---|---|---|---|
@@ -236,9 +243,11 @@ flowchart LR
 | `core/config.py` | **Every** numeric limit and seed, as named constants | Any logic | M1 |
 | `core/translation.py` | Symbolic formula parsing, equivalence, 3 diagnoses, counterexample | The reference parse | M2 |
 | `core/narrate.py` | Finished proof → English prose | Step-level feedback (that's `messages.yaml`) | M2 |
+| `core/types.py` | The dataclasses crossing the edge↔core boundary (`Exercise`, …) | Reading any file | M1 |
 | `messages.yaml` | All user-facing text templates | Any decision logic | M1 |
-| `backend/api` | Schemas, routing, ID↔clause mapping, error status codes, CORS | Any logic | M1 |
-| `backend/src/cli.py` | Plays a full practice session against core directly | HTTP, React | M1 |
+| `backend/src/loader.py` | **Reads `data/exercises.json` and returns `list[Exercise]`.** The only module that touches that file | Any logic — it validates shape and stops | M1 |
+| `backend/api` | Schemas, routing, ID↔clause mapping, error status codes, CORS, **calling the loader at startup** | Any logic | M1 |
+| `backend/src/cli.py` | Plays a full practice session against core directly, **calling the loader itself** | HTTP, React | M1 |
 | `frontend/src` | Render, post actions, persist to localStorage | Validating anything, computing anything | M1/M2 |
 
 ### 4.1 Module ownership
@@ -263,6 +272,11 @@ allocation is for A to take the CLI, the scripts and the data authoring. This is
 suggestion, not a contract.
 
 ```text
+# --- crosses the edge -> core boundary (core/types.py). Core never reads a file. ---
+Exercise    = { id: str, paragraph: str, conclusion: str, topic: str }
+              # exactly the four fields in data/exercises.json; difficulty is COMPUTED
+              # (scripts/difficulty.py), never stored, never hand-labelled
+
 Fact        = { symbol: str, label: str }          # label = first original phrase, verbatim
 Clause      = frozenset[str]                        # literals "P" / "~P"; empty clause = frozenset()
 ClauseRec   = { id: str, literals: list[str], origin: "given"|"goal"|"derived",
@@ -840,6 +854,27 @@ a new version with a Change Log entry.
 
 ## 16. Change Log
 
+### From v2.3 → v2.4 — approved change request (config loads at the edge), 2026-10-08
+
+Raised by the Phase 1 audit. **Architectural boundary only — no algorithm, grammar, contract,
+budget or scope changed.**
+
+1. **Core reads no files.** v2.3's architecture diagram had `core` loading `data/exercises.json`
+   at startup. That contradicted the project's own principle that configuration is loaded at the
+   edge and passed in as plain data — the same principle that keeps YAML out of core. The arrow
+   is reversed: the API, the CLI and the scripts load the file; core receives dataclasses.
+2. **New `core/types.py`** holds the dataclasses that cross the boundary, starting with
+   `Exercise` (`id`, `paragraph`, `conclusion`, `topic` — §5). This also closes a finding carried
+   since the v1 review, where `Exercise` was referenced in a signature but never defined.
+3. **New `backend/src/loader.py`** is the single module that touches `data/exercises.json`. It
+   validates shape and raises; it contains no logic.
+4. **Why it was worth doing now rather than later:** nothing fails today, because `json` is in the
+   standard library and the import allowlist would never have flagged it. The cost of the change
+   is a few lines while `core` is still empty, and grows with every module that would have reached
+   for the file directly — `tutor.next_exercise` most of all.
+5. **Budget effect:** none. `loader.py` (~35 lines) sits in the api+cli bucket (310 → ~345 of
+   350); `types.py` (~15 lines) is inside core's existing estimate.
+
 ### From v2.2 → v2.3 — approved change request (line caps), 2026-10-08
 
 Raised during the independent Phase 1 audit. **Budgets only — no behaviour, algorithm, contract
@@ -1296,5 +1331,5 @@ hardcoding, no guessing, everything decided by truth table or resolution, simple
 chosen (textbook CNF, one search regime), limitations stated honestly ✔; (6) hours and lines
 computed bottom-up with arithmetic shown, nothing rounded down ✔ (§13).
 
-**HLD v2.3 — APPROVED AND FROZEN, 2026-10-08.** Implementation proceeds against this document.
+**HLD v2.4 — APPROVED AND FROZEN, 2026-10-08.** Implementation proceeds against this document.
 Any design change from here requires an explicit change request from the student.
