@@ -380,3 +380,40 @@ reduced away to nothing and would all share one key. A test was added and both a
 Separately, writing tests for the line-counting script found a defect in it: a blank line inside a
 documentation block was counted twice and subtracted twice, which undercounted code and quietly
 made the budget more generous than intended. Every line is now classified exactly once.
+
+---
+
+**Date:** 2026-10-08
+**Phase:** 4b gate — identity, naming and reset-rule amendments (HLD v2.7)
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/tests/test_core_layout.py`, `backend/tests/test_bank_guard.py`.
+**Files modified:** `docs/HLD.md` (v2.6 → v2.7), `CLAUDE.md`, `README.md`,
+`docs/READING_GUIDE.md`, `backend/src/core/facts.py`, `backend/tests/test_facts.py`,
+`AI_USAGE_LOG.md`.
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Seven pre-push amendments the student approved. Phrases now carry stable
+identifiers and every merge instruction names those identifiers rather than quoting the
+student's words back, because quoted text stops matching the moment a sentence is edited and two
+sentences can produce the same phrase. The planned shared-types module was renamed before it was
+ever written, because its intended name would have shadowed a standard-library module and been
+imported in preference to it; a structural test now refuses any core module whose name clashes,
+not only that one. A rule was recorded stating that changing a merge after the facts have been
+confirmed discards the translation and proof progress for that question, because the symbols are
+reassigned from scratch and a proof built on the old assignment is no longer about the same
+propositions. The reasoning behind the function-word list was written down in one place,
+including why the dummy subject in "it rains" is dropped while personal pronouns are not — the
+former refers to nothing, the latter refer to entities, and resolving those is out of scope.
+
+Two tests were added for cases the previous gate had not covered: a phrase that is already
+negative being declared the opposite of another, checked in both orders, since the two sign
+sources must combine rather than one overwriting the other; and a conclusion naming a fact that
+appears in no premise, which is reported as a warning rather than an error because it is also
+exactly what a conclusion that genuinely does not follow looks like.
+
+Finally a guard was written for the exercise bank, ahead of the bank existing. The word-reduction
+rules knowingly over-merge a few word pairs, which is acceptable for a paragraph the student
+wrote because they can see and undo it, but not for an exercise we ship: every student would hit
+the same confusing screen and the proof would depend on them undoing it. The guard fails any
+exercise containing two distinct phrases that reduce to the same key unless the author has
+declared that collision, and it is itself tested against a deliberately broken fixture so there
+is evidence it can fail.

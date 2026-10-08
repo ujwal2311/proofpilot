@@ -57,18 +57,31 @@ _SUFFIXES = (("sses", "ss"), ("ss", "ss"), ("ing", ""), ("ed", ""), ("es", ""), 
 
 
 @dataclass(frozen=True)
+class Phrase:
+    """One fact phrase and its stable id.
+
+    Merges address phrases by `id`, never by text: two sentences can produce the same phrase,
+    and an instruction that quotes text back breaks when the student edits a sentence.
+    """
+
+    id: str
+    text: str
+
+
+@dataclass(frozen=True)
 class Fact:
     """One proposition, and every phrase the student wrote for it."""
 
     symbol: str
-    phrases: tuple[str, ...]
+    phrases: tuple[Phrase, ...]
 
 
 @dataclass(frozen=True)
 class Extraction:
     facts: tuple[Fact, ...]
-    symbol_of: dict[str, str]
-    polarity_of: dict[str, bool]
+    phrase_of: dict[str, Phrase]
+    symbol_of: dict[str, str]  # phrase id -> symbol
+    polarity_of: dict[str, bool]  # phrase id -> True when the phrase asserts its fact
     warnings: tuple[str, ...] = ()
 
 
@@ -142,14 +155,13 @@ def canonical_key(phrase: str) -> tuple[str, ...]:
     return key
 
 
-def _validate(merges, phrases: list[str]) -> list[tuple[str, str, str]]:
+def _validate(merges, known: set[str]) -> list[tuple[str, str, str]]:
     """Check the student's merge decisions, keeping the order they named the phrases in.
 
     Conflicts are detected on the UNORDERED pair, because (a, b) and (b, a) are the same
     decision. The returned list keeps the original order, because "opposite" is directional --
     it flips the second phrase relative to the first, and sorting would flip the wrong one.
     """
-    known = set(phrases)
     seen: dict[frozenset[str], str] = {}
     checked: list[tuple[str, str, str]] = []
     for a, b, relation in merges:
@@ -167,20 +179,27 @@ def _validate(merges, phrases: list[str]) -> list[tuple[str, str, str]]:
     return checked
 
 
-def extract(phrases, merges=(), enforce_limit: bool = False) -> Extraction:
-    """Group phrases into facts, assign symbols, and resolve polarity.
+def extract(phrases, conclusion=(), merges=(), enforce_limit: bool = False) -> Extraction:
+    """Group phrases into facts, assign symbols and ids, and resolve polarity.
 
-    `merges` are the student's decisions as (phrase, phrase, relation) triples. Symbols are
-    re-assigned from scratch afterwards in first-appearance order, so the result is a pure
-    function of its inputs and never depends on what was merged before.
+    `phrases` come from the paragraph and `conclusion` from the claimed conclusion; ids run
+    `p1, p2, …` across both in that order. `merges` are the student's decisions as
+    (phrase id, phrase id, relation) triples.
 
-    `enforce_limit` is False during the first pass so a student whose paraphrases inflate the
-    count gets a warning and a chance to merge, rather than a refusal (HLD v2.6 A3).
+    Symbols are re-assigned from scratch on every call, so the result is a pure function of its
+    inputs and never depends on what was merged before. That is also why changing a merge
+    discards downstream progress (HLD v2.7 A4): the symbols a proof was built on may no longer
+    mean the same thing.
+
+    `enforce_limit` is False on the first pass so a student whose paraphrases inflate the count
+    gets a warning and a chance to merge, rather than a refusal (HLD v2.6 A3).
     """
-    ordered = list(dict.fromkeys(phrases))
-    relations = _validate(merges, ordered)
+    texts = list(dict.fromkeys([*phrases, *conclusion]))
+    ordered = [Phrase(f"p{n}", text) for n, text in enumerate(texts, start=1)]
+    phrase_of = {p.id: p for p in ordered}
+    relations = _validate(merges, set(phrase_of))
 
-    group_of = {phrase: canonical_key(phrase) for phrase in ordered}
+    group_of = {p.id: canonical_key(p.text) for p in ordered}
     flipped: set[str] = set()
     for a, b, relation in relations:
         if relation == "different":
@@ -191,20 +210,28 @@ def extract(phrases, merges=(), enforce_limit: bool = False) -> Extraction:
             if relation == "opposite":
                 flipped.add(b)  # the SECOND phrase is the one the student called the opposite
 
-    grouped: dict[tuple[str, ...], list[str]] = {}
-    for phrase in ordered:
-        grouped.setdefault(group_of[phrase], []).append(phrase)
+    grouped: dict[tuple[str, ...], list[Phrase]] = {}
+    for p in ordered:
+        grouped.setdefault(group_of[p.id], []).append(p)
 
     facts = tuple(
         Fact(chr(ord("A") + index), tuple(members))
         for index, members in enumerate(grouped.values())
     )
-    symbol_of = {phrase: fact.symbol for fact in facts for phrase in fact.phrases}
-    polarity_of = {phrase: polarity(phrase) != (phrase in flipped) for phrase in ordered}
+    symbol_of = {p.id: fact.symbol for fact in facts for p in fact.phrases}
+    # Two independent sign sources -- the phrase's own negation and an "opposite" merge -- XOR.
+    polarity_of = {p.id: polarity(p.text) != (p.id in flipped) for p in ordered}
 
-    warnings: tuple[str, ...] = ()
+    warnings: list[str] = []
+    from_paragraph = {symbol_of[p.id] for p in ordered if p.text in set(phrases)}
+    for p in ordered:
+        if p.text not in set(phrases) and symbol_of[p.id] not in from_paragraph:
+            # A warning, never an error: usually a typo, but also exactly what a
+            # "does not follow" exercise looks like (HLD v2.7 A6).
+            warnings.append(f"CONCLUSION_FACT_UNSEEN: {p.text!r} appears in no premise")
+
     if len(facts) > MAX_FACTS:
         if enforce_limit:
             raise ParseError(ErrorCode.TOO_MANY_FACTS, f"{len(facts)} facts", "after_merges")
-        warnings = (f"TOO_MANY_FACTS: {len(facts)} facts, limit {MAX_FACTS}; merge to continue",)
-    return Extraction(facts, symbol_of, polarity_of, warnings)
+        warnings.append(f"TOO_MANY_FACTS: {len(facts)} facts, limit {MAX_FACTS}; merge to continue")
+    return Extraction(facts, phrase_of, symbol_of, polarity_of, tuple(warnings))

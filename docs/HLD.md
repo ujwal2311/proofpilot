@@ -1,4 +1,4 @@
-# ProofPilot — High-Level Design v2.6
+# ProofPilot — High-Level Design v2.7
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
@@ -288,7 +288,7 @@ with no fixture files on disk.
 | `core/config.py` | **Every** numeric limit and seed, as named constants | Any logic | M1 |
 | `core/translation.py` | Symbolic formula parsing, equivalence, 3 diagnoses, counterexample | The reference parse | M2 |
 | `core/narrate.py` | Finished proof → English prose | Step-level feedback (that's `messages.yaml`) | M2 |
-| `core/types.py` | The dataclasses crossing the edge↔core boundary (`Exercise`, …) | Reading any file | M1 |
+| `core/models.py` | The dataclasses crossing the edge↔core boundary (`Exercise`, …). **Not** `types.py`: that shadows a standard-library module, and a core file silently taking precedence over `types` is the kind of bug that costs an afternoon (v2.7 A2) | Reading any file | M1 |
 | `messages.yaml` | All user-facing text templates | Any decision logic | M1 |
 | `backend/src/loader.py` | **Reads `data/exercises.json` and returns `list[Exercise]`.** The only module that touches that file | Any logic — it validates shape and stops | M1 |
 | `backend/api` | Schemas, routing, ID↔clause mapping, error status codes, CORS, **calling the loader at startup** | Any logic | M1 |
@@ -400,12 +400,27 @@ is recovered by testing, not by structure.
 
 ### 6.3 Fact normalization
 Canonical key = **ordered tuple** of stems after (1) embedded-negation extraction, (2) function-word
-removal (articles; `is are was were be been being do does did will shall would get gets got`),
-(3) suffix stripping (`-ing -ed -es -s`, minimum stem length 3). The key is *ordered*, so
-*"dog bites man"* and *"man bites dog"* stay distinct. Exact key match ⇒ automatic merge (this is
-safe: identical keys mean identical content words in identical order). Anything less than an exact
-match is **never** merged automatically in M1 — the user merges manually on the Facts screen.
-Risks audited in §17.4.
+removal, (3) stemming (§3.5). The key is *ordered*, so *"dog bites man"* and *"man bites dog"* stay
+distinct. Exact key match ⇒ automatic merge (safe: identical keys mean identical content words in
+identical order). Anything less than an exact match is **never** merged automatically — the user
+merges manually on the Facts screen. Risks audited in §17.4.
+
+**The function-word list lives in exactly one place: `facts.FUNCTION_WORDS`** (v2.7 A5). It is not
+repeated here, because two copies drift. What belongs in it, and why:
+
+- **Articles** (`a`, `an`, `the`) and **auxiliaries** (`is`, `was`, `does`, `will`, `got`, …) carry
+  no propositional content — dropping them lets *"the bus is late"* and *"a bus was late"* name one
+  fact.
+- **`it` and `there` are included** because in this grammar they appear as *expletive* (dummy)
+  subjects — *"it rains"*, *"it is cold"*, *"there is a delay"* — where the word refers to nothing
+  at all. Keeping them would leave *"it rains"* and *"rain is falling"* as separate facts for no
+  reason, and §3.4's own `EMPTY_FACT_PHRASE` example (*"it is"*) only empties if `it` is dropped.
+- **Personal pronouns (`he`, `she`, `they`, `we`, …) are deliberately NOT included.** They *refer
+  to an entity*, so dropping them would merge *"he waits"* with *"she waits"*. Resolving who they
+  refer to is pronoun resolution, which §2 puts out of scope — so the honest treatment is to leave
+  them as ordinary content words and let the student see the result on the Facts screen.
+- Nothing topic-specific may ever be added; `test_function_word_list_is_grammar_not_topic_knowledge`
+  enforces that.
 
 ### 6.4 Entailment
 `KB ⊨ goal` ⟺ no row of the truth table over all facts makes every KB clause true and the goal
@@ -536,7 +551,7 @@ cookies, no server-side session.
 |---|---|---|
 | `GET /api/health` | – | `{ok: true}` |
 | `POST /api/next` | `{state?}` | `{state, done}` — practice only; returns a fresh exercise's raw `paragraph`/`conclusion` with `stage="read"`, nothing parsed |
-| `POST /api/parse` | `{paragraph, conclusion, merges?}` | `{state, facts, sentences, entailment, removed_sentences, error?}` |
+| `POST /api/parse` | `{paragraph, conclusion, merges?}` — each merge is `{a, b, relation}` with **a and b as phrase IDs** (`p1`, `p2`, …), never raw text (v2.7 A3) | `{state, facts, sentences, entailment, removed_sentences, warnings, error?}` — each fact carries `{symbol, phrases: [{id, text}, …]}` so the Facts screen shows every phrase a merge absorbed |
 | `POST /api/act` | `{state, action}` | `{code, message, state, extras}` |
 
 `/api/parse` serves both modes and runs the full §7 ordering in one call. The client calls it a
@@ -903,6 +918,30 @@ a new version with a Change Log entry.
 ---
 
 ## 16. Change Log
+
+### From v2.6 → v2.7 — approved change request (identity, naming, reset rule), 2026-10-08
+
+1. **A2 — no core module may shadow a standard-library name.** The planned `types.py` becomes
+   `models.py`. A core module that shadows `types` would be imported in preference to the real
+   one by anything inside the package, and the failure surfaces far from its cause.
+   `test_no_core_module_shadows_the_stdlib` enforces it for every future module too.
+2. **A3 — phrases carry stable IDs (`p1`, `p2`, … in first-appearance order).** `MergeChoice` and
+   `/api/parse` address phrases by ID, never by raw text. Text is a poor identifier: two sentences
+   can produce the same phrase, whitespace differences make it fragile, and a merge instruction
+   that quotes text back would break the moment the student edits a sentence.
+3. **A4 — changing a merge after the Facts stage resets downstream progress.** Symbols are
+   re-assigned from scratch on every merge or split (v2.6 A1), so a translation or proof built on
+   the old assignment is no longer about the same propositions. The Translate and Prove progress
+   for that question is therefore discarded, and the student must confirm before the change is
+   applied. Recorded now; implemented in `tutor.py` and the frontend.
+4. **A5 — the function-word list has one home, `facts.FUNCTION_WORDS`,** and §6.3 explains the
+   inclusions rather than repeating the list.
+5. **A6 — `CONCLUSION_FACT_UNSEEN`** is a **warning**, not an error: a conclusion mentioning a
+   fact no premise mentions is usually a typo, but it is also exactly what a "does not follow"
+   exercise looks like, so refusing it would make a whole exercise class impossible.
+6. **A7 — bank exercises may never rely on a student splitting a false merge.** Any two distinct
+   phrases in an exercise that share a canonical key must be declared in that exercise's
+   `expected_merges`. The check is written now and runs against fixtures until the bank exists.
 
 ### From v2.5 → v2.6 — approved change request (fact extraction), 2026-10-08
 
@@ -1330,6 +1369,8 @@ accepted). ✔
 | j | Contrapositive translation (M2) | `CORRECT_CONTRAPOSITIVE`, TRANSLATE **right**, UI note |
 | k | Converse translation (M2) | `CONVERSE` + one English counterexample row, TRANSLATE **wrong** |
 | l | Cap hit + fallback | `productive=None`, `HINT_FALLBACK` (shortest-clause rule, canonical tie-break), labelled a suggestion |
+| **p** | **Merge changed after the Facts stage was confirmed (v2.7 A4)** | Symbols are re-assigned from scratch, so a translation or proof built on the old assignment is no longer about the same propositions. Translate and Prove progress for that question is **discarded**, and the student confirms before the change applies |
+| **q** | **Conclusion names a fact no premise mentions (v2.7 A6)** | `CONCLUSION_FACT_UNSEEN` **warning** naming the phrase, never an error — usually a typo, but also exactly what a "does not follow" exercise looks like |
 | m | Browser refresh mid-proof | localStorage restore; `schema_version` mismatch or parse failure ⇒ discard and restart cleanly |
 | n | Tampered state | 400 — unknown clause ID, foreign symbol, >20 clauses, >6 literals, wrong stage for the action, or mastery outside (0,1) |
 | **o** | **Hint on a non-entailing exercise (v2.2)** | No search call at all (§6.6 short-circuit); `HINT_NOT_FOLLOW_1/2/3` ladder; `productive=null`; a subsequent `claim_not_provable` is **accepted but scored STRATEGY wrong** because a hint was used |

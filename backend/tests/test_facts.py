@@ -12,6 +12,7 @@ from src.core.english import ErrorCode, ParseError
 from src.core.facts import (
     FUNCTION_WORDS,
     Fact,
+    Phrase,
     canonical_key,
     extract,
     polarity,
@@ -189,26 +190,41 @@ def test_negation_tokens_do_not_reach_the_key() -> None:
 def test_symbols_follow_first_appearance() -> None:
     result = extract(["the bus comes", "we walk", "the bus comes"])
     assert [f.symbol for f in result.facts] == ["A", "B"]
-    assert result.symbol_of["the bus comes"] == "A"
-    assert result.symbol_of["we walk"] == "B"
+    assert result.symbol_of["p1"] == "A"
+    assert result.symbol_of["p2"] == "B"
+
+
+def test_phrases_get_stable_ids_in_first_appearance_order() -> None:
+    # IDs, not raw text, are what merges address (HLD v2.7 A3). Text is a poor identifier:
+    # two sentences can produce the same phrase, and quoting text back breaks the moment the
+    # student edits a sentence.
+    result = extract(["the bus comes", "we walk"], conclusion=["we walk", "we are late"])
+    assert [p.id for fact in result.facts for p in fact.phrases] == ["p1", "p2", "p3"]
+    assert result.phrase_of["p1"].text == "the bus comes"
+    # A phrase repeated in the conclusion is the SAME phrase, not a new id.
+    assert result.phrase_of["p2"].text == "we walk"
+    assert result.phrase_of["p3"].text == "we are late"
 
 
 def test_auto_merged_fact_keeps_every_phrase() -> None:
     # HLD v2.6 A1: the whole point. A merge the student cannot see is a merge they cannot undo.
     result = extract(["it is hoping", "it is hopping"])
     assert len(result.facts) == 1
-    assert result.facts[0].phrases == ("it is hoping", "it is hopping")
+    assert [p.text for p in result.facts[0].phrases] == ["it is hoping", "it is hopping"]
 
 
 def test_a_false_merge_is_visible_and_splittable() -> None:
     phrases = ["it is hoping", "it is hopping"]
     merged = extract(phrases)
     assert len(merged.facts) == 1, "the stemmer is expected to collide these"
-    assert set(merged.facts[0].phrases) == set(phrases), "both phrases must be shown"
+    assert {p.text for p in merged.facts[0].phrases} == set(phrases), "both phrases must show"
 
-    split = extract(phrases, merges=[("it is hoping", "it is hopping", "different")])
+    split = extract(phrases, merges=[("p1", "p2", "different")])
     assert len(split.facts) == 2
-    assert [f.phrases for f in split.facts] == [("it is hoping",), ("it is hopping",)]
+    assert [[p.text for p in f.phrases] for f in split.facts] == [
+        ["it is hoping"],
+        ["it is hopping"],
+    ]
     assert [f.symbol for f in split.facts] == ["A", "B"]
 
 
@@ -225,27 +241,27 @@ def test_extraction_is_deterministic() -> None:
 def test_merge_same_joins_two_groups() -> None:
     result = extract(
         ["the bus arrives", "the coach arrives"],
-        merges=[("the bus arrives", "the coach arrives", "same")],
+        merges=[("p1", "p2", "same")],
     )
     assert len(result.facts) == 1
-    assert result.facts[0].phrases == ("the bus arrives", "the coach arrives")
-    assert result.polarity_of["the coach arrives"] is True
+    assert [p.text for p in result.facts[0].phrases] == ["the bus arrives", "the coach arrives"]
+    assert result.polarity_of["p2"] is True
 
 
 def test_merge_opposite_joins_and_flips_polarity() -> None:
     result = extract(
         ["the shop is open", "the shop is closed"],
-        merges=[("the shop is open", "the shop is closed", "opposite")],
+        merges=[("p1", "p2", "opposite")],
     )
     assert len(result.facts) == 1
-    assert result.polarity_of["the shop is open"] is True
-    assert result.polarity_of["the shop is closed"] is False
+    assert result.polarity_of["p1"] is True
+    assert result.polarity_of["p2"] is False
 
 
 def test_merge_different_separates_a_group() -> None:
     result = extract(
         ["it is hoping", "it is hopping"],
-        merges=[("it is hoping", "it is hopping", "different")],
+        merges=[("p1", "p2", "different")],
     )
     assert len(result.facts) == 2
 
@@ -253,10 +269,10 @@ def test_merge_different_separates_a_group() -> None:
 @pytest.mark.parametrize(
     ("merges", "code"),
     [
-        ([("no such phrase", "we walk", "same")], ErrorCode.UNKNOWN_PHRASE),
-        ([("we walk", "we walk", "same")], ErrorCode.SELF_MERGE),
+        ([("p99", "p1", "same")], ErrorCode.UNKNOWN_PHRASE),
+        ([("p1", "p1", "same")], ErrorCode.SELF_MERGE),
         (
-            [("we walk", "the bus comes", "same"), ("we walk", "the bus comes", "different")],
+            [("p1", "p2", "same"), ("p1", "p2", "different")],
             ErrorCode.CONFLICTING_MERGE,
         ),
     ],
@@ -272,10 +288,7 @@ def test_conflicting_merge_detected_regardless_of_pair_order() -> None:
     with pytest.raises(ParseError) as caught:
         extract(
             ["we walk", "the bus comes"],
-            merges=[
-                ("we walk", "the bus comes", "same"),
-                ("the bus comes", "we walk", "opposite"),
-            ],
+            merges=[("p1", "p2", "same"), ("p2", "p1", "opposite")],
         )
     assert caught.value.code is ErrorCode.CONFLICTING_MERGE
 
@@ -283,7 +296,7 @@ def test_conflicting_merge_detected_regardless_of_pair_order() -> None:
 def test_repeating_the_same_relation_is_not_a_conflict() -> None:
     result = extract(
         ["we walk", "the bus comes"],
-        merges=[("we walk", "the bus comes", "same"), ("we walk", "the bus comes", "same")],
+        merges=[("p1", "p2", "same"), ("p1", "p2", "same")],
     )
     assert len(result.facts) == 1
 
@@ -300,7 +313,7 @@ def test_too_many_facts_warns_before_merges_and_fails_after() -> None:
 
     merged = extract(
         phrases[:10] + ["we walk"],
-        merges=[("fact number 0", "we walk", "same")],
+        merges=[("p1", "p11", "same")],
         enforce_limit=True,
     )
     assert len(merged.facts) == 10
@@ -312,8 +325,9 @@ def test_too_many_facts_warns_before_merges_and_fails_after() -> None:
 
 
 def test_fact_is_hashable_and_comparable() -> None:
-    assert Fact("A", ("x",)) == Fact("A", ("x",))
-    assert len({Fact("A", ("x",)), Fact("A", ("x",))}) == 1
+    one = Fact("A", (Phrase("p1", "x"),))
+    assert one == Fact("A", (Phrase("p1", "x"),))
+    assert len({one, Fact("A", (Phrase("p1", "x"),))}) == 1
 
 
 def test_function_word_list_is_grammar_not_topic_knowledge() -> None:
@@ -342,3 +356,38 @@ def test_function_word_list_is_grammar_not_topic_knowledge() -> None:
         "gets",
         "got",
     }
+
+
+# --------------------------------------------------------------- A6: polarity through a merge
+
+
+@pytest.mark.parametrize("order", ["forward", "reversed"])
+def test_opposite_merge_combined_with_embedded_negation_double_flips(order: str) -> None:
+    # Two independent sign sources: the phrase's own negation, and the student declaring it the
+    # opposite of another fact. They must XOR, not overwrite. "the shop is not closed" is
+    # already negative; calling it the opposite of "the shop is open" flips it back to positive,
+    # which is correct -- not closed IS open.
+    phrases = ["the shop is open", "the shop is not closed"]
+    merge = ("p1", "p2", "opposite") if order == "forward" else ("p2", "p1", "opposite")
+    result = extract(phrases, merges=[merge])
+
+    assert len(result.facts) == 1
+    flipped = "p2" if order == "forward" else "p1"
+    unflipped = "p1" if order == "forward" else "p2"
+    # The phrase the student named SECOND is the one flipped, in either order.
+    assert result.polarity_of[unflipped] is polarity(result.phrase_of[unflipped].text)
+    assert result.polarity_of[flipped] is not polarity(result.phrase_of[flipped].text)
+
+
+def test_conclusion_fact_absent_from_the_paragraph_warns_by_name() -> None:
+    # A warning, never an error (HLD v2.7 A6): it is usually a typo, but it is also exactly what
+    # a "does not follow" exercise looks like, so refusing it would make that class impossible.
+    result = extract(["the bus comes"], conclusion=["we are late"])
+    assert any("CONCLUSION_FACT_UNSEEN" in w and "we are late" in w for w in result.warnings)
+    assert len(result.facts) == 2, "the fact is still extracted -- the warning does not drop it"
+
+
+def test_conclusion_reusing_a_paragraph_fact_does_not_warn() -> None:
+    assert extract(["we walk"], conclusion=["we walk"]).warnings == ()
+    # And a stem-equivalent restatement counts as seen, since it is the same fact.
+    assert extract(["the bus arrives"], conclusion=["the bus arrived"]).warnings == ()
