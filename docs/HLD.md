@@ -861,6 +861,16 @@ or scope changed.** The v2.2 freeze held: this is the explicit change request it
 cut and no estimate was revised downward to achieve this; only the caps moved, with a stated
 reason each.
 
+6. **Determinism job extended from Phase 8 (recorded now, implemented then).** Today the CI
+   determinism job runs the test suite under `PYTHONHASHSEED=0` and `=4242`. **From Phase 8 it
+   also re-runs the experiment scripts under both seeds and diffs their outputs:** CSVs must be
+   **byte-identical**, and figures are compared by **hashing the plotted data, not the image
+   bytes**. Image bytes carry renderer version, font metrics and compression noise, so comparing
+   PNGs would produce false failures while hiding real ones — the claim worth defending is that
+   the *numbers* are reproducible, not that two renderers agree.
+7. **Infrastructure viva text added to §17.11** so the Phase 1 decisions are explained in the
+   same place as the module explanations, and phrased without time-bound claims that expire.
+
 ### From v2.1 → v2.2 — student decisions applied, document frozen
 
 1. **Budget accepted for a 2-person team** (§13.3). Core cap **850 → 975**, recorded as a
@@ -1233,6 +1243,27 @@ and (o) was undefined until v2.2; all are now pinned by a named test or an expli
   concrete row where the two formulas disagree.
 
 **Every module is explainable in three plain sentences. No module needs simplifying.**
+
+### Infrastructure (Phase 1) — the same test, for the scaffold
+
+- **Pinned runners and action versions.** We name the exact runner image rather than using
+  `latest`, because `latest` labels are reassigned to new operating systems over time. A build
+  that passes today and fails next month on an unchanged commit is not a build you can trust, and
+  the project has to stay reproducible through the viva.
+- **Two fixed hash seeds, not an unseeded run.** Python randomises hash ordering per process. An
+  unseeded run can reveal a set- or dict-ordering bug but cannot reproduce it; two fixed seeds
+  make such a bug fail the same way every time, which is what our determinism requirement needs.
+- **Split requirements plus a constraints file.** Serving the API needs four packages; the test
+  runner, the plotting library and the linter are development tools, so shipping them with the
+  application would misstate what the system requires. `constraints.txt` pins every indirect
+  package as well, so a release we never asked for cannot change a build.
+- **An allowlist, not a denylist, for core's imports.** The guard records every module that
+  importing `core` pulls in and requires each to be standard library or our own package. A
+  denylist only catches the packages someone remembered to name — this catches anything, including
+  packages pulled in indirectly.
+- **A guard is only real if it can fail.** We prove each one by breaking it deliberately —
+  importing a third-party package into `core`, or pointing a document at a superseded design
+  version — confirming it fails and names the cause, then reverting.
 
 ### 17.12 Budget check
 
