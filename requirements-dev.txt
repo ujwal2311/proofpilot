@@ -1,0 +1,13 @@
+# DEVELOPMENT dependencies: everything needed to test, lint and run the experiments,
+# but nothing the shipped app imports at run time.
+#   pytest     - test runner
+#   httpx      - required by fastapi.testclient for the API tests
+#   matplotlib - scripts/run_experiments.py only (docs/results.png)
+#   ruff       - lint + format check
+# Install this file for development; requirements.txt alone is enough to serve the API.
+-r requirements.txt
+
+pytest==9.1.1
+httpx==0.28.1
+matplotlib==3.11.2
+ruff==0.16.10

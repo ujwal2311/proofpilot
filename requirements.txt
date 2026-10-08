@@ -1,9 +1,8 @@
-# Pinned to the versions actually installed and tested on 2026-10-08 (Python 3.12.10, Windows 11).
-# Only the dependencies CLAUDE.md permits; adding anything else needs approval.
+# RUNTIME dependencies only -- what the shipped app imports at run time.
+# Test, lint and experiment tooling lives in requirements-dev.txt.
+# Pinned to versions installed and verified on 2026-10-08 (Python 3.12.10, Windows 11);
+# cp313 wheels confirmed available for all of them.
 fastapi==0.142.4
 uvicorn==0.54.0
 pydantic==2.13.5
 PyYAML==6.0.3
-pytest==9.1.1
-httpx==0.28.1
-matplotlib==3.11.2
