@@ -35,7 +35,7 @@ cd proofpilot
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements-dev.txt -c constraints.txt
 python -m pytest
 ```
 
@@ -65,8 +65,14 @@ python --version  # what `python` currently resolves to
 |---|---|---|
 | `requirements.txt` | fastapi, uvicorn, pydantic, pyyaml | runtime — enough to serve the API |
 | `requirements-dev.txt` | the above **plus** pytest, httpx, matplotlib, ruff | development, tests, experiments |
+| `constraints.txt` | every transitive package, pinned | always pass `-c constraints.txt` so an indirect release cannot change a build |
 
-Requires Python 3.12+ and, from Phase 7, Node 18+.
+The supported Python version is declared once, in `pyproject.toml` (`requires-python`); CI tests
+the floor and the next release. Node 18+ is needed from Phase 7.
+
+`PIP_DISABLE_PIP_VERSION_CHECK=1` is set in CI. pip is deliberately **not** upgraded there — the
+whole point of pinning is that the toolchain does not move underneath a build, and a nag about a
+newer pip is not a reason to change it mid-project.
 
 ## Repository layout
 
