@@ -36,8 +36,10 @@ must be disclosed. Therefore:
 
 # HARD CONSTRAINTS
 
-- Backend: Python 3.11+, FastAPI, Pydantic. Frontend: React + Vite, JavaScript, hooks, plain CSS.
-  No Redux, no component library, no Next.js, no Streamlit, Gradio or notebooks.
+- Backend: Python per `pyproject.toml` `requires-python` (the single source of truth — do not
+  restate a version number anywhere else), FastAPI, Pydantic. CI tests the floor and the next
+  release. Frontend: React + Vite, JavaScript, hooks, plain CSS. No Redux, no component library,
+  no Next.js, no Streamlit, Gradio or notebooks.
 - All logic lives in `backend/src/core`: pure Python, dataclasses, **no fastapi / pydantic / web
   imports**. The API is a thin 4-endpoint layer. React renders and posts — no logic.
 - Only syllabus techniques: controlled-grammar parsing, truth tables, resolution, BFS, BKT.

@@ -1,6 +1,13 @@
-# Tool configuration only -- ProofPilot is run from source, not installed as a package,
-# so there is deliberately no [build-system] or [project] table.
+# ProofPilot is run from source, not installed, so there is deliberately no [build-system].
+# The [project] table exists for ONE reason: `requires-python` is the single source of truth for
+# the supported Python version. CLAUDE.md, the README and docs/HLD.md reference it; they must not
+# restate a version number of their own.
 # pytest config stays in pytest.ini (pytest prefers it over this file).
+
+[project]
+name = "proofpilot"
+version = "0.1.0"
+requires-python = ">=3.12"
 
 [tool.ruff]
 line-length = 100
