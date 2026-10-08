@@ -126,3 +126,36 @@ pinned the runner to `ubuntu-24.04` and upgraded the two actions to clear a Node
 warning, because the `ubuntu-latest` label is scheduled to migrate to Ubuntu 26 on 2026-10-19,
 mid-project. Repository: https://github.com/ujwal2311/proofpilot — CI green on both commits.
 No logic was implemented in this phase.
+
+---
+
+**Date:** 2026-10-08
+**Phase:** 1 — Independent audit and pre-approved fixes
+**Tool:** Claude Code (Opus 5)
+**Files created:** `requirements-dev.txt`, `pyproject.toml`, `docs/READING_GUIDE.md`.
+**Files modified:** `.github/workflows/ci.yml`, `requirements.txt`, `pytest.ini`,
+`.gitattributes`, `README.md`, `docs/HLD.md` (v2.2 to v2.3), `CLAUDE.md`, `AI_USAGE_LOG.md`.
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** The student commissioned an independent audit of the Phase 1 scaffold, requiring
+every verdict to be backed by command output rather than by the previous session's claims, plus
+ten pre-approved fixes. Claude cloned the published repository into a temporary directory and
+reproduced the build from scratch (fresh virtual environment, pinned install, pytest from both
+the repository root and `backend/`), identified the interpreter that created the original
+environment, proved the smoke test can actually fail by temporarily adding a web-framework import
+to a core module and then reverting it, scanned the full git history for credential patterns,
+and verified line endings, tracked files, commit authorship and CI status. One premise in the
+audit brief was found to be factually wrong and is reported as such: the machine has a single
+Python interpreter, 3.12.10, with no Anaconda installation, so the previous session's reported
+version was accurate.
+
+The ten fixes were then applied as separate commits: a CI matrix across two pinned runner images
+and two Python versions plus a determinism job running the suite under two fixed hash seeds and a
+ruff lint job; stricter pytest configuration; a runtime/development dependency split with ruff
+added; a minimal ruff configuration; expanded gitattributes rules; a rewritten and
+literally-verified Windows quick-start; a reading guide that references HLD section numbers only
+so it cannot drift; and a budget-only change request recorded as HLD v2.3. The Windows runner
+label was confirmed against GitHub's published documentation rather than guessed, and Python 3.13
+compatibility was established by resolving wheels for that target version rather than asserted.
+Claude also reported gaps found beyond the fix list for the student to decide on, including an
+incomplete module list in the smoke test's import guard, and did not act on them. No application
+logic was written in this phase.
