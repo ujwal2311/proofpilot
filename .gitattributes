@@ -1,4 +1,15 @@
-# Normalize to LF in the repository. Developed on Windows, CI runs Ubuntu -- without this,
-# line-ending churn shows up as spurious diffs and can break shell scripts on the runner.
+# Normalize text to LF in the repository. Developed on Windows, CI runs Ubuntu and Windows --
+# without this, line-ending churn shows up as spurious diffs and can break shell scripts.
 * text=auto eol=lf
+
+# Windows batch files must keep CRLF or cmd.exe can mis-parse them.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary: never normalize, never diff as text. results.png and report figures live here.
 *.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
