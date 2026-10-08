@@ -273,3 +273,38 @@ driver was rewritten in Python with a per-mutant timeout and a `git checkout` re
 | `facts.py` | 18 | 18 | 0 | 1 |
 | `cnf.py` | 15 | 15 | 0 | 1 |
 | **Total** | **67** | **67** | **1** | **4** |
+
+---
+
+## Regenerating these numbers
+
+```
+python scripts/mutate.py            # every module
+python scripts/mutate.py cnf        # one module
+```
+
+Mutants live in `data/mutants.json`; the driver is `scripts/mutate.py`.
+
+**Conventions, because they affect the score.** A mutant is *caught* when pytest exits non-zero.
+A **timeout counts as caught**: a non-terminating conversion is a defect the suite surfaced, and
+scoring it as a survivor would reward code that hangs over code that fails. A mutant whose anchor
+text no longer exists is reported as **retired** — never silently skipped, and never scored.
+
+**What is and is not reproducible.** The command regenerates the *current* score for every module.
+The first-pass tables above are a record of what was found at the time and are deliberately not
+re-runnable: several of those mutants targeted code that the findings themselves caused to be
+deleted or rewritten, so their anchors are gone by construction.
+
+### Full set on the committed code, 2026-10-08
+
+| Module | Mutants | Caught |
+|---|---|---|
+| `cnf.py` | 15 | 15 |
+| `english.py` | 10 | 10 |
+| `facts.py` | 10 | 10 |
+| `logic.py` | 7 | 7 |
+| `search.py` | 6 | 6 |
+| **Total** | **48** | **48** |
+
+`C7` (distribution direction flipped) is the timeout case: it recurses without bound and is
+counted as caught under the convention above.

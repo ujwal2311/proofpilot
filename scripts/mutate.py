@@ -35,7 +35,10 @@ def run_one(target: Path, mutant: dict) -> tuple[str, str]:
     try:
         done = subprocess.run(
             [sys.executable, "-m", "pytest", "-q", "-x"],
-            cwd=ROOT, capture_output=True, text=True, timeout=TIMEOUT_SECONDS,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT_SECONDS,
         )
         summary = next(
             (ln for ln in reversed(done.stdout.splitlines()) if "passed" in ln or "failed" in ln),

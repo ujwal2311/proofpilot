@@ -1,6 +1,6 @@
 # CLAUDE.md — ProofPilot rules and constraints
 
-**Design: see `docs/HLD.md` v2.7 — APPROVED AND FROZEN (2026-10-08).** Any design change requires
+**Design: see `docs/HLD.md` v2.8 — APPROVED AND FROZEN (2026-10-08).** Any design change requires
 an explicit change request from the student; never alter the design unilaterally. That document is
 the single source of truth for architecture,
 grammar, algorithms, data model, API contract, budgets, milestones and test names. This file holds
@@ -47,14 +47,16 @@ must be disclosed. Therefore:
 - DO NOT BUILD: A*, set-of-support (stretch only), first-order logic or unification, accounts, a
   database, a teacher dashboard, LLM features, Docker, free-form NLP.
 - Budgets are measured in **CODE lines** — blank, comment and docstring lines excluded, because
-  the caps bound logic complexity and rule 9 requires the comments (HLD v2.7 §16):
-  **core ≤650** · **api + cli ≤250** · **scripts ≤180** · **frontend ≤550** ·
+  the caps bound logic complexity and rule 9 requires the comments (HLD v2.8 §16):
+  **core ≤650 target, ≤700 hard ceiling** · **api + cli ≤250** · **scripts ≤180** · **frontend ≤550** ·
   **77.00 person-hours** for the 2-person team (≈38.5 h each; contingency 75.00 by moving the
   pilot post-submission).
   Run `python scripts/loc.py` at **every** gate; it prints the table and exits non-zero on a
   breach, and it runs in CI. Total lines are reported but not capped.
   **Exceeding a budget means STOP and justify. Never silently absorb it, and never re-base a cap
-  onto the actual.**
+  onto the actual.** Core between 650 and 700 must be justified at a gate; **above 700 the answer
+  is to simplify, never to raise the ceiling** — a cap that moves whenever it is reached is not a
+  cap.
 - Both members must be able to explain every module. Joint walkthroughs are budgeted (§13.3), and
   `docs/HLD.md` §17.11 holds the three-sentence explanation of each module.
 
@@ -105,5 +107,5 @@ message contains the word "approved" for that specific gate. There are no carve-
 repository creation, not for CI fixes, not for "finishing" a phase that was explicitly requested.
 Committing locally is always fine; publishing is not.** If in doubt, commit and ask.
 
-`docs/HLD.md` §15 Open Questions are resolved and v2.7 is frozen. Implementation proceeds
+`docs/HLD.md` §15 Open Questions are resolved and v2.8 is frozen. Implementation proceeds
 milestone by milestone: **M1 first and complete**, M2 only after M1 ships.

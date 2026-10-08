@@ -1,4 +1,4 @@
-# ProofPilot — High-Level Design v2.7
+# ProofPilot — High-Level Design v2.8
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
@@ -919,6 +919,25 @@ a new version with a Change Log entry.
 
 ## 16. Change Log
 
+### From v2.7 → v2.8 — approved change request (budget ceiling, derived data), 2026-10-08
+
+1. **A4a — the difficulty *band* moves to `scripts/difficulty.py`.** That script already computes
+   each exercise's shortest-proof length from `search`; turning that length into a band is the
+   same concern, and it writes the band into the exercise data. **`tutor.py` keeps the decision
+   that is genuinely tutoring** — which band to serve for a given mastery. This is a better home
+   on the merits, not an accounting move: it also shifts ~15 lines out of a tight bucket (core)
+   into one with room (scripts).
+2. **A4b — derived data must never go stale.** CI re-runs `difficulty.py` into a temporary copy
+   and fails if the committed data would change. Without it, an edit to an exercise or to the
+   search could silently leave a wrong difficulty in the bank, and every number downstream — band
+   selection, the simulation, the results table — would inherit it.
+   **Lands in Phase 6 with `difficulty.py` and `exercises.json`**; writing it now would mean
+   inventing the exercise data it reads. Traced as row 38 in §17.1 so it cannot be forgotten.
+3. **A4c — core gains a hard ceiling of 700 code lines; the target stays 650.** Between the two
+   is a warning band that must be justified at a gate. **Above 700 the answer is to simplify, never
+   to raise the ceiling again** — a cap that moves whenever it is reached is not a cap. Recorded
+   because the Phase 5 projection (697) lands inside that band.
+
 ### From v2.6 → v2.7 — approved change request (identity, naming, reset rule), 2026-10-08
 
 1. **A2 — no core module may shadow a standard-library name.** The planned `types.py` becomes
@@ -1217,6 +1236,7 @@ fixed above and re-checked here.*
 | 35 | 3 translation diagnoses | §6.9 | 3 named tests | M2 | COVERED |
 | 36 | Always one counterexample | §6.9 | `test_translation_counterexample_differs_in_truth_value` | M2 | COVERED |
 | 37 | AI log, verified references, no report prose | — | — | both | COVERED by process (CLAUDE.md) |
+| 38 | **Derived data is never stale (v2.8 A4b)** | §16 | CI step re-running `difficulty.py` and diffing | M1 | **PENDING Phase 6** — needs `difficulty.py` + `exercises.json` to exist |
 
 **No VIOLATED rows. No MISSING rows (row 30 closed in v2.2). Two accepted PARTIALs (rows 3, 26),
 each with a stated reason.**
