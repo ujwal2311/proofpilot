@@ -200,11 +200,13 @@ def test_bracketing_prefix_must_match_its_own_connective() -> None:
     assert raises("Both it rains or it is cold") is ErrorCode.AMBIGUOUS_AND_OR
 
 
-def test_bracketing_prefix_without_any_connective_is_rejected() -> None:
-    # The grammar writes these as ("or" clause)+ -- one or more, not zero. "Either it rains"
-    # promises a choice and never makes one; demoting it to a bare clause would be a guess.
-    for sentence in ("Either it rains", "Both it rains", "Neither it rains"):
-        assert raises(sentence) is ErrorCode.UNPARSEABLE
+def test_bracketing_prefix_is_ordinary_text_without_its_connective() -> None:
+    # Regression guard. An earlier fix rejected these outright, which broke "Both lights are
+    # on" -- a perfectly good fact. A prefix only brackets when the connective it governs is
+    # actually there; otherwise the word is phrase content, visible on the Facts screen.
+    assert parse("Both lights are on") == Atom("both lights are on")
+    assert parse("Either way we stay") == Atom("either way we stay")
+    assert parse("Neither option works") == Atom("neither option works")
 
 
 @pytest.mark.parametrize(
@@ -227,8 +229,10 @@ def test_paragraph_limits_rejected() -> None:
     # TOO_LONG is per-sentence; TOO_MANY_SENTENCES is paragraph-level and halts.
     # (TOO_MANY_FACTS needs fact extraction and is covered with facts.py.)
     assert raises(" ".join(["rain"] * 31)) is ErrorCode.TOO_LONG
+    # Each sentence must start with a capital, or the splitter treats the full stop as an
+    # abbreviation or decimal point and never breaks (HLD 3.1, the B4 rule).
     with pytest.raises(ParseError) as caught:
-        split_sentences(". ".join(f"sentence {i}" for i in range(13)))
+        split_sentences(". ".join(f"Sentence {i}" for i in range(13)))
     assert caught.value.code is ErrorCode.TOO_MANY_SENTENCES
 
 

@@ -91,37 +91,89 @@ CONTRACTIONS = {
     "won't": "will not",
     "can't": "can not",
 }
-QUANTIFIERS = frozenset({"all", "every", "some", "any", "none", "nobody", "everyone"})
+# Compound indefinites are the same phenomenon as the bare forms and are listed explicitly:
+# token matching means "everyone" would not be caught by "every", and accepting it would turn a
+# quantified claim into a propositional atom that silently misrepresents it (HLD v2.5 change 3).
+QUANTIFIERS = frozenset(
+    {
+        "all",
+        "every",
+        "some",
+        "any",
+        "none",
+        "nobody",
+        "everyone",
+        "someone",
+        "somebody",
+        "anyone",
+        "anybody",
+        "everybody",
+        "something",
+        "anything",
+        "everything",
+        "nothing",
+    }
+)
 NEGATORS = (("it", "is", "not", "the", "case", "that"), ("not",))
 _TERMINATORS = ".!?;"
 
+# Characters a word processor substitutes silently. Normalized in ONE place, before anything
+# else looks at the text: a curly apostrophe that survives to the contraction table turns
+# "isn't" into a content word and the negation is lost on the way to facts.py.
+_UNICODE_FOLD = {
+    "‘": "'",
+    "’": "'",  # curly single quotes
+    "“": '"',
+    "”": '"',  # curly double quotes
+    "–": "-",
+    "—": "-",  # en and em dashes
+    " ": " ",
+    " ": " ",
+    " ": " ",  # non-breaking spaces
+}
+
+
+def normalize_text(text: str) -> str:
+    """Fold typographic characters to ASCII. Idempotent; the single entry point for text."""
+    return "".join(_UNICODE_FOLD.get(char, char) for char in text)
+
+
+def _is_break(text: str, index: int) -> bool:
+    """Is the terminator at `index` a sentence end, rather than a decimal point or abbreviation?
+
+    A terminator breaks only when the next non-space character is uppercase, or when nothing
+    follows. One rule covers both cases the design calls out: "e.g." is followed by a lowercase
+    letter, and a decimal point is followed by a digit, which is not uppercase either -- so
+    numbers need no special case. "Dr. Rao" still splits; telling it apart from a real sentence
+    end needs an abbreviation lexicon, which is topic knowledge the project forbids, so the
+    fragment is left visible on the Facts screen instead (HLD section 14).
+    """
+    rest = text[index + 1 :].lstrip()
+    return not rest or rest[0].isupper()
+
 
 def split_sentences(paragraph: str) -> list[str]:
-    """Split a paragraph on . ! ? ; discarding empty fragments.
-
-    Abbreviations ("Dr. Smith") would split wrongly, which is acceptable: the controlled
-    language has no use for them and silently merging sentences would be worse.
-    """
+    """Split a paragraph into sentences on . ! ? ; discarding empty fragments."""
+    text = normalize_text(paragraph)
     sentences: list[str] = []
     current = ""
-    for char in paragraph:
-        if char in _TERMINATORS:
-            if current.strip():
-                sentences.append(current.strip())
+    for index, char in enumerate(text):
+        if char in _TERMINATORS and _is_break(text, index):
+            sentences.append(current)
             current = ""
         else:
             current += char
-    if current.strip():
-        sentences.append(current.strip())
+    sentences.append(current)
 
-    if len(sentences) > MAX_SENTENCES:
-        raise ParseError(ErrorCode.TOO_MANY_SENTENCES, paragraph, f"{len(sentences)} sentences")
-    return sentences
+    trimmed = [stripped for s in sentences if (stripped := s.strip(" \t\n" + _TERMINATORS))]
+    if len(trimmed) > MAX_SENTENCES:
+        raise ParseError(ErrorCode.TOO_MANY_SENTENCES, paragraph, f"{len(trimmed)} sentences")
+    return trimmed
 
 
 def _tokenize(sentence: str) -> list[str]:
-    """Lowercase, expand contractions, and make commas separate tokens."""
-    text = sentence.lower().replace("’", "'")  # curly apostrophe from word processors
+    """Fold Unicode, lowercase, expand contractions, and make commas separate tokens."""
+    text = normalize_text(sentence).lower()
     for short, long in CONTRACTIONS.items():
         text = text.replace(short, long)
     return [token for token in text.replace(",", " , ").split() if token]
@@ -157,23 +209,17 @@ def _clause(tokens: list[str], sentence: str) -> Node:
     return Not(atom) if negate else atom
 
 
-def _junction(tokens: list[str], sentence: str, forced: str | None = None) -> Node:
+def _junction(tokens: list[str], sentence: str) -> Node:
     """clause (("and"|"or") clause)* -- every and/or token is top-level, by construction.
 
-    `forced` carries the bracketing a leading "either"/"both" supplies; mixing connectives with
-    or without it is ambiguous and is refused rather than resolved by precedence, because any
-    precedence rule here would be the parser guessing what the writer meant.
+    Mixing connectives is refused rather than resolved by precedence: any precedence rule here
+    would be the parser guessing what the writer meant.
     """
     present = {token for token in tokens if token in ("and", "or")}
-    if len(present) > 1 or (forced and present - {forced}):
+    if len(present) > 1:
         raise ParseError(ErrorCode.AMBIGUOUS_AND_OR, sentence)
-    if forced and forced not in present:
-        # The grammar writes these as ("or" clause)+ and ("and" clause)+ -- one or more, not
-        # zero. "Either it rains" promises a choice and never makes one, so it is refused
-        # rather than quietly demoted to a bare clause.
-        raise ParseError(ErrorCode.UNPARSEABLE, sentence, f"{forced}_prefix_without_{forced}")
 
-    operator = forced or (present.pop() if present else None)
+    operator = present.pop() if present else None
     if operator is None:
         return _clause(tokens, sentence)
 
@@ -216,16 +262,24 @@ def parse_sentence(sentence: str) -> Node:
         return Or((_junction(tokens[split + 1 :], sentence), _clause(tokens[1:split], sentence)))
     if head == "only" and _find(tokens, ("only", "if")) == 0:
         raise ParseError(ErrorCode.UNPARSEABLE, sentence, "sentence_initial_only_if")
-    if head == "either":
-        return _junction(tokens[1:], sentence, forced="or")
-    if head == "both":
-        return _junction(tokens[1:], sentence, forced="and")
-    if head == "neither":
+    # "either"/"both"/"neither" act as bracketing prefixes only when the connective they govern
+    # is actually present. Otherwise the word is ordinary phrase content -- "both lights are on"
+    # is a perfectly good fact, and rejecting it to catch a malformed "Either it rains" would
+    # trade a common sentence for a rare one.
+    for prefix, wanted, other in (("either", "or", "and"), ("both", "and", "or")):
+        if head != prefix:
+            continue
+        if wanted in tokens[1:]:
+            return _junction(tokens[1:], sentence)
+        if other in tokens[1:]:
+            # "Either A and B" promises a choice and delivers a conjunction. Only one
+            # connective is present, so the generic mixed-connective check cannot see it --
+            # without this branch the sentence would parse as the OPPOSITE of what it says.
+            raise ParseError(ErrorCode.AMBIGUOUS_AND_OR, sentence, f"{prefix}_governs_{other}")
+    if head == "neither" and "nor" in tokens[1:]:
         segments: list[list[str]] = [[]]
         for token in tokens[1:]:
             segments.append([]) if token == "nor" else segments[-1].append(token)
-        if len(segments) < 2:
-            raise ParseError(ErrorCode.UNPARSEABLE, sentence, "neither_without_nor")
         return And(tuple(_negated(_clause(segment, sentence)) for segment in segments))
 
     # Infix forms, longest keyword first. Scanning for "if" before "if and only if" would read a
