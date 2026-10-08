@@ -1,0 +1,300 @@
+{
+  "cnf": [
+    {
+      "id": "C1",
+      "desc": "Implies loses its negation",
+      "find": "return Or((Not(eliminate(antecedent)), eliminate(consequent)))",
+      "replace": "return Or((eliminate(antecedent), eliminate(consequent)))"
+    },
+    {
+      "id": "C2",
+      "desc": "Iff keeps only one direction",
+      "find": "return And((Or((Not(a), b)), Or((Not(b), a))))",
+      "replace": "return Or((Not(a), b))"
+    },
+    {
+      "id": "C3",
+      "desc": "Iff joins with Or instead of And",
+      "find": "return And((Or((Not(a), b)), Or((Not(b), a))))",
+      "replace": "return Or((Or((Not(a), b)), Or((Not(b), a))))"
+    },
+    {
+      "id": "C4",
+      "desc": "De Morgan: not-And yields And",
+      "find": "case Not(And(items)):\n            return Or(tuple(push_negation(Not(i)) for i in items))",
+      "replace": "case Not(And(items)):\n            return And(tuple(push_negation(Not(i)) for i in items))"
+    },
+    {
+      "id": "C5",
+      "desc": "De Morgan: not-Or yields Or",
+      "find": "case Not(Or(items)):\n            return And(tuple(push_negation(Not(i)) for i in items))",
+      "replace": "case Not(Or(items)):\n            return Or(tuple(push_negation(Not(i)) for i in items))"
+    },
+    {
+      "id": "C6",
+      "desc": "double negation stacks instead of cancelling",
+      "find": "case Not(Not(inner)):\n            return push_negation(inner)",
+      "replace": "case Not(Not(inner)):\n            return Not(push_negation(inner))"
+    },
+    {
+      "id": "C7",
+      "desc": "distribution direction flipped",
+      "find": "return distribute(And(tuple(Or((*rest, branch)) for branch in item.items)))",
+      "replace": "return distribute(Or(tuple(And((*rest, branch)) for branch in item.items)))"
+    },
+    {
+      "id": "C8",
+      "desc": "distribution skipped entirely",
+      "find": "if isinstance(item, And):",
+      "replace": "if False:"
+    },
+    {
+      "id": "C9",
+      "desc": "tautology removal disabled",
+      "find": "if not is_tautology(clause):",
+      "replace": "if True:"
+    },
+    {
+      "id": "C10",
+      "desc": "duplicate removal disabled",
+      "find": "seen: set[Clause] = set()",
+      "replace": "seen: list[Clause] = []"
+    },
+    {
+      "id": "C11",
+      "desc": "clauses returned unsorted",
+      "find": "return sorted(seen, key=canonical)",
+      "replace": "return list(seen)"
+    },
+    {
+      "id": "C12",
+      "desc": "goal is not negated",
+      "find": "return to_clauses(Not(node), literal_of)",
+      "replace": "return to_clauses(node, literal_of)"
+    },
+    {
+      "id": "C13b",
+      "desc": "_parts always returns the node whole",
+      "find": "return node.items if isinstance(node, kind) else (node,)",
+      "replace": "return (node,)"
+    },
+    {
+      "id": "C14",
+      "desc": "a negative literal_of no longer cancels the Not",
+      "find": "literal_of(part.item.phrase).lstrip(\"~\")\n        if isinstance(part, Not)",
+      "replace": "f\"~{literal_of(part.item.phrase)}\"\n        if isinstance(part, Not)"
+    },
+    {
+      "id": "C15",
+      "desc": "distribute drops its single-operand unwrap",
+      "find": "return And(parts) if len(parts) > 1 else parts[0]",
+      "replace": "return And(parts)"
+    }
+  ],
+  "logic": [
+    {
+      "id": "M1",
+      "desc": "diagnosis order: DOUBLE_CANCEL after WRONG_RESOLVENT",
+      "find": "if len(pivots) >= 2 and claimed in _double_cancel_candidates(a, b, pivots):",
+      "replace": "if False and claimed in _double_cancel_candidates(a, b, pivots):"
+    },
+    {
+      "id": "M2",
+      "desc": "TAUTOLOGY check removed",
+      "find": "if is_tautology(claimed):",
+      "replace": "if False:"
+    },
+    {
+      "id": "M3",
+      "desc": "DUPLICATE check removed",
+      "find": "if claimed in existing:",
+      "replace": "if False:"
+    },
+    {
+      "id": "M4",
+      "desc": "double-cancel accepts a single pair",
+      "find": "for size in range(2, len(pivots) + 1)",
+      "replace": "for size in range(1, len(pivots) + 1)"
+    },
+    {
+      "id": "M6",
+      "desc": "resolvents keeps the pivot in b",
+      "find": "(a - {pivot}) | (b - {negate(pivot)})",
+      "replace": "(a - {pivot}) | b"
+    },
+    {
+      "id": "M7",
+      "desc": "missing/extra swapped",
+      "find": "missing=target - claimed, extra=claimed - target",
+      "replace": "missing=claimed - target, extra=target - claimed"
+    },
+    {
+      "id": "M8",
+      "desc": "canonical returns an unsorted tuple",
+      "find": "return tuple(sorted(clause))",
+      "replace": "return tuple(clause)"
+    }
+  ],
+  "search": [
+    {
+      "id": "S1",
+      "desc": "successors allow tautologies",
+      "find": "and not is_tautology(resolvent):",
+      "replace": "and True:"
+    },
+    {
+      "id": "S3",
+      "desc": "clauses iterated unsorted",
+      "find": "ordered = sorted(state, key=canonical)",
+      "replace": "ordered = list(state)"
+    },
+    {
+      "id": "S5",
+      "desc": "exhaustion returns None instead of raising",
+      "find": "    raise GoalUnreachableError(",
+      "replace": "    return None\n    raise GoalUnreachableError("
+    },
+    {
+      "id": "S6",
+      "desc": "productive accepts any distance drop",
+      "find": "return d_after == d_before - 1",
+      "replace": "return d_after <= d_before"
+    },
+    {
+      "id": "S7",
+      "desc": "best_next_step takes the first legal step",
+      "find": "        if distance(state | {resolvent}, max_nodes) == target - 1:\n            return (a, b, resolvent)",
+      "replace": "        return (a, b, resolvent)"
+    },
+    {
+      "id": "S8",
+      "desc": "fallback ignores clause length",
+      "find": "key=lambda clause: (len(clause), canonical(clause))",
+      "replace": "key=canonical"
+    }
+  ],
+  "english": [
+    {
+      "id": "E2",
+      "desc": "'B if A' direction reversed",
+      "find": "((\"if\",), lambda left, right: Implies(right, left)),",
+      "replace": "((\"if\",), lambda left, right: Implies(left, right)),"
+    },
+    {
+      "id": "E3",
+      "desc": "'only if' direction reversed",
+      "find": "((\"only\", \"if\"), lambda left, right: Implies(left, right)),",
+      "replace": "((\"only\", \"if\"), lambda left, right: Implies(right, left)),"
+    },
+    {
+      "id": "E4",
+      "desc": "unless produces AND not OR",
+      "find": "((\"unless\",), lambda left, right: Or((left, right))),",
+      "replace": "((\"unless\",), lambda left, right: And((left, right))),"
+    },
+    {
+      "id": "E6",
+      "desc": "quantifier check removed",
+      "find": "if QUANTIFIERS & set(tokens):",
+      "replace": "if False:"
+    },
+    {
+      "id": "E7",
+      "desc": "TOO_LONG off by one",
+      "find": "> MAX_SENTENCE_WORDS:",
+      "replace": ">= MAX_SENTENCE_WORDS:"
+    },
+    {
+      "id": "E8",
+      "desc": "neither does not negate its clauses",
+      "find": "tuple(_negated(_clause(segment, sentence)) for segment in segments)",
+      "replace": "tuple(_clause(segment, sentence) for segment in segments)"
+    },
+    {
+      "id": "E9",
+      "desc": "double negation stacks",
+      "find": "return node.item if isinstance(node, Not) else Not(node)",
+      "replace": "return Not(node)"
+    },
+    {
+      "id": "E15",
+      "desc": "Unicode folding skipped before lowercasing",
+      "find": "text = normalize_text(sentence).lower()",
+      "replace": "text = sentence.lower()"
+    },
+    {
+      "id": "E17",
+      "desc": "splitter breaks at every terminator",
+      "find": "return not rest or rest[0].isupper()",
+      "replace": "return True"
+    },
+    {
+      "id": "E20",
+      "desc": "mixed-connective check removed",
+      "find": "if len(present) > 1:",
+      "replace": "if False:"
+    }
+  ],
+  "facts": [
+    {
+      "id": "F1",
+      "desc": "suffix step removed",
+      "find": "stepped = _suffix(word)",
+      "replace": "stepped = word"
+    },
+    {
+      "id": "F3",
+      "desc": "doubled-consonant collapse removed",
+      "find": "return _keep(word, word[:-1]) if doubled and word[-1] != \"s\" else word",
+      "replace": "return word"
+    },
+    {
+      "id": "F5",
+      "desc": "y->i ignores the consonant condition",
+      "find": "if len(stepped) >= 2 and stepped[-1] == \"y\" and stepped[-2] not in _VOWELS:",
+      "replace": "if len(stepped) >= 2 and stepped[-1] == \"y\":"
+    },
+    {
+      "id": "F7",
+      "desc": "fixpoint reduced to a single pass",
+      "find": "for _ in range(8):",
+      "replace": "for _ in range(1):"
+    },
+    {
+      "id": "F8",
+      "desc": "minimum-stem guard removed",
+      "find": "return candidate if len(candidate) >= _MIN_STEM else word",
+      "replace": "return candidate"
+    },
+    {
+      "id": "F10",
+      "desc": "polarity parity inverted",
+      "find": "return sum(1 for token in _tokens(phrase) if token in NEGATION_TOKENS) % 2 == 0",
+      "replace": "return sum(1 for token in _tokens(phrase) if token in NEGATION_TOKENS) == 0"
+    },
+    {
+      "id": "F12",
+      "desc": "empty-key check removed",
+      "find": "if not key:",
+      "replace": "if False:"
+    },
+    {
+      "id": "F14",
+      "desc": "opposite no longer flips",
+      "find": "flipped.add(b)  # the SECOND phrase is the one the student called the opposite",
+      "replace": "pass"
+    },
+    {
+      "id": "F16",
+      "desc": "self-merge check removed",
+      "find": "if a == b:",
+      "replace": "if False:"
+    },
+    {
+      "id": "F18",
+      "desc": "conflict detection removed",
+      "find": "if seen.get(pair, relation) != relation:",
+      "replace": "if False:"
+    }
+  ]
+}
