@@ -155,3 +155,65 @@ connective is `AMBIGUOUS_AND_OR`; otherwise the word is ordinary phrase content.
 
 Four defects that initially survived were fixed by strengthening tests; two were fixed by
 deleting code the mutation showed could not matter; one was proved unobservable by sampling.
+
+---
+
+## `core/facts.py` — Phase 4b (2026-10-08)
+
+Suite at the time: 266 tests.
+
+| ID | Injected defect | Caught? | Failures |
+|---|---|---|---|
+| F1 | Suffix step removed | yes | 45 |
+| F2 | Drop-trailing-`e` removed | yes | 5 |
+| F3 | Doubled-consonant collapse removed | yes | 10 |
+| F4 | `ss` no longer protected from collapse | yes | 1 |
+| F5 | `y→i` ignores the consonant condition | yes | 1 |
+| F6 | `y→i` removed | yes | 8 |
+| F7 | Fixpoint reduced to a single pass | yes | 5 |
+| F8 | Minimum-stem guard removed | **NO** | 0 |
+| F9 | `ies→i` rule removed | **NO** | 0 |
+| F10 | Polarity parity inverted (any negation ⇒ negative) | yes | 1 |
+| F11 | Negation tokens left in the canonical key | yes | 1 |
+| F12 | Empty-key check removed | yes | 1 |
+| F13 | Key made order-insensitive | *(invalid mutation — syntax error, not scored)* | — |
+| F14 | `opposite` no longer flips polarity | yes | 1 |
+| F15 | `different` no longer splits a group | yes | 2 |
+| F16 | Self-merge check removed | yes | 1 |
+| F17 | Unknown-phrase check removed | yes | 1 |
+| F18 | Conflict detection removed | yes | 2 |
+| F19 | Conflict keyed on the ordered pair | yes | 1 |
+| F20 | Fact limit enforced even when `enforce_limit` is false | yes | 1 |
+
+**Score: 17/19 scored mutants.**
+
+**Survivor analysis.**
+
+- **F9 — redundant code, deleted.** For any word ending in `ies`, stripping `es` leaves exactly
+  what `ies→i` produces (`studies → studi` either way), so the rule could never change an
+  outcome. Removed rather than left looking meaningful.
+- **F8 — a real test gap, closed.** No test reached a word short enough for the guard to matter.
+  Without it the fixpoint eats short words whole: `see → se → s → ""`, and every such word would
+  then share the empty key and become one fact. The existing `sees`/`see` pair could not detect
+  it because both collapsed to `""` and therefore still matched. Added
+  `test_minimum_stem_guard_stops_short_words_vanishing`, which asserts `stem("see") == "se"` and
+  that no stem is shorter than two characters.
+
+**Score after fixes: 18/18 remaining mutants caught** (F9's code no longer exists to mutate).
+
+### Defect found by the `loc.py` tests, not by mutation
+
+`measure()` counted each bucket independently, so a blank line **inside** a docstring was counted
+twice and subtracted twice — **undercounting code and silently inflating the budget allowance**.
+Rewritten to label every line exactly once, docstring first, so the four buckets always sum to
+the total. Pinned by `test_measure_counts_every_line_exactly_once`.
+
+## Running total
+
+| Module | Scored mutants | Caught | Unobservable (proved) | Redundant code deleted |
+|---|---|---|---|---|
+| `logic.py` | 8 | 8 | 0 | 0 |
+| `search.py` | 7 | 7 | 1 | 0 |
+| `english.py` | 19 | 19 | 0 | 2 |
+| `facts.py` | 18 | 18 | 0 | 1 |
+| **Total** | **52** | **52** | **1** | **3** |

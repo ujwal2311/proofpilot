@@ -338,3 +338,45 @@ defects injected across the three modules built so far, all thirty-four are now 
 further defect was shown by sampling to be undetectable for a provable reason rather than a gap in
 the tests. Two defects that initially survived turned out to mark redundant code rather than
 missing tests, and that code was deleted. No work beyond the grammar module was carried out.
+
+---
+
+**Date:** 2026-10-08
+**Phase:** 4b — `core/facts.py`, fact identity and merges (test-first)
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/src/core/facts.py`, `backend/tests/test_facts.py`,
+`backend/tests/test_loc.py`.
+**Files modified:** `docs/HLD.md` (v2.5 → v2.6), `CLAUDE.md`, `README.md`,
+`docs/READING_GUIDE.md`, `backend/src/core/english.py`, `backend/src/core/config.py`,
+`scripts/loc.py`, `backend/tests/test_english_robustness.py`,
+`docs/experiments/mutation_log.md`, `AI_USAGE_LOG.md`.
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** The student approved five design amendments before any code was written: automatic
+merges must keep every original phrase so the student can see and undo them; the word-reduction
+rules must apply to every word unconditionally and repeat until nothing changes, so that a base
+form and an inflected form follow the same path; the limit on how many facts a paragraph may
+contain is checked only after the student has had a chance to merge; a one-word fragment produced
+by sentence splitting is refused rather than turned into a fact; and hyphenated words count as one
+word so that a hyphen can never be mistaken for a negation.
+
+The word-reduction rules were prototyped and verified before being written into the design, over
+thirty-six base and inflected pairs: all thirty-six reach the same key, none violates the
+repeat-until-stable property, and the three collisions the design knowingly accepts all occur as
+expected. Those collisions are safe only because of the first amendment, which keeps both phrases
+visible to the student.
+
+Three tests failed on the first run, each for a different reason, and one was a genuine defect:
+the code sorted the two phrases in a merge before applying the relation, which meant that when the
+student declared one phrase the opposite of another, the wrong one was flipped. Sorting is correct
+for deciding whether two merge instructions conflict, since the pair is unordered there, but wrong
+for applying a directional relation. The two are now separated.
+
+Twenty deliberate defects were then injected into the new module. Seventeen of nineteen scored
+were caught. One survivor was a rule that could never change an outcome, since an earlier rule
+already produced the same result, and it was deleted. The other was a real gap: no test used a
+word short enough for the minimum-length guard to matter, and without that guard short words are
+reduced away to nothing and would all share one key. A test was added and both are now detected.
+
+Separately, writing tests for the line-counting script found a defect in it: a blank line inside a
+documentation block was counted twice and subtracted twice, which undercounted code and quietly
+made the budget more generous than intended. Every line is now classified exactly once.

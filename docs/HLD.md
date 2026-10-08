@@ -1,4 +1,4 @@
-# ProofPilot — High-Level Design v2.5
+# ProofPilot — High-Level Design v2.6
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
@@ -184,6 +184,27 @@ case that it does not rain"* yields `Not(Atom("it does not rain"))`, and the two
 cancel to **R** (positive). Getting this boundary backwards would corrupt every later stage, so
 it is pinned by `test_embedded_negation_stays_inside_the_fact_phrase`.
 
+### 3.5 Stemming (v2.6) — uniform, and idempotent by construction
+
+Applied by `facts.py` to **every** token unconditionally — never "only if a suffix was stripped" —
+and the whole pipeline repeats to a fixpoint, so a base form and an inflected form follow the
+same path and `stem(stem(w)) == stem(w)` holds:
+
+1. **suffix**, first match only: `sses→ss` | `ies→i` | `ss→ss` *(no-op; protects class, miss)* |
+   `ing→` | `ed→` | `es→` | `s→`
+2. **drop a trailing `e`**
+3. **collapse a doubled final consonant** (`ll→l`), except `ss`
+4. **`y→i` only after a consonant** — `study→studi`, but `stay` is unchanged
+
+Each step is skipped if it would leave fewer than **2** characters. The fixpoint is what makes
+base and inflected forms meet: `buses→bus→bu` reaches the same key as `bus→bu`, which a single
+pass would not. Measured over 36 pairs: 36 merges, 0 misses, 0 idempotence violations.
+
+**Known false merges, accepted deliberately:** `hoping`/`hopping`, `caning`/`canning`,
+`planed`/`planned` all collide, because step 3 cannot tell a doubled consonant that marks a short
+vowel from one that does not. These are *safe* because of A1 — a merged fact shows every phrase
+it absorbed, so the student sees both and can split them.
+
 ### 3.4 Errors (never guess)
 
 | Code | Trigger | Level |
@@ -193,6 +214,10 @@ it is pinned by `test_embedded_negation_stays_inside_the_fact_phrase`.
 | `QUANTIFIER_UNSUPPORTED` | all / every / some / any / none / nobody / everyone | per-sentence |
 | `TOO_LONG` | sentence > 30 words | per-sentence |
 | `EMPTY_FACT_PHRASE` | a clause's canonical key is empty after normalization (e.g. *"it is"*) | per-sentence |
+| `SUSPICIOUS_FRAGMENT` | splitting produced a one-token fragment (`"Dr"` from `"Dr. Rao"`) | paragraph-level, halts |
+| `UNKNOWN_PHRASE` | a merge names a phrase no sentence produced | merge-time |
+| `SELF_MERGE` | a merge names the same phrase twice | merge-time |
+| `CONFLICTING_MERGE` | one phrase pair given two different relations | merge-time |
 | `TOO_MANY_FACTS` | > 10 distinct facts across paragraph + conclusion | paragraph-level, halts |
 | `TOO_MANY_SENTENCES` | > 12 sentences | paragraph-level, halts |
 
@@ -297,7 +322,12 @@ Exercise    = { id: str, paragraph: str, conclusion: str, topic: str }
               # exactly the four fields in data/exercises.json; difficulty is COMPUTED
               # (scripts/difficulty.py), never stored, never hand-labelled
 
-Fact        = { symbol: str, label: str }          # label = first original phrase, verbatim
+Fact        = { symbol: str, phrases: tuple[str, ...] }
+              # EVERY phrase merged into this fact, first-appearance order (v2.6 A1), so the
+              # Facts screen can show them all and an auto-merge stays visible and splittable.
+MergeChoice = { a: str, b: str, relation: "same"|"opposite"|"different" }
+              # a and b are PHRASES, not symbols (v2.6 A1): a symbol cannot name one half of a
+              # group it already contains. "different" SPLITS what the stemmer merged.
 Clause      = frozenset[str]                        # literals "P" / "~P"; empty clause = frozenset()
 ClauseRec   = { id: str, literals: list[str], origin: "given"|"goal"|"derived",
                 source_sentence_id: str|None }      # origin trace, used by the Explanation panel
@@ -317,7 +347,7 @@ State:
   paragraph, conclusion: str,
   facts:           list[Fact],
   sentences:       list[SentenceRec],      # paragraph sentences in order, conclusion last
-  merges_applied:  list[[str, str]],       # manual merges the user performed
+  merges_applied:  list[MergeChoice],      # the user's merge/split decisions, replayed in order
   translations:    list[Translation],      # M2 only; empty in M1
   clauses:         list[ClauseRec],        # CNF of the REFERENCE parse, append-only, stable IDs
   relevant_ids:    list[str],              # output of relevance.py; informational, nothing is deleted
@@ -873,6 +903,36 @@ a new version with a Change Log entry.
 ---
 
 ## 16. Change Log
+
+### From v2.5 → v2.6 — approved change request (fact extraction), 2026-10-08
+
+1. **A1 — merges are visible and reversible.** An auto-merged fact keeps **all** its original
+   phrases: `Fact` carries a `phrases` tuple and `/api/parse` returns it, so the Facts stage shows
+   `A: "it is hoping" | "it is hopping"` rather than one phrase chosen arbitrarily. A merge the
+   student disagrees with is undone with the existing `different` relation. **`MergeChoice` now
+   addresses phrases, not provisional symbols** — a symbol cannot name one half of a group it
+   already contains, and phrases are what the student actually sees. After any merge or split,
+   symbols are **re-assigned from scratch** in first-appearance order over the paragraph then the
+   conclusion, so the mapping is a pure function of (phrases, merges) and never depends on
+   history.
+2. **A2 — stemming is uniform and idempotent** (§3.5). Every step applies to every token
+   unconditionally, and the whole pipeline repeats to a fixpoint, so a base form and an inflected
+   form take the same path and `stem(stem(w)) == stem(w)` holds by construction. Verified over 36
+   base/inflected pairs with zero misses and zero idempotence violations.
+3. **A3 — `TOO_MANY_FACTS` is evaluated after merges.** Before merges the count is a **warning**
+   carried in the response, not an error, so a student whose paraphrases inflate the count can
+   merge down to the limit instead of being blocked by it.
+4. **A4 — suspicious fragments are refused, not turned into facts.** A fragment of one token
+   produced by sentence splitting (`"Dr"` from `"Dr. Rao"`) raises `SUSPICIOUS_FRAGMENT` with a
+   hint to avoid abbreviations containing a full stop. This closes the one place where the
+   documented splitting limitation could have leaked a nonsense fact into a proof.
+5. **A5 — hyphenated words are a single token**, so `no-ball` and `well-known` never flip
+   polarity; only a standalone `not`, `no` or `never` does. `not only` is therefore read as a
+   negation of `only …` — documented as a limitation rather than special-cased, and visible to
+   the student on the Facts screen like every other extraction.
+6. **New error codes:** `SUSPICIOUS_FRAGMENT`, `UNKNOWN_PHRASE`, `SELF_MERGE`,
+   `CONFLICTING_MERGE`. `ParseError` is the pipeline's single error type, covering parsing and
+   fact extraction alike, so the API layer has one thing to catch.
 
 ### From v2.4 → v2.5 — approved change request (budget metric, grammar clarifications), 2026-10-08
 

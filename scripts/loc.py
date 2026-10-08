@@ -20,16 +20,35 @@ BUCKETS = {
 
 
 def measure(path: Path) -> dict[str, int]:
+    """Classify every line into exactly ONE bucket.
+
+    Counting the buckets independently double-counts a blank line inside a docstring, which
+    subtracts it twice and silently inflates the code allowance. Each line is labelled once,
+    docstring first, so the four buckets always sum to the total.
+    """
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
-    counts = {"total": len(lines), "blank": sum(1 for ln in lines if not ln.strip())}
-    counts["comment"] = sum(1 for ln in lines if ln.strip().startswith(("#", "//")))
-    counts["docstring"] = 0
-    if path.suffix == ".py":  # tokenize is Python-only; JS/CSS comments are counted above
+    label = [""] * len(lines)
+
+    if path.suffix == ".py":  # tokenize is Python-only; JS/CSS comments are handled below
         for token in tokenize.generate_tokens(iter(lines_with_ends(text)).__next__):
             if token.type == tokenize.STRING and token.line.strip().startswith(('"""', "'''")):
-                counts["docstring"] += token.end[0] - token.start[0] + 1
-    counts["code"] = counts["total"] - counts["blank"] - counts["comment"] - counts["docstring"]
+                for row in range(token.start[0] - 1, token.end[0]):
+                    label[row] = "docstring"
+
+    for row, line in enumerate(lines):
+        if label[row]:
+            continue
+        label[row] = (
+            "comment"
+            if line.strip().startswith(("#", "//"))
+            else "blank"
+            if not line.strip()
+            else "code"
+        )
+
+    counts = {kind: label.count(kind) for kind in ("code", "docstring", "comment", "blank")}
+    counts["total"] = len(lines)
     return counts
 
 
@@ -37,12 +56,14 @@ def lines_with_ends(text: str) -> list[str]:
     return [line + "\n" for line in text.splitlines()] + [""]
 
 
-def main() -> int:
+def main(buckets: dict | None = None) -> int:
+    """Print the table; return 1 if any cap is breached. `buckets` is injectable for tests."""
+    buckets = BUCKETS if buckets is None else buckets
     print(
         f"{'bucket':12} {'code':>6} {'cap':>6} {'doc':>6} {'comment':>8} {'blank':>6} {'total':>6}"
     )
     breached = []
-    for name, (patterns, cap) in BUCKETS.items():
+    for name, (patterns, cap) in buckets.items():
         files = sorted({f for p in patterns for f in ROOT.glob(p)})
         totals = {
             k: sum(measure(f)[k] for f in files)

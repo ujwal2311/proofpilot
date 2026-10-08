@@ -116,7 +116,7 @@ def test_curly_apostrophe_keeps_its_negation_through_to_the_fact_layer() -> None
         ("It costs 1,000.50 today", ["It costs 1,000.50 today"]),
         ("We stay, e.g. today. It rains.", ["We stay, e.g. today", "It rains"]),  # lowercase after
         ("It rains... We stay.", ["It rains", "We stay"]),  # ellipsis is one break
-        ("It rains!  We stay?  Yes;", ["It rains", "We stay", "Yes"]),
+        ("It rains!  We stay?  Yes we do;", ["It rains", "We stay", "Yes we do"]),
         ("", []),
         ("   ", []),
         ("...", []),
@@ -127,11 +127,19 @@ def test_sentence_splitting_rules(paragraph: str, expected: list[str]) -> None:
     assert split_sentences(paragraph) == expected
 
 
-def test_abbreviation_before_a_capital_splits_and_is_documented() -> None:
-    # Honest limitation, pinned so it cannot silently change: "Dr." looks exactly like a sentence
-    # end. Distinguishing them needs an abbreviation lexicon, which is topic knowledge the
-    # project forbids. The fragment is visible on the Facts screen, like "bread and butter".
-    assert split_sentences("Dr. Rao arrives.") == ["Dr", "Rao arrives"]
+def test_abbreviation_produces_a_suspicious_fragment_and_is_refused() -> None:
+    # "Dr." looks exactly like a sentence end, and distinguishing them needs an abbreviation
+    # lexicon -- topic knowledge the project forbids. Rather than let the one-token fragment
+    # "Dr" become a fact and reach a proof, the paragraph is refused by name (HLD v2.6 A4).
+    with pytest.raises(ParseError) as caught:
+        split_sentences("Dr. Rao arrives.")
+    assert caught.value.code is ErrorCode.SUSPICIOUS_FRAGMENT
+    assert caught.value.sentence == "Dr"
+
+    # A one-word sentence is refused for the same reason: it is far more often a split accident
+    # than a real proposition, and a wrong guess here corrupts the whole argument.
+    with pytest.raises(ParseError):
+        split_sentences("It rains. Yes. We stay.")
 
 
 # -------------------------------------------------------------------- B5: degenerate input
@@ -189,24 +197,42 @@ def test_a_conclusion_may_be_compound(conclusion: str, expected) -> None:
 _WORDS = ("alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel")
 
 
-def _render(node) -> str:
-    """Canonical English for an AST. Bare junctions only -- "both"/"either" are sentence-initial
-    prefixes and are not part of `cond`, so using them inside an implication would be outside
-    the grammar (see the documented limitation in test_both_inside_a_condition)."""
+def _render(node, rng: random.Random) -> str:
+    """Canonical English for an AST, choosing among the SURFACE VARIANTS the grammar allows.
+
+    Rendering only one phrasing per construct would leave the alternatives untested, and the
+    alternatives are where the interesting defects live -- "B if A" reverses its operands, and
+    "Unless B, A" is the sentence-initial form. Bare junctions only: "both"/"either" are
+    sentence-initial prefixes and are not part of `cond` (see test_both_inside_a_condition).
+    """
     match node:
         case Atom(phrase):
             return phrase
         case Not(item):
-            return f"it is not the case that {_render(item)}"
+            return f"it is not the case that {_render(item, rng)}"
         case And(items):
-            return " and ".join(_render(i) for i in items)
+            return " and ".join(_render(i, rng) for i in items)
         case Or(items):
-            return " or ".join(_render(i) for i in items)
+            return " or ".join(_render(i, rng) for i in items)
         case Implies(antecedent, consequent):
-            return f"if {_render(antecedent)} then {_render(consequent)}"
+            left, right = _render(antecedent, rng), _render(consequent, rng)
+            return rng.choice(
+                [
+                    f"if {left} then {right}",
+                    f"if {left}, then {right}",
+                    f"if {left}, {right}",
+                    f"{right} if {left}",
+                ]
+            )
         case Iff(left, right):
-            return f"{_render(left)} if and only if {_render(right)}"
+            return f"{_render(left, rng)} if and only if {_render(right, rng)}"
     raise AssertionError(f"unrenderable node: {node!r}")
+
+
+def _render_or_as_unless(node: Or, rng: random.Random) -> str:
+    """A ∨ B also surfaces as "A unless B" and "Unless B, A"."""
+    left, right = _render(node.items[0], rng), _render(node.items[1], rng)
+    return rng.choice([f"{left} unless {right}", f"unless {right}, {left}"])
 
 
 def _random_ast(rng: random.Random):
@@ -242,15 +268,22 @@ def test_round_trip_render_then_parse_is_identity() -> None:
     # round-trip property, not evidence of a parser defect.
     rng = random.Random(20261008)
     failures: list[tuple[str, str]] = []
-    checked = 0
+    checked = redraws = 0
+    longest = 0
     for _ in range(20_000):
         if checked == 300:
             break
         node = _random_ast(rng)
-        sentence = _render(node)
+        sentence = (
+            _render_or_as_unless(node, rng)
+            if isinstance(node, Or) and len(node.items) == 2 and rng.random() < 0.5
+            else _render(node, rng)
+        )
         if len(sentence.split()) > 30:
+            redraws += 1
             continue
         checked += 1
+        longest = max(longest, len(sentence.split()))
         try:
             parsed = parse_sentence(sentence)
         except ParseError as error:
@@ -258,7 +291,13 @@ def test_round_trip_render_then_parse_is_identity() -> None:
             continue
         if parsed != node:
             failures.append((sentence, f"got {parsed!r}"))
+
     assert checked == 300, f"generator produced only {checked} in-scope cases"
+    # Long-but-valid sentences must still be sampled: if the redraw filter were quietly cutting
+    # the suite down to short, easy cases, the property would be worth much less.
+    assert longest >= 20, f"longest sampled sentence was only {longest} words"
+    assert redraws < checked, f"{redraws} redraws vs {checked} kept -- the generator is too long"
+    print(f"\nround-trip: {checked} checked, {redraws} redrawn, longest {longest} words")
     assert not failures, f"{len(failures)} round-trip failures, first 5: {failures[:5]}"
 
 

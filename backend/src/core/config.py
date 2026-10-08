@@ -24,3 +24,7 @@ MAX_SEARCH_NODES = 8_000
 # the whole argument in view. Exceeding one is an error with a name, never a silent truncation.
 MAX_SENTENCE_WORDS = 30
 MAX_SENTENCES = 12
+
+# Distinct facts allowed across a paragraph and its conclusion. DESIGN DECISION: it caps the
+# truth table at 2**10 = 1024 rows (HLD section 6.4) and keeps the Facts screen readable.
+MAX_FACTS = 10

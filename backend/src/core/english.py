@@ -60,6 +60,8 @@ Node = Atom | Not | And | Or | Implies | Iff
 
 
 class ErrorCode(Enum):
+    """Every way the text pipeline can refuse input. Shared with core.facts."""
+
     UNPARSEABLE = "UNPARSEABLE"
     AMBIGUOUS_AND_OR = "AMBIGUOUS_AND_OR"
     QUANTIFIER_UNSUPPORTED = "QUANTIFIER_UNSUPPORTED"
@@ -67,13 +69,18 @@ class ErrorCode(Enum):
     EMPTY_FACT_PHRASE = "EMPTY_FACT_PHRASE"
     TOO_MANY_SENTENCES = "TOO_MANY_SENTENCES"
     TOO_MANY_FACTS = "TOO_MANY_FACTS"
+    SUSPICIOUS_FRAGMENT = "SUSPICIOUS_FRAGMENT"
+    UNKNOWN_PHRASE = "UNKNOWN_PHRASE"
+    SELF_MERGE = "SELF_MERGE"
+    CONFLICTING_MERGE = "CONFLICTING_MERGE"
 
 
 class ParseError(Exception):
-    """A sentence outside the supported language.
+    """Input the text pipeline refuses -- parsing or fact extraction alike.
 
-    Carries a code, the offending sentence and a machine-readable `detail`, never prose: all
-    user-facing wording lives in messages.yaml so that it can be reviewed in one place.
+    One exception type for the whole pipeline, so the API layer has one thing to catch. Carries
+    a code, the offending text and a machine-readable `detail`, never prose: all user-facing
+    wording lives in messages.yaml so that it can be reviewed in one place.
     """
 
     def __init__(self, code: ErrorCode, sentence: str, detail: str = "") -> None:
@@ -166,6 +173,14 @@ def split_sentences(paragraph: str) -> list[str]:
     sentences.append(current)
 
     trimmed = [stripped for s in sentences if (stripped := s.strip(" \t\n" + _TERMINATORS))]
+
+    # A one-token fragment is almost always an abbreviation the splitter mistook for a sentence
+    # end ("Dr" from "Dr. Rao"). Refusing it closes the only route by which the documented
+    # splitting limitation could leak a nonsense fact into a proof (HLD v2.6 A4).
+    for fragment in trimmed:
+        if len(fragment.split()) < 2:
+            raise ParseError(ErrorCode.SUSPICIOUS_FRAGMENT, fragment, "one_token_fragment")
+
     if len(trimmed) > MAX_SENTENCES:
         raise ParseError(ErrorCode.TOO_MANY_SENTENCES, paragraph, f"{len(trimmed)} sentences")
     return trimmed
