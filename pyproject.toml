@@ -1,0 +1,15 @@
+# Tool configuration only -- ProofPilot is run from source, not installed as a package,
+# so there is deliberately no [build-system] or [project] table.
+# pytest config stays in pytest.ini (pytest prefers it over this file).
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "frontend"]
+
+[tool.ruff.lint]
+# E/F  pycodestyle + pyflakes: the baseline correctness and style set
+# I    import sorting, so import order never shows up as diff noise
+# B    flake8-bugbear: real bug patterns (mutable defaults, loop-variable capture) that
+#      matter in a codebase built on dataclasses and closures
+select = ["E", "F", "I", "B"]
