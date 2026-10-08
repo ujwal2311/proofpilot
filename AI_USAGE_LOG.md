@@ -167,3 +167,39 @@ compatibility was established by resolving wheels for that target version rather
 Claude also reported gaps found beyond the fix list for the student to decide on, including an
 incomplete module list in the smoke test's import guard, and did not act on them. No application
 logic was written in this phase.
+
+---
+
+**Date:** 2026-10-08
+**Phase:** 1 — Audit follow-up: decisions G1–G5 and additional fixes H1–H7
+**Tool:** Claude Code (Opus 5)
+**Files created:** `constraints.txt`, `CONTRIBUTING.md`, `backend/tests/test_docs_version.py`.
+**Files modified:** `backend/tests/test_smoke.py`, `CLAUDE.md`, `pyproject.toml`, `.gitignore`,
+`.github/workflows/ci.yml`, `README.md`, `docs/READING_GUIDE.md`, `docs/HLD.md`,
+`AI_USAGE_LOG.md`.
+**What the student changed by hand:** none yet — to confirm. The student supplied all twelve
+decisions and fixes; Claude applied them and verified each.
+**Purpose:** Replaced the core-import denylist with an allowlist that asserts every module
+importing `core` pulls in is either standard library or the project's own package, and proved it
+by temporarily importing `httpx` and then `yaml` into a core module and confirming each failed by
+name before reverting — the allowlist also caught the transitive packages those imports dragged
+in, which a denylist structurally cannot. Before making that change Claude checked the design as
+instructed and confirmed `core` is not specified to load YAML; one related deviation from the
+student's stated preference was found and is reported rather than changed, namely that the
+architecture diagram has `core` loading `exercises.json` directly instead of receiving it from
+the edge.
+
+Made the push rule absolute and stated it in one place, after Phase 1 had pushed on an implicit
+authorisation. Established `pyproject.toml` `requires-python` as the single source of truth for
+the Python version and removed every restatement. Narrowed the environment-file ignore rules and
+proved the behaviour with `git check-ignore` on four filenames. Added a transitive pin set and
+verified every pin resolves for all four continuous-integration targets; the first verification
+attempt failed and the failure was traced to the verification method rather than the pins, since
+`pip download --platform` matches tags exactly and the pinned matplotlib and contourpy releases
+publish different manylinux tags that no single tag satisfies. Wired constraints, cache keys and
+the pip version-check setting into continuous integration. Added a test that fails when any
+document cites a superseded design version, which caught a real stale reference on its first run.
+Recorded in the design change log that from Phase 8 the determinism job will also diff experiment
+outputs, comparing figures by hashing the plotted data rather than the image bytes. Added a
+contributing guide. Corrected an earlier entry in this log that had wrongly claimed no conda
+installation existed. No application logic was written in this phase.
