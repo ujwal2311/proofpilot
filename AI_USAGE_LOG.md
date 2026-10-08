@@ -265,3 +265,36 @@ all four defects are now detected. A fifth surviving defect was investigated and
 undetectable for a provable reason rather than a test gap, confirmed by sampling two hundred
 thousand random clause pairs; the relevant guard was kept deliberately and a test now documents
 why. No work beyond `search.py` and `config.py` was carried out.
+
+---
+
+**Date:** 2026-10-08
+**Phase:** 4a — `core/english.py`, the controlled grammar (test-first)
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/src/core/english.py`, `backend/tests/test_english.py`.
+**Files modified:** `backend/src/core/config.py`, `AI_USAGE_LOG.md`.
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Implemented the controlled-English parser, tests before code. Three tests failed on
+the first run and investigation showed the tests were wrong, not the implementation: they had
+assumed the parser strips a negation from inside a fact phrase, when the grammar only treats a
+negation as structural if it begins the clause. Everything else belongs to the fact layer. The
+tests were corrected and a further test added that pins the boundary between the two layers,
+since getting it backwards would have corrupted every downstream stage.
+
+Thirteen deliberate defects were then injected into the implementation. Twelve were caught.
+The survivor removed the rule that "either" forces a disjunction, and tracing why it survived
+exposed a genuine hole: the existing ambiguity test only covered sentences mixing both
+connectives, which a weaker rule still rejects. The uncovered case is a sentence such as
+"Either it rains and it is cold", which has only one connective present and would therefore have
+been parsed silently as a conjunction — the exact opposite of what the word "either" promises,
+and undetectable anywhere downstream. Tests were added for that case and for its counterpart
+with "both". While tracing it, a second genuine defect was found: the grammar requires at least
+one connective after "either" or "both", but the implementation accepted "Either it rains" and
+quietly demoted it to a plain clause. That is now refused. Both fixes were re-verified by
+re-running the mutations.
+
+The module came in at 245 lines against a 180-line estimate, and the cumulative core total is
+now 582 of 975 with six modules still to build. Projecting the overrun observed so far puts the
+finished core at roughly 1,091 lines, about 116 over the agreed cap. This is reported at the gate
+as a budget breach requiring a decision rather than absorbed quietly. No work beyond
+`english.py` was carried out.

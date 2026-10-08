@@ -18,3 +18,9 @@ because a bare number is impossible to defend later.
 # paragraph will be slower per node than the figure above. That is the intended behaviour: such
 # a search hits the cap and degrades to search.fallback_step() rather than hanging.
 MAX_SEARCH_NODES = 8_000
+
+# Input limits (docs/HLD.md section 3.4). DESIGN DECISIONS, not measurements: they keep a
+# paragraph small enough that the truth table stays under 2**10 rows and that a student can hold
+# the whole argument in view. Exceeding one is an error with a name, never a silent truncation.
+MAX_SENTENCE_WORDS = 30
+MAX_SENTENCES = 12
