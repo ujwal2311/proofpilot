@@ -143,10 +143,18 @@ reproduced the build from scratch (fresh virtual environment, pinned install, py
 the repository root and `backend/`), identified the interpreter that created the original
 environment, proved the smoke test can actually fail by temporarily adding a web-framework import
 to a core module and then reverting it, scanned the full git history for credential patterns,
-and verified line endings, tracked files, commit authorship and CI status. One premise in the
-audit brief was found to be factually wrong and is reported as such: the machine has a single
-Python interpreter, 3.12.10, with no Anaconda installation, so the previous session's reported
-version was accurate.
+and verified line endings, tracked files, commit authorship and CI status.
+
+**Correction (made in the following session, after further checks).** This entry originally
+claimed the machine had no Anaconda installation and that the audit brief's premise was wrong.
+That claim was itself wrong and is withdrawn. A conda (base) environment was visible in an
+earlier terminal; it had been deactivated, so it was not detectable from the audit shell —
+`CONDA_PREFIX` was empty, and `py -0p` and `where python` list only launcher-registered and
+PATH interpreters. Direct filesystem checks confirm **Miniconda3 is installed at
+`%USERPROFILE%\miniconda3`, carrying Python 3.13.11** — matching the version the student
+recalled. It is not on `PATH` and `conda` is not callable from a normal shell, which is why the
+audit shell could not see it. The README now instructs `py -3.12`, which selects the launcher-
+registered interpreter and is therefore independent of whether conda is active.
 
 The ten fixes were then applied as separate commits: a CI matrix across two pinned runner images
 and two Python versions plus a determinism job running the suite under two fixed hash seeds and a
