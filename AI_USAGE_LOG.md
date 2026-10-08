@@ -298,3 +298,43 @@ now 582 of 975 with six modules still to build. Projecting the overrun observed 
 finished core at roughly 1,091 lines, about 116 over the agreed cap. This is reported at the gate
 as a budget breach requiring a decision rather than absorbed quietly. No work beyond
 `english.py` was carried out.
+
+---
+
+**Date:** 2026-10-08
+**Phase:** 4a gate — budget metric change, grammar robustness fixes, mutation record
+**Tool:** Claude Code (Opus 5)
+**Files created:** `scripts/loc.py`, `backend/tests/test_english_robustness.py`,
+`docs/experiments/mutation_log.md`.
+**Files modified:** `docs/HLD.md` (v2.4 → v2.5), `CLAUDE.md`, `README.md`,
+`docs/READING_GUIDE.md`, `.github/workflows/ci.yml`, `backend/src/core/english.py`,
+`backend/tests/test_english.py`, `AI_USAGE_LOG.md`.
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** The student decided that line budgets should count code lines only, excluding
+blank lines, comments and docstrings, on the grounds that the caps bound logic complexity while
+the comments the rules require improve explainability and should not be penalised. A measuring
+script was written for this using the standard library's tokenizer rather than pattern matching,
+because a pattern cannot reliably tell a documentation string from an ordinary string that
+happens to begin a line. Under the new metric the breach reported at the previous gate
+disappears, and the projection for the finished core sits comfortably inside the cap.
+
+A traceability check was then run on the previous gate's corrected tests, to confirm the design
+justified them rather than the reverse. The design was not silent: it already stated that only a
+negation at the start of a clause is structural. However, the verification table contained a row
+that attributed an example to the wrong layer, which a reader following it would have implemented
+incorrectly. The row was split and the rule restated.
+
+Four genuine defects were then found, each by a test written before the fix: quantified words such
+as "someone" were accepted as ordinary facts because matching is word-based and the listed forms
+did not include the compound ones; typographic characters were not folded to plain ASCII, so a
+curly apostrophe could destroy a negation before the fact layer ever saw it; sentence splitting
+broke decimal numbers and abbreviations; and a regression introduced in the previous gate rejected
+a perfectly ordinary sentence beginning with "both". A seeded generator was also added that builds
+three hundred random sentences inside the grammar, writes them out as English, reads them back and
+requires an exact match.
+
+Finally the full mutation record was written up as reportable evidence. Of thirty-four deliberate
+defects injected across the three modules built so far, all thirty-four are now detected; one
+further defect was shown by sampling to be undetectable for a provable reason rather than a gap in
+the tests. Two defects that initially survived turned out to mark redundant code rather than
+missing tests, and that code was deleted. No work beyond the grammar module was carried out.
