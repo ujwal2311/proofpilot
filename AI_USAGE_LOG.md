@@ -231,3 +231,37 @@ to assert the output is actually sorted and re-verified against the same defect 
 different hash seeds. This is recorded because the weakness was in work produced in this session
 and was found only by deliberately attacking it. No application logic was written beyond
 `logic.py`.
+
+---
+
+**Date:** 2026-10-08
+**Phase:** 3 — `core/search.py` and `core/config.py` (test-first)
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/src/core/search.py`, `backend/src/core/config.py`,
+`backend/tests/test_search.py`.
+**Files modified:** `AI_USAGE_LOG.md`.
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Implemented breadth-first search for the shortest resolution refutation, tests
+before code, confirmed failing first. Added the search node budget as a named constant whose
+value was measured rather than chosen: the slowest legal exercise-bank state needed 184 expanded
+nodes and 13.9 milliseconds, and the cost per expanded node was flat at about 64 microseconds, so
+the budget was set at 8,000 nodes, roughly forty times the worst measured requirement and about
+half a second in the worst case. The measurement conditions are recorded alongside the constant.
+
+One design decision departs from a literal reading of the design document and is recorded here:
+exhausting the search space without finding a proof returns an error rather than the same null
+value used for the node budget being reached. Those two outcomes mean opposite things to a caller
+— impossible versus merely expensive — and collapsing them would have hidden the very condition
+the design's short-circuit exists to prevent.
+
+The test suite was then attacked with nine deliberate defects injected into the implementation.
+Five were caught immediately; four were not, and all four were genuine weaknesses in the tests.
+Two ordering tests had rebuilt a set in a different order and compared the results, which proves
+nothing because equal sets iterate identically within a single process — the same mistake made
+and corrected in the previous phase, repeated here. The other two used fixtures where the
+naively-first choice happened to be the correct one, so an implementation that ignored the rule
+entirely still passed. New fixtures were constructed specifically to separate those cases, and
+all four defects are now detected. A fifth surviving defect was investigated and found to be
+undetectable for a provable reason rather than a test gap, confirmed by sampling two hundred
+thousand random clause pairs; the relevant guard was kept deliberately and a test now documents
+why. No work beyond `search.py` and `config.py` was carried out.
