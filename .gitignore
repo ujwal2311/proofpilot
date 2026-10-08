@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.ruff_cache/
 .venv/
 venv/
 *.egg-info/
@@ -11,10 +12,12 @@ node_modules/
 dist/
 .vite/
 
-# Environment — never commit real values; .env.example is committed instead
+# Environment — never commit real values. `.env.*` covers .env.local, .env.production etc;
+# the negation keeps the committed template visible. (`*.env` was too broad: it would also
+# have swallowed a legitimately tracked file such as test.env.)
 .env
-.env.local
-*.env
+.env.*
+!.env.example
 
 # Editors / OS
 .vscode/
