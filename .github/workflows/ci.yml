@@ -6,11 +6,13 @@ on:
 
 jobs:
   pytest:
-    runs-on: ubuntu-latest
+    # Pinned, not `ubuntu-latest`: that label migrates to Ubuntu 26 on 2026-10-19 and a runner
+    # change mid-project would be an unreproducible CI break during the build.
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
