@@ -21,7 +21,8 @@ import statistics
 import time
 
 import pytest
-from src.core.config import MAX_SEARCH_WORK
+from src.core import search
+from src.core.config import MAX_DISTANCE_CACHE, MAX_SEARCH_WORK
 from src.core.search import (
     GoalUnreachableError,
     Work,
@@ -202,6 +203,45 @@ def test_a_proof_deeper_than_the_budget_degrades_instead_of_hanging() -> None:
     assert best_next_step(BEYOND_BUDGET, work) is None
     assert work.left == 0, "the budget should be spent, not abandoned early"
     assert fallback_step(BEYOND_BUDGET) is not None, "the student must still get a legal move"
+
+
+# --------------------------------------------------------------------------------- cache bound
+
+
+def test_the_distance_cache_never_exceeds_its_bound() -> None:
+    # The API server is long-running, so an unbounded memo table is a memory leak rather than an
+    # optimisation. MEASURED before the bound existed: 200 distinct own-question requests grew
+    # the table to 1,062 entries -- ~5.3 per request, linear and without limit (v2.10).
+    #
+    # The bound is driven past deliberately: a test that only reached half the limit would pass
+    # for an unbounded implementation and prove nothing.
+    clear_distance_cache()
+    rng = random.Random(SEED + 3)
+    for _ in range(3 * MAX_DISTANCE_CACHE):
+        # Chains are used rather than random clause sets because every one of them is PROVABLE,
+        # and only confirmed distances are ever cached. Random sets mostly have no refutation, so
+        # they would exercise the eviction path far more slowly.
+        length = rng.randint(2, 4)
+        tag = frozenset({f"T{rng.randrange(10**6)}"})  # makes each state distinct
+        distance(_chain(length) | {tag}, PROPERTY_BUDGET)
+        assert len(search._DISTANCE_CACHE) <= MAX_DISTANCE_CACHE
+
+    assert len(search._DISTANCE_CACHE) == MAX_DISTANCE_CACHE, (
+        "the bound was never actually reached, so this test proved nothing about eviction"
+    )
+
+
+def test_eviction_keeps_answers_correct() -> None:
+    # Eviction may cost a cache hit; it may never change an answer. The memo is a pure function
+    # of the state, so a recomputed distance must equal the remembered one.
+    clear_distance_cache()
+    first = distance(WORST_BANK, MAX_SEARCH_WORK)
+    rng = random.Random(SEED + 4)
+    for _ in range(2 * MAX_DISTANCE_CACHE):
+        tag = frozenset({f"T{rng.randrange(10**6)}"})
+        distance(_chain(2) | {tag}, PROPERTY_BUDGET)
+    assert WORST_BANK not in search._DISTANCE_CACHE, "fixture should have been evicted by now"
+    assert distance(WORST_BANK, MAX_SEARCH_WORK) == first
 
 
 # ------------------------------------------------------------------------------------- latency

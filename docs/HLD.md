@@ -1,8 +1,8 @@
-# ProofPilot — High-Level Design v2.9
+# ProofPilot — High-Level Design v2.10
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
-Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests). v2.9 applies the Phase-5-gate change request (§16).
+Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests). v2.9 applies the Phase-5-gate change request; v2.10 the budget decision and the cache bound (§16).
 This document is the source of truth. Any later
 design change requires an explicit change request from the student; Claude must not alter the
 design unilaterally.
@@ -67,7 +67,8 @@ insert buttons, **no drag-and-drop builder** · `narrate.py` (English proof expl
 
 ### STRETCH (listed only, not designed)
 
-Similarity (Jaccard) merge suggestions · set-of-support search · "Why this score?" ·
+Similarity (Jaccard) merge suggestions · set-of-support search · "Why this score?"
+(with it, `mastery_history` and `HistoryItem`, cut from M1 in v2.10) ·
 mobile polish · more translation diagnoses · teacher-authored questions.
 
 ### Out of scope (all milestones)
@@ -78,23 +79,26 @@ database, Docker, A*.
 
 ### Budgets (changed from v1 — justified in §12)
 
-Caps are measured in **CODE lines** — blank, comment and docstring lines excluded (v2.5) — by
-`scripts/loc.py`, which is the enforcing authority and runs in CI. The numbers below are the ones
-it enforces; earlier revisions of this table printed the superseded v2.3 values (975/350/250/700)
-and were corrected in v2.9.
+Line budgets are measured in **CODE lines** — blank, comment and docstring lines excluded (v2.5).
 
-| Budget | Cap | Enforced by | Scope |
-|---|---|---|---|
-| Hours | **77.00 person-hours accepted** (≈38.5 h each); contingency 75.00 | §13.3 | includes review-and-understand time **and** cross-module walkthroughs |
-| Core lines | **≤650 target, ≤700 hard ceiling** (v2.8 A4c) | `loc.py` | `backend/src/core/*.py` |
-| api + cli | **≤250** | `loc.py` | `backend/src/api/*.py` + `backend/src/cli.py`, excluding tests |
-| scripts | **≤180** (separate cap) | `loc.py` | `scripts/*.py` — build/eval tooling, never shipped |
-| Frontend | **≤550** | `loc.py` | `frontend/src/**` |
+**The numbers live in `budgets.toml` and in no other file** (v2.10 item 5). `tools/loc.py` reads
+that file, prints the table and fails the build above a ceiling; it runs at every phase gate and
+in CI. §13.4 states the policy — which bucket covers what, how the warning band works, and the
+overrun rule — without repeating a single figure.
 
-**Not all of these caps are met by the design as frozen.** §13.4 holds the measured-plus-estimated
-projection per bucket and names each breach; §17.12 holds the verdict table. Reporting the breach
-is deliberate: a cap that moves whenever it is reached is not a cap, so the arithmetic is stated
-and the decision is left to the student rather than absorbed quietly.
+| Budget | Where the number lives | Scope |
+|---|---|---|
+| Hours | §13.3 (**77.00 person-hours accepted**, ≈38.5 h each; contingency 75.00) | includes review-and-understand time **and** cross-module walkthroughs |
+| Core lines | `budgets.toml` → `[core]` | `backend/src/core/*.py` |
+| api + cli | `budgets.toml` → `[api_cli]` | `backend/src/api/*.py` + `backend/src/cli.py`, excluding tests |
+| scripts | `budgets.toml` → `[scripts]` | `scripts/*.py` — **evaluation** tooling, never shipped |
+| Frontend | `budgets.toml` → `[frontend]` | `frontend/src/**` |
+| tools | `budgets.toml` → `[tools]`, **reported, not capped** | `tools/*.py` — development tooling |
+
+All four capped buckets were **re-derived bottom-up and frozen on 2026-10-11** (v2.10 item 6)
+after the Phase 5 gate found that the caps and the design had contradicted each other for six
+revisions. The derivation, the measured actuals behind it and the record of what went wrong are
+all in `budgets.toml`.
 
 **Team constraint (approved):** both members must be able to explain every module. This is a
 budget line item (§13.3), not an aspiration — it is what the §17.11 three-sentence explanations
@@ -352,7 +356,8 @@ SentenceRec = { id, text, status: "ok"|"error", error_code: str|None,
 Translation = { sentence_id, student_formula: str|None,                       # M2
                 status: "pending"|"correct"|"correct_contrapositive"|"error",
                 diagnosis_code: str|None }
-HistoryItem = { skill, step_index: int, outcome: bool }
+# HistoryItem -- CUT from M1 with mastery_history (v2.10 item 3). It only ever fed the
+#              stretch feature "Why this score?"; BKT needs the posterior, not the sequence.
 
 State:
 {
@@ -368,7 +373,8 @@ State:
   clauses:         list[ClauseRec],        # CNF of the REFERENCE parse, append-only, stable IDs
   relevant_ids:    list[str],              # output of relevance.py; informational, nothing is deleted
   mastery:         { CLASH, RESOLVE, STRATEGY [, TRANSLATE] : float },
-  mastery_history: list[HistoryItem],
+  # mastery_history: CUT from M1 (v2.10 item 3) -- stretch only. Re-adding it bumps
+  #                  schema_version; the BKT maths is untouched either way.
   hint_level:      int,                    # 0-3; resets on stage change or a clause being added
   done_ids:        list[str],
   solved:          bool,
@@ -779,8 +785,11 @@ Every output file is stamped with date, git commit hash, seed, Python version an
 | Single `/api/act` discriminated union vs one endpoint per action | One surface to schema, test, document; new action types don't grow the API | Larger schemas; routing bugs hit every action | **One `/act`** | Easy — schema-layer only |
 | **Milestone split M1/M2** | M1 is independently demoable and defensible; M2 is a clean additive layer; a schedule slip degrades scope, not quality | Two integration passes; TRANSLATE absent from M1's mastery display | **M1 must-ship, M2 target** | Easy by design |
 | **Core line cap raised 450 (v1) → 850 (v2.1) → 975 (v2.2)** | The original 450 was set for a 4-module core that assumed exercises arrived pre-written in CNF. The English pipeline was added *after* that cap, bringing 6 new required modules; v2.2's 975 is the first cap set with knowledge of the real module list. A cap that forces a module out cuts a capability, not fat | Larger surface both members must be able to defend in the viva — which is exactly why the team constraint and its walkthrough hours (§13.3) were added alongside | **975, and now met at ~945 ✓** | Reversible only by cutting a capability |
-| Frontend 400 (v1) → 600 → **700 (v2.3)**; outside-core ≤400 **split into api+cli ≤350 and scripts ≤250 (v2.3)** | Same reasoning: more screens, more endpoints. The split prices the right thing — scripts never ship | Five caps to track instead of three | **All five met as of v2.3 (§13.4)** | Easy — budgets, not design |
+| Frontend and outside-core caps split by bucket (v2.3), then **re-derived bottom-up and frozen (v2.10)** | The split prices the right thing — shipped code is capped, tooling is not. Re-deriving replaced estimates that had contradicted the enforced caps for six revisions | Five buckets to track instead of three | **Frozen in `budgets.toml`, the single source (§13.4)** | **Hard — the overrun policy forbids raising them again; an overrun cuts M2** |
 | **Module ownership A/B with mutual review** (§4.1) | Each module has a named reviewer and a primary viva explainer; neither member has a blind spot | Costs 8.75 h of cross-module walkthroughs that a divide-and-conquer split would not | **Adopted, and budgeted (§13.3)** | Easy — reassign at any gate |
+| **`State` stays a core dataclass** rather than moving to `api/schemas.py` (v2.10 item 1) | The **CLI uses core directly** (`python -m src.cli`, the HARD CLI GATE), so an edge-owned `State` would force the CLI through the API or make it build its own parallel object. Core staying usable without the web layer is what lets the whole pipeline be driven and tested with no server at all | Costs ~35 core lines, and the field list is declared twice — once as a core dataclass, once as a Pydantic schema. A schema test keeps the two honest | **Rejected the move. `State` is core; the API converts to and from it in `schemas.py`** | Hard — every core signature would change |
+| **Evidence mapping as policy YAML, transitions as code** (v2.10 item 2) | §9's evidence table is a pure lookup — ~18 declarative rows with no control flow — so it is data, loaded and schema-validated at the **edge** and passed into core as a plain mapping (v2.4). Stage × action **transitions are control logic**: they decide what may happen next and raise named errors, which is behaviour a reader must see in code | Two homes for "policy"; a reader must know which is which | **Evidence table → `data/policy.yaml`. Transition table stays in `tutor.py` as one compact table** | Easy — both are one table either way |
+| **`mastery_history` cut from M1** (v2.10 item 3) | It served only the stretch feature *"Why this score?"*; BKT needs the posterior, never the sequence that produced it. Cutting it removes a core field, the `HistoryItem` type, the append path through `tutor`, its API serialization and the history chart in `MasteryBars` | A later *"Why this score?"* must re-add the field and a migration of `schema_version` | **Cut from M1. Listed as stretch** | Easy — append-only data, re-addable without touching the BKT maths |
 
 ---
 
@@ -877,119 +886,29 @@ post-submission returns the project to **75.00 person-hours** (≈37.5 h each).
 
 ### 13.4 Lines
 
-| Module | Lines | | Module | Lines |
-|---|---|---|---|---|
-| `english.py` | 180 | | `bkt.py` | 40 |
-| `facts.py` | 100 | | `tutor.py` | 120 |
-| `cnf.py` | 55 | | `config.py` | 25 |
-| `entail.py` | 50 | | **M1 core Σ** | **870** |
-| `relevance.py` | 35 | | `translation.py` (M2) | 150 |
-| `logic.py` | 150 | | TRANSLATE wiring (M2) | 20 |
-| `search.py` | 115 | | `narrate.py` (M2, **cut**) | ~~70~~ |
+**Every line budget lives in `budgets.toml` and nowhere else (v2.10 item 5).** That file holds
+the per-bucket and per-module derivation, the measured actuals it was computed from, the frozen
+estimate, the ceiling (estimate + 10%), and the record of why the earlier caps were wrong. It is
+read by `tools/loc.py`, which is the enforcing authority and runs in CI.
 
-**Core after cuts = 870 + 170 = 1,040.** Moving all counterexample/feedback phrasing from Python
-into `messages.yaml` templates removes ~95 more → **~945 against the raised 975 cap — fits, with
-30 lines of headroom ✓.** That headroom is thin: any module that overruns its §13.4 estimate by
-more than ~3% breaches the cap, so line counts are reported at every phase gate, not just at the
-end.
+No number from it is repeated here. Three tables in this document (§2, this section and §17.12)
+each carried their own copy of the caps for six revisions, all three drifted, and the document
+ended up claiming a cap was met while CI enforced a different one. The duplication was the bug,
+so `test_no_doc_restates_a_cap_number` now fails the build if a cap number appears in this file,
+`CLAUDE.md`, the README or the reading guide.
 
-#### 13.4.1 Corrected arithmetic, Phase 5 gate (v2.9 A5)
+What belongs here is the policy, not the arithmetic:
 
-The table above is a **v2.3-era estimate against a 975-line cap that no longer exists.** The cap
-became 650 target / 700 ceiling (v2.3, v2.8 A4c) and the bottom-up estimate was never re-derived,
-so the two have been inconsistent for six revisions. Measured, with every number from
-`python scripts/loc.py` at commit `fd56677` and estimates labelled as estimates:
-
-| Core module | §13.4 estimate | **Measured** | Δ |
-|---|---|---|---|
-| `english.py` | 180 | **188** | +8 |
-| `facts.py` | 100 | **130** | +30 |
-| `logic.py` | 150 | **65** | −85 |
-| `search.py` | 115 | **89** | −26 |
-| `cnf.py` | 55 | **72** | +17 |
-| `entail.py` | 42 → est. 50 | **42** | −8 |
-| `relevance.py` | 35 | **30** | −5 |
-| `config.py` | 25 | **4** | −21 |
-| **Built, measured** | 710 | **620** | **−90** |
-| `models.py` | *absent from §13.4 — a gap* | est. **60** | — |
-| `bkt.py` | 40 | est. **30** | — |
-| `tutor.py` | 120 | est. **90** | — |
-| **PROJECTION** | 870 | **~800** | — |
-
-**The sum against the caps: 620 + 60 + 30 + 90 = 800, versus a 650 target and a 700 ceiling —
-over the ceiling by 100.** `search.py` carries +14 of the measured total from the v2.9 A3 work
-budget, which is a correctness fix and not negotiable.
-
-Three facts this surfaces, none of them an accounting matter:
-
-1. **The built modules are 90 lines UNDER their estimates.** The breach is not caused by anything
-   written so far. It is caused by the cap having been lowered by 275 lines without re-deriving the
-   design's own bottom-up estimate.
-2. **The 697 projection quoted in §16 v2.8 A4c cannot be derived from this table** — 606 measured
-   plus §13.4's own 40 + 120 is 766, with `models.py` missing entirely. It should be treated as an
-   error, not as a baseline.
-3. **The other two code caps are in the same position.** §13.4 estimates api + cli at 325 against a
-   cap of 250, and `scripts` at 205 against a cap of 180 — and `scripts` is already at **151**
-   after the v2.9 A2 hardening, with `difficulty.py`, `run_experiments.py` and `heldout_eval.py`
-   still to come (est. 205), i.e. a projection near 356. Only the frontend (est. 600 under a 550
-   cap after M2's 85) is close enough to argue about.
-
-**Plan chosen to approach the ceiling (v2.9 A5).** The pre-approved option alone is worth ~13
-lines, so it cannot close a 100-line gap and is not presented as if it could:
-
-| # | Change | Saving | Status |
-|---|---|---|---|
-| 1 | The §9 evidence mapping becomes declarative policy data (`data/policy.yaml`), loaded and schema-validated **at the edge** and passed into core as plain data. **One** readable table, byte-for-byte the §9 rows. | **−13** | pre-approved (v2.9 A5) |
-| 2 | **`State` is not a core dataclass.** Core functions take the fields they use; the 19-field wire object is owned by `api/schemas.py`, which already declares every one of those fields in Pydantic. This removes a duplicate declaration rather than relocating logic. | **−35** | **needs approval** — moves the §C JSON round-trip test to the API phase |
-| 3 | `mastery_history` / `HistoryItem` accumulates at the edge; core returns the observation it made. | **−5** | **needs approval** |
-| 4 | The stage × action transition table becomes a second table in `policy.yaml`. | **−15** | **needs approval** — A5 pre-approved *one* table only |
-| | **Projection after 1–4** | **~732** | still over the 700 ceiling by ~32 |
-
-**Therefore the ceiling cannot be met by the design as frozen, and the honest options are the
-student's to choose** (CLAUDE.md: above 700 the answer is to simplify, never to raise the ceiling):
-
-- **(a) Simplify further inside core.** The only remaining sources are logic that is written,
-  tested and mutation-covered (`english.py` 188, `facts.py` 130, `cnf.py` 72). Cheapest in process,
-  most expensive in risk.
-- **(b) Cut M1 scope** so the frozen design fits — e.g. drop the Explanation stage's clause-origin
-  trace, which costs `ClauseRec.source_sentence_id` plumbing across models, tutor and the API.
-- **(c) One change request re-deriving all four caps bottom-up against the frozen v2.8 design** —
-  core ~800, api + cli ~350, scripts ~360, frontend 600 — with the per-module table above as the
-  contract. This is **not** re-basing a cap onto the actual, because the modules concerned are not
-  yet written: it replaces a stale estimate with a current one, once, before the code exists. It
-  does require the student to overrule the "never raise the ceiling again" rule explicitly.
-
-**Recommended: (c), with 1–3 applied regardless** because each is a genuine simplification on the
-merits. Nothing in this section is acted on without an explicit instruction; `tutor.py` is not
-written until the plan is chosen (A5).
-
-| Backend outside core | Lines | | Frontend | Lines |
-|---|---|---|---|---|
-| `api/main.py` | 130 | | `App.jsx` | 100 |
-| `api/schemas.py` | 110 | | `api.js` | 45 |
-| `cli.py` | 85 | | `QuestionInput` | 55 |
-| `scripts/difficulty.py` | 35 | | `FactsTable` | 80 |
-| `scripts/run_experiments.py` | 120 | | `ProofBoard` | 135 |
-| `scripts/heldout_eval.py` | 50 | | `FeedbackBox` → folded into `App` | 30 |
-| **Σ** | **530** (cap 400) | | `MasteryBars` | 55 |
-| *of which api + cli* | *325* | | `index.css` | 100 |
-| *of which scripts* | *205* | | **M1 Σ** | **600** (cap 600 ✓) |
-| | | | `TranslateStep` (M2) | 85 |
-| | | | **M1+M2 Σ** | **685** (over by 85) |
-
-**Status of each cap after the v2.3 change request — all five now met:**
-
-| Cap | Value | Estimate | Headroom | One-line justification |
-|---|---|---|---|---|
-| Core | **≤975** | ~945 | 30 | v1's 450 assumed a 4-module core over pre-written CNF; the English pipeline added 6 required modules after that cap existed |
-| api + cli | **≤350** | 310 | 40 | Thin layers by design — schemas, routing, error mapping, and a practice-mode CLI; anything larger means logic has leaked out of core |
-| scripts | **≤250** | 205 | 45 | Separated because build/eval tooling never runs in the shipped product and adds nothing to runtime complexity or the viva surface |
-| Frontend | **≤700** | 670 | 30 | Six components across four stages plus a formula input; M1 alone is 600 |
-| Hours | **77.00** | 77.00 | 0 | Accepted as computed in §13.3; contingency 75.00 by moving the pilot post-submission |
-
-The v2.2 deferrals (outside-core, frontend) are **closed**. Headroom is thin everywhere — 30–45
-lines — so line counts are reported at every phase gate, and a module that overruns its estimate
-by more than a few percent is a STOP-and-justify event, not something to absorb quietly.
+- a bucket's **cap** is its frozen bottom-up estimate and only **warns**; its **ceiling** is
+  cap + 10% and **fails** the build. The band between them is what a phase gate must justify — a
+  hard stop at the estimate would make every honest estimate a lie;
+- **an overrun cuts M2 scope first. The caps are never raised again.** (`CLAUDE.md`, GATES.)
+- `tools/*.py` is **reported but not capped** (v2.10 item 4): development tooling never ships and
+  adds nothing to runtime complexity or the viva surface. Capping it penalised exactly the work
+  that makes the other caps trustworthy — hardening the mutation driver after three incidents
+  cost 45 lines out of a bucket that also had to hold the evaluation scripts.
+- `scripts/*.py` stays capped, and now means **evaluation** tooling only: `difficulty.py`,
+  `run_experiments.py`, `heldout_eval.py`.
 
 ---
 
@@ -1054,6 +973,43 @@ a new version with a Change Log entry.
 
 ## 16. Change Log
 
+### From v2.9 → v2.10 — student budget decision + bounded cache, 2026-10-11
+
+The student chose option (c) from the §13.4 Phase-5 analysis, with conditions. Applied in full.
+
+1. **REJECTED: moving `State` out of core.** The CLI uses core directly, so an edge-owned `State`
+   would force the CLI through the API or make it maintain a parallel object. `State` stays a core
+   dataclass and `api/schemas.py` converts to and from it. Reason recorded in §12.
+2. **ACCEPTED: the §9 evidence mapping becomes `data/policy.yaml`** — loaded and schema-validated
+   at the edge (v2.4), passed into core as a plain mapping, one readable table.
+   **REJECTED: the stage × action transition table as YAML.** Transitions decide what may happen
+   next and raise named errors; that is control logic and stays visible in `tutor.py`.
+3. **CUT from M1: `mastery_history` and `HistoryItem`.** They served only the stretch feature
+   *"Why this score?"*. BKT needs the posterior, never the sequence that produced it. The §4 data
+   model, the §2 stretch list and the frontend estimate are updated; re-adding it later bumps
+   `schema_version` and does not touch the BKT maths.
+4. **Re-bucketed: `tools/` is reported but not capped.** `loc.py` and `mutate.py` moved from
+   `scripts/` to `tools/`. They never ship. Capping them penalised exactly the work that makes the
+   other caps trustworthy — hardening the mutation driver after three incidents cost 45 lines of a
+   bucket that also had to hold the evaluation scripts. `scripts/` stays capped and now means
+   `difficulty.py`, `run_experiments.py` and `heldout_eval.py` only.
+5. **`budgets.toml` is the single source for every cap.** §2, §13.4 and §17.12 each carried their
+   own copy for six revisions and all three drifted. Every figure is removed from this document,
+   from `CLAUDE.md` and from the README, and `test_no_doc_restates_a_cap_number` now fails the
+   build if one reappears. §17.12 no longer states a verdict — it tells you to compute one.
+6. **All four capped buckets re-derived bottom-up and FROZEN**, ceiling = estimate + 10%, with the
+   derivation, the measured actuals and the record of the earlier failure kept in `budgets.toml`.
+   `test_every_bucket_ceiling_is_the_frozen_estimate_plus_ten_percent` stops a hand-edited ceiling
+   becoming a quiet cap raise. **Overrun policy, now in `CLAUDE.md`: an overrun cuts M2 scope
+   first; the caps are never raised again.**
+7. **The memoised-distance table is bounded** (`MAX_DISTANCE_CACHE`). It was unbounded, and the
+   API server is long-running, so it was a memory leak rather than an optimisation: MEASURED over
+   200 distinct own-question requests it grew to 1,062 entries — ~5.3 per request, linear and
+   without limit — at 1,666 bytes retained per entry. One request confirms only **two** distances,
+   because budget hits are never cached, so a bounded table never evicts inside a request and
+   every hit worth having still lands. Eviction may cost a hit; a test proves it can never change
+   an answer.
+
 ### From v2.8 → v2.9 — Phase 5 gate change request (search termination, budgets, bindings), 2026-10-10
 
 No grammar, meaning, contract, endpoint or scope changed. One algorithm bound changed, and three
@@ -1085,7 +1041,7 @@ pieces of bookkeeping that were wrong are corrected rather than carried.
    is the arrival of `data/exercises.json`, and the freshness check, the bank collision guard and
    the ≤7-clause bank constraint are **BLOCKING** items of that gate.
 6. **A1/A2 — mutation runs are isolated** (no design impact, recorded for traceability).
-   `scripts/mutate.py` applies mutants only inside a detached `git worktree` at HEAD, refuses to
+   `tools/mutate.py` applies mutants only inside a detached `git worktree` at HEAD, refuses to
    start on a dirty tree or an untracked target, and fingerprints `backend/src` before and after.
    The committed source was verified clean mutant-by-mutant before the change, and the full set
    re-scored **66/66 caught** on committed code afterwards.
@@ -1176,7 +1132,7 @@ pieces of bookkeeping that were wrong are corrected rather than carried.
    **core ≤650**, **api + cli ≤250**, **scripts ≤180**, **frontend ≤550** code lines. Total lines
    are still reported, but not capped. This also restores consistency with the original project
    scope rule of "300–600 lines of core AI logic".
-2. **`scripts/loc.py`** measures and enforces this, using `tokenize` rather than regex (a regex
+2. **`tools/loc.py`** measures and enforces this, using `tokenize` rather than regex (a regex
    cannot distinguish a docstring from a string literal that happens to start a line). It prints
    a per-bucket table and exits non-zero on a breach; it runs as a CI step.
 3. **Quantifier list extended** to the compound indefinites — `someone`, `somebody`, `anyone`,
@@ -1221,8 +1177,10 @@ budget or scope changed.**
    standard library and the import allowlist would never have flagged it. The cost of the change
    is a few lines while `core` is still empty, and grows with every module that would have reached
    for the file directly — `tutor.next_exercise` most of all.
-5. **Budget effect:** none. `loader.py` (~35 lines) sits in the api+cli bucket (310 → ~345 of
-   350); `types.py` (~15 lines) is inside core's existing estimate.
+5. **Budget effect:** none. `loader.py` (~35 lines) sits in the api+cli bucket and `types.py`
+   (~15 lines) inside core's existing estimate. *(This entry originally quoted the bucket totals
+   of the day against the cap of the day; both are superseded, and v2.10 item 5 forbids any cap
+   figure outside `budgets.toml`, so the arithmetic is dropped rather than left to mislead.)*
 
 ### From v2.2 → v2.3 — approved change request (line caps), 2026-10-08
 
@@ -1684,41 +1642,22 @@ and (o) was undefined until v2.2; all are now pinned by a named test or an expli
 
 ### 17.12 Budget check
 
-Re-run for v2.2 (pilot kept in M1, walkthroughs added, core cap raised):
+**Hours** (unchanged, §13.3): M1 **65.50** against a 50 target, M2 **11.50** against 15, total
+**77.00** (≈38.5 h × 2 members) — **accepted by the student** (§15.1). Cuts were applied inside M2
+first, as mandated; **no M1 test, never-guess error, or held-out evaluation item was cut**, and the
+pilot cut was withdrawn on the student's instruction. The figure rose rather than fell and is
+reported at its computed value with a full reconciliation instead of being re-based onto the
+target.
 
-| Budget | Cap | Computed | Verdict |
-|---|---|---|---|
-| M1 hours | 50 | **65.50** (57.50 after cuts + 8.00 walkthroughs) | over by 15.50 |
-| M2 hours | 15 | **11.50** (10.75 after cuts + 0.75) | ✔ |
-| Total person-hours | 65 | **77.00** (≈38.5 h × 2 members) | **accepted by the student** (§15.1) |
-| Core lines | **975** | **~945** | **✔ fits, 30 lines headroom** |
-| Backend outside core | 400 | **515** (api 240 + cli 70 + scripts 205) | over by 115 — **deferred to Phase 8 gate** |
-| *of which api + cli* | *(proposed 400)* | *310* | *✔ against the proposed split* |
-| *of which scripts* | *(proposed 250)* | *205* | *✔ against the proposed split* |
-| Frontend M1 | 600 | **600** | ✔ exactly — zero headroom, watch at Phase 7 |
-| Frontend M1+M2 | 600 | **670** | over by 70 — **deferred to M2 gate** |
+**Lines:** run `python tools/loc.py`. It prints the measured code lines for every bucket against
+the frozen cap and ceiling from `budgets.toml`, and exits non-zero above a ceiling.
 
-**v2.9 re-run against the caps that are actually enforced** (`scripts/loc.py`, commit `fd56677`;
-the table above is kept for the record and its cap column is obsolete). Measured code lines plus
-labelled estimates — arithmetic and the chosen plan in §13.4.1:
-
-| Budget | Cap enforced | Measured now | Projection | Verdict |
-|---|---|---|---|---|
-| Core lines | **650 target / 700 ceiling** | **620** | **~800** (~732 after §13.4.1 items 1–4) | **BREACH — decision open at the Phase 6a gate** |
-| api + cli | **250** | **0** | ~325 | **projected breach** — re-derive at the API gate |
-| scripts | **180** | **151** | ~356 | **projected breach** — `difficulty.py`, `run_experiments.py`, `heldout_eval.py` still to come |
-| Frontend | **550** | **0** | 600 (M1) / 685 (M1+M2) | **projected breach** — open at the Phase 7 gate |
-| Total person-hours | 77.00 | — | 77.00 | accepted (§15.1) |
-
-**Nothing here is absorbed and no cap has been moved.** The breaches are reported with their
-arithmetic so the student can choose between simplifying, cutting scope, or issuing one change
-request that re-derives the caps against the frozen design.
-
-Cuts were applied inside M2 first, as mandated; **no M1 test, never-guess error, or held-out
-evaluation item was cut**, and the pilot cut was withdrawn on the student's instruction. The hours
-figure rose rather than fell, and is reported at its computed value with a full reconciliation
-(§13.3) instead of being re-based onto the cap. Two line caps remain exceeded and are recorded as
-such, with the decision deferred to the gate where measured numbers will exist.
+This section used to carry its own copy of the caps, as did §2 and §13.4, and all three drifted —
+by v2.8 the document asserted a core cap was met with headroom while CI enforced a cap 275 lines
+smaller. **The verdict is no longer written down at all: it is computed.** A table that has to be
+updated by hand to stay true is a table that will eventually lie, and the three that existed all
+did. The derivation and the frozen numbers live in `budgets.toml`, and
+`test_no_doc_restates_a_cap_number` fails the build if either reappears in prose.
 
 ---
 
@@ -1729,7 +1668,7 @@ hardcoding, no guessing, everything decided by truth table or resolution, simple
 chosen (textbook CNF, one search regime), limitations stated honestly ✔; (6) hours and lines
 computed bottom-up with arithmetic shown, nothing rounded down ✔ (§13).
 
-**HLD v2.9 — APPROVED AND FROZEN, 2026-10-10.** Implementation proceeds against this document.
+**HLD v2.10 — APPROVED AND FROZEN, 2026-10-11.** Implementation proceeds against this document.
 Any design change from here requires an explicit change request from the student.
 
 *(This footer read "v2.4" through v2.5–v2.8 — it was not advanced with the header. Corrected in

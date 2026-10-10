@@ -12,7 +12,7 @@ This module owns distance, productivity and which step to suggest. It owns neith
 from dataclasses import dataclass
 from itertools import combinations
 
-from src.core.config import MAX_SEARCH_WORK
+from src.core.config import MAX_DISTANCE_CACHE, MAX_SEARCH_WORK
 from src.core.logic import Clause, canonical, is_tautology, resolvents
 
 State = frozenset[Clause]
@@ -24,6 +24,24 @@ EMPTY_CLAUSE: Clause = frozenset()
 # confirmed distances are stored: a budget hit depends on the budget, and caching it under the
 # state alone would poison a later call that has a larger one.
 _DISTANCE_CACHE: dict[State, int] = {}
+
+
+def _remember(state: State, depth: int) -> int:
+    """Memoise a confirmed distance, evicting the oldest entry past MAX_DISTANCE_CACHE.
+
+    The bound is the point: the API server is long-running, and MEASURED over 200 distinct
+    requests this table grew to 1,062 entries without limit -- a memory leak dressed as an
+    optimisation (v2.10).
+
+    Eviction is by insertion order, not true recency. Within one request every state is fresh, so
+    the two orders coincide, and that is where every hit worth having occurs -- one request
+    confirms only two distances, so a 1,024-entry table never evicts inside a request at all.
+    `functools.lru_cache` cannot be used here: it would also memoise the budget-dependent None.
+    """
+    _DISTANCE_CACHE[state] = depth
+    if len(_DISTANCE_CACHE) > MAX_DISTANCE_CACHE:
+        del _DISTANCE_CACHE[next(iter(_DISTANCE_CACHE))]
+    return depth
 
 
 @dataclass
@@ -139,8 +157,7 @@ def distance(state: State, budget: Work | int | None = None) -> int | None:
                 if child in visited:
                     continue
                 if EMPTY_CLAUSE in child:
-                    _DISTANCE_CACHE[state] = depth
-                    return depth
+                    return _remember(state, depth)
                 visited.add(child)
                 next_frontier.append(child)
         frontier = next_frontier

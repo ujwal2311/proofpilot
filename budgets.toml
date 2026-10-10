@@ -1,0 +1,110 @@
+#  budgets.toml -- the SINGLE SOURCE OF TRUTH for every line budget (HLD v2.10, item 5).
+#
+#  Read by tools/loc.py, which is the enforcing authority and runs in CI. No other file may
+#  restate a number from this table -- not docs/HLD.md, not CLAUDE.md, not the README. That rule
+#  is enforced by `test_no_doc_restates_a_cap_number`, because the caps were duplicated across
+#  three HLD tables for six revisions and all three drifted out of date without anyone noticing.
+#
+#  FROZEN 2026-10-11 by the student's budget decision, option (c): every bucket re-derived
+#  bottom-up from measured actuals plus a per-module estimate, ceiling = estimate + 10%.
+#  "cap" is the frozen estimate and a WARNING band; "ceiling" fails the build.
+#
+#  ==========================================================================================
+#  WHY THE PREVIOUS CAPS WERE WRONG, so this is not repeated
+#  ==========================================================================================
+#  v1 set core at 450 for a 4-module core over pre-written CNF. The English pipeline then added
+#  six required modules, and the cap was raised 450 -> 850 -> 975 to follow. In v2.3 it was
+#  LOWERED to 650/700 -- but the design's own bottom-up estimate (870 for M1 core, HLD 13.4)
+#  was never re-derived against it, so the document simultaneously claimed a 975 cap was met
+#  and enforced 650. Measured at the Phase 5 gate the projection was ~800 against a 700
+#  ceiling, while the modules already written came in 90 lines UNDER their own estimates. The
+#  caps had never been wrong about the code; they had been wrong about each other.
+#
+#  Calibration evidence: built core measured 625 against a 710-line estimate for the same
+#  modules -- 88%. The estimates below are therefore conservative, not optimistic, and no
+#  correction factor has been applied to them.
+#
+#  ==========================================================================================
+#  OVERRUN POLICY (also stated in CLAUDE.md, which is where the rule lives)
+#  ==========================================================================================
+#  An overrun cuts M2 scope first. These caps are never raised again.
+#
+#  ==========================================================================================
+#  DERIVATION
+#  ==========================================================================================
+#
+#  core -- backend/src/core/*.py
+#    MEASURED 2026-10-11 (tools/loc.py, commit 159ff77 + the v2.10 cache bound):
+#      english.py 188 · facts.py 130 · search.py  93 · cnf.py 72 · logic.py 65
+#      entail.py   42 · relevance.py 30 · config.py 5 · __init__.py 0        = 625
+#    ESTIMATED, and only these three remain in M1:
+#      models.py  55   34 dataclass fields across Exercise/Fact/MergeChoice/ClauseRec/
+#                      SentenceRec/State, 6 decorators, 6 class lines, ~5 imports and aliases.
+#                      State STAYS in core (v2.10 item 1: the CLI uses core directly, so an
+#                      edge-owned State would force the CLI through the API). mastery_history
+#                      is CUT from M1 (item 3), which is 1 field and the HistoryItem type.
+#      bkt.py     30   posterior, update, g+s<1 validation, is_done, a params dataclass. It does
+#                      the arithmetic only: the evidence mapping is policy data (item 2).
+#      tutor.py   95   stage x action transition table in CODE (item 2 rejected YAML for it:
+#                      transitions are control logic), evidence lookup over the policy data,
+#                      the two hint ladders, next_exercise band selection, downstream reset.
+#    M2 adds translation.py 150 + TRANSLATE wiring 20 = 170, OUTSIDE this cap by the overrun
+#    policy: if M1 lands over, M2 is cut rather than the cap moved.
+#    => M1 estimate 625 + 180 = 805 · ceiling 805 x 1.10 = 886
+#
+#  api_cli -- backend/src/api/*.py + backend/src/cli.py
+#    Nothing built yet, so this is estimate only and UNCALIBRATED -- the 88% figure above was
+#    measured on core and is not evidence about a layer written in a different style.
+#      main.py     130  4 endpoints, routing, the error-code mapping, config and messages.yaml
+#                       loaded at the edge (v2.4)
+#      schemas.py  120  Pydantic request/response models, plus conversion to and from the core
+#                       State in both directions (v2.10 item 1 puts that conversion here)
+#      cli.py       85  practice mode playing a full exercise -- the HARD CLI GATE
+#      policy       10  policy.yaml load + schema validation at the edge (item 2)
+#    => estimate 345 · ceiling 380
+#
+#  scripts -- scripts/*.py, EVALUATION tooling only (v2.10 item 4)
+#    difficulty.py 50 (35 + the band computation moved in by v2.8 A4a) · run_experiments.py 120
+#    · heldout_eval.py 50
+#    => estimate 220 · ceiling 242
+#
+#  frontend -- frontend/src/**
+#    App.jsx 100 · ProofBoard 135 · index.css 100 · FactsTable 80 · QuestionInput 55 ·
+#    MasteryBars 35 (was 55; the history chart goes with mastery_history, item 3) ·
+#    api.js 45 · FeedbackBox folded into App 30                     = 580 for M1
+#    + TranslateStep 85 (M2)                                        = 665
+#    => estimate 665 · ceiling 732
+#
+#  tools -- tools/*.py, DEVELOPMENT tooling, REPORTED BUT NOT CAPPED (v2.10 item 4)
+#    loc.py and mutate.py never run in the shipped product and add nothing to runtime
+#    complexity or the viva surface. Capping them penalised exactly the work that makes the
+#    other caps trustworthy: hardening the mutation driver after three incidents cost 45 lines
+#    and consumed most of a 180-line cap that also had to hold the evaluation scripts.
+
+schema = 1
+frozen = "2026-10-11"
+
+[core]
+patterns = ["backend/src/core/*.py"]
+cap = 805
+ceiling = 886
+
+[api_cli]
+label = "api + cli"
+patterns = ["backend/src/api/*.py", "backend/src/cli.py"]
+cap = 345
+ceiling = 380
+
+[scripts]
+patterns = ["scripts/*.py"]
+cap = 220
+ceiling = 242
+
+[frontend]
+patterns = ["frontend/src/**/*.js", "frontend/src/**/*.jsx", "frontend/src/**/*.css"]
+cap = 665
+ceiling = 732
+
+[tools]
+patterns = ["tools/*.py"]
+capped = false

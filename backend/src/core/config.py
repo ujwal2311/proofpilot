@@ -20,6 +20,19 @@ because a bare number is impossible to defend later.
 # it. The value is set from that run, not guessed.
 MAX_SEARCH_WORK = 60_000
 
+# Entries kept in core.search's memoised-distance table. A bound is required because the API
+# server is long-running: an unbounded cache is a memory leak, not an optimisation.
+#
+# MEASURED on 2026-10-11 (same machine), over 200 distinct own-question requests with the cache
+# never cleared:
+#   - one worst-case request confirms only 2 distances, because budget hits are never cached
+#   - the table still grew to 1,062 entries, ~5.3 per request, linearly and without limit
+#   - retained size was 1,666 bytes per entry, so 1,024 entries is a ~1.6 MiB ceiling
+#
+# 1,024 is therefore ~512x the worst single request -- every within-request hit still lands, which
+# is where the whole benefit is -- while capping the table at a size a server can hold forever.
+MAX_DISTANCE_CACHE = 1_024
+
 # Input limits (docs/HLD.md section 3.4). DESIGN DECISIONS, not measurements: they keep a
 # paragraph small enough that the truth table stays under 2**10 rows and that a student can hold
 # the whole argument in view. Exceeding one is an error with a name, never a silent truncation.

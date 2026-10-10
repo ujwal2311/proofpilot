@@ -280,11 +280,11 @@ driver was rewritten in Python with a per-mutant timeout and a `git checkout` re
 ## Regenerating these numbers
 
 ```
-python scripts/mutate.py            # every module
-python scripts/mutate.py cnf        # one module
+python tools/mutate.py            # every module
+python tools/mutate.py cnf        # one module
 ```
 
-Mutants live in `data/mutants.json`; the driver is `scripts/mutate.py`.
+Mutants live in `data/mutants.json`; the driver is `tools/mutate.py`.
 
 **Conventions, because they affect the score.** A mutant is *caught* when pytest exits non-zero.
 A **timeout counts as caught**: a non-terminating conversion is a defect the suite surfaced, and
@@ -381,7 +381,7 @@ Three runs in a row damaged the working tree, each from a different cause:
 | 2 | 5 | `git checkout` **silently succeeds on a file git does not track**. Both new modules were untracked, so the restore did nothing and two files were left mutated | Restore from an in-memory copy and assert the file matches |
 | 3 | — | Restore-from-memory still *writes to the real file*. A crash between write and restore leaves a mutant on disk, and **a surviving mutant passes the tests by definition**, so a green suite is no evidence the files are clean | **Structural: never write to the real file at all** |
 
-**The fix is structural, not another careful restore** (`scripts/mutate.py`):
+**The fix is structural, not another careful restore** (`tools/mutate.py`):
 
 1. mutations are applied only inside a **detached `git worktree` at HEAD** — a separate directory,
    so `backend/src` is never opened for writing. Using a worktree rather than a copy also means

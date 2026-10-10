@@ -1,4 +1,4 @@
-"""Tests for scripts/loc.py -- the budget reporter (docs/HLD.md v2.5 section 16).
+"""Tests for tools/loc.py -- the budget reporter (docs/HLD.md section 16).
 
 The caps are only as trustworthy as the thing that measures them. A counter that mistook a
 string literal for a docstring would quietly inflate the allowance, so it is tested like any
@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "tools"))
 
 import loc  # noqa: E402  (needs the path above)
 
@@ -62,16 +62,48 @@ def test_measure_counts_every_line_exactly_once(sample: Path) -> None:
     )
 
 
-def test_main_exits_non_zero_when_a_cap_is_exceeded(capsys) -> None:
-    assert loc.main({"tiny": (["backend/src/core/*.py"], 0)}) == 1
-    assert "OVER" in capsys.readouterr().out
+CORE = ["backend/src/core/*.py"]
+
+
+def test_main_exits_non_zero_when_a_ceiling_is_exceeded(capsys) -> None:
+    assert loc.main({"tiny": {"patterns": CORE, "cap": 0, "ceiling": 0}}) == 1
+    assert "OVER CEILING" in capsys.readouterr().out
+
+
+def test_over_the_cap_but_under_the_ceiling_warns_without_failing(capsys) -> None:
+    # The band between the frozen estimate and estimate+10% is a warning the gate report has to
+    # justify. A hard stop at the estimate would turn every honest estimate into a lie.
+    assert loc.main({"band": {"patterns": CORE, "cap": 1, "ceiling": 10_000}}) == 0
+    out = capsys.readouterr().out
+    assert "WARN over cap" in out and "OVER CEILING" not in out
 
 
 def test_main_exits_zero_when_within_cap(capsys) -> None:
-    assert loc.main({"roomy": (["backend/src/core/*.py"], 10_000)}) == 0
+    assert loc.main({"roomy": {"patterns": CORE, "cap": 10_000, "ceiling": 11_000}}) == 0
     assert "OVER" not in capsys.readouterr().out
 
 
-def test_real_buckets_are_within_their_caps() -> None:
+def test_an_uncapped_bucket_is_reported_but_never_fails(capsys) -> None:
+    # tools/ is development-only: it never ships, so capping it penalised exactly the work that
+    # makes the other caps trustworthy (v2.10 item 4).
+    assert loc.main({"free": {"patterns": CORE, "capped": False}}) == 0
+    assert "OVER" not in capsys.readouterr().out
+
+
+def test_real_buckets_are_within_their_ceilings() -> None:
     # The gate check itself, so a breach fails the suite and not only CI.
     assert loc.main() == 0
+
+
+def test_every_bucket_ceiling_is_the_frozen_estimate_plus_ten_percent() -> None:
+    # The rule the student froze (v2.10 item 6). Written as a test so a hand-edited ceiling in
+    # budgets.toml cannot quietly become a cap raise.
+    #
+    # Integer arithmetic, not `ceil(cap * 1.10)`: in binary, 220 * 1.1 is 242.00000000000003, so
+    # the float form demands 243 for a bucket whose ceiling is exactly 242. The first draft of
+    # this test failed for that reason -- a cap is an exact quantity and is computed exactly.
+    for name, spec in loc.load_buckets().items():
+        if not spec.get("capped", True):
+            continue
+        expected = -(-spec["cap"] * 11 // 10)
+        assert spec["ceiling"] == expected, f"{name}: ceiling is not cap + 10%"

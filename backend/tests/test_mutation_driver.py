@@ -1,4 +1,4 @@
-"""Tests for scripts/mutate.py -- the isolation guarantees (v2.9 A2).
+"""Tests for tools/mutate.py -- the isolation guarantees (v2.9 A2).
 
 CONTRACT. The driver must satisfy three properties, and all three are asserted here because the
 tool failed twice in the same way and a passing suite cannot detect the failure: a SURVIVING
@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "tools"))
 
 import mutate  # noqa: E402  (needs the path above)
 
