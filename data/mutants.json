@@ -163,7 +163,7 @@
     {
       "id": "S7",
       "desc": "best_next_step takes the first legal step",
-      "find": "        if distance(state | {resolvent}, max_nodes) == target - 1:\n            return (a, b, resolvent)",
+      "find": "        if distance(state | {resolvent}, work) == target - 1:\n            return (a, b, resolvent)",
       "replace": "        return (a, b, resolvent)"
     },
     {
