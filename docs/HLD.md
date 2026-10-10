@@ -1606,7 +1606,13 @@ and (o) was undefined until v2.2; all are now pinned by a named test or an expli
 - **`bkt.py`** — It holds one probability per skill: how likely the student knows it. After each
   answer it applies Bayes' rule using guess and slip rates, then adds a learning term for the
   chance they just learned it. It is three lines of arithmetic and the parameters are assumed, not
-  fitted from data.
+  fitted from data; the only subtlety is that the result is kept strictly inside 0 and 1, because
+  in floating point a long correct streak reaches exactly 1 and a skill at exactly 1 can never be
+  lost again (v2.10).
+- **`models.py`** — It is the list of shapes that cross between the web layer and the logic: an
+  exercise, a fact, a clause on the board, and the whole session state. Every one is frozen and
+  holds tuples rather than lists, so a function that tried to modify its argument crashes instead
+  of corrupting the caller's copy. It contains no logic and reads no file.
 - **`tutor.py`** — It decides which skills a given outcome is evidence about, then asks `bkt.py` to
   update each one. It picks the next exercise by matching average mastery to a difficulty band,
   preferring exercises not yet seen. It declares the student done when every tracked skill passes

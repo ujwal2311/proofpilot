@@ -490,3 +490,70 @@ Commit `f651d3b`, suite of 353 tests, run inside the isolated worktree:
 | **Total** | **70** | **70** |
 
 `source fingerprint unchanged: 8860597b9672`.
+
+---
+
+## `core/models.py` and `core/bkt.py` — Phase 6a (2026-10-11)
+
+Suite at the time: 416 tests. All twelve mutants were written before the run, against code that
+had itself been written test-first.
+
+| ID | Module | Injected defect | Caught? |
+|---|---|---|---|
+| B1 | bkt | `posterior` uses slip where guess belongs | yes |
+| B2 | bkt | The wrong-answer denominator loses its `(1-g)` | yes |
+| B3 | bkt | The transit term is not scaled by `(1-P')` | yes |
+| B4 | bkt | The `g + s < 1` validation is removed | yes |
+| B5 | bkt | Parameter range becomes closed instead of open | yes |
+| B6 | bkt | `is_done` needs only ONE skill at the threshold | yes |
+| B7 | bkt | `is_done` requires strictly above the threshold | yes |
+| B8 | bkt | An empty mastery map reads as done | yes |
+| B9 | bkt | The saturation clamp is removed | yes |
+| B10 | bkt | `from_config` swaps guess and slip | yes |
+| MO1 | models | `State` is no longer frozen | yes |
+| MO2 | models | The `Skill` declaration order is changed | yes |
+
+**Score: 12/12 first pass.** No survivors, and nothing was strengthened after the fact.
+
+**The defect the tests found before any mutant did.** `test_mastery_never_saturates` was written
+to assert the obvious — that mastery stays inside `(0, 1)` — and it failed. The BKT model never
+reaches 1, but float64 does: **23 consecutive correct answers drove `P` to exactly 1.0**, and
+`posterior(1.0, wrong)` is `1.0 · s / (1.0 · s + 0) = 1.0`, so the skill froze permanently. The
+tutor would have gone on asserting mastery that every later wrong answer contradicted, and
+`is_done` would have kept returning true. Fixed by clamping to `(0, 1)` with
+`MASTERY_EPSILON = 1e-9`, which leaves about ten wrong answers to fall back below the threshold
+and is invisible at the four decimals anything displays. `B9` exists so the clamp cannot be
+removed again.
+
+**Three of the Phase 6a tests were wrong and were fixed rather than weakened.** Worth recording,
+because each was a test that would have passed for broken code, which is the same failure mode as
+a surviving mutant:
+
+- a "core reads no file" check **grepped the raw source** for `json` and flagged its own
+  docstring, which names `exercises.json` to explain who loads it. A check that cannot tell code
+  from prose reports the explanation as the violation; it now parses with `ast`.
+- the evidence-table totality test asserted **68** combinations from a miscount of the trigger
+  list. The real product is 16 × 2 × 2 = **64**. The literal is kept, and the trigger count is now
+  asserted separately — a total nobody has computed by hand cannot catch a missing row.
+- a "mode never changes an observation" check grepped the YAML for the word `mode` and matched
+  the comment explaining that very property. It is now structural: no value may be a nested
+  mapping, and no trigger may be mode-qualified.
+
+### Full set on committed code after Phase 6a, 2026-10-11
+
+Commit `f1eaf28`, suite of 416 tests:
+
+| Module | Mutants | Caught |
+|---|---|---|
+| `bkt.py` | 10 | 10 |
+| `cnf.py` | 15 | 15 |
+| `english.py` | 10 | 10 |
+| `entail.py` | 10 | 10 |
+| `facts.py` | 10 | 10 |
+| `logic.py` | 7 | 7 |
+| `models.py` | 2 | 2 |
+| `relevance.py` | 8 | 8 |
+| `search.py` | 10 | 10 |
+| **Total** | **82** | **82** |
+
+`source fingerprint unchanged: 95d111fa90d7`.

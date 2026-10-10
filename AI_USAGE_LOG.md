@@ -573,3 +573,71 @@ projection is about eight hundred against the ceiling, the figure of six hundred
 quoted in the previous change log is not derivable from the table it cites, and the same problem
 affects the API, scripts and frontend buckets. The arithmetic, the plan, and three options are
 recorded for the student's decision; no cap has been moved and no tutoring module was written.
+
+---
+
+**Date:** 2026-10-11
+**Phase:** HLD v2.10 (budget decision, bounded cache) + Phase 6a (`models.py`, `bkt.py`)
+**Tool:** Claude Code (Opus 5)
+**Files created:** `budgets.toml`, `backend/src/core/models.py`, `backend/src/core/bkt.py`,
+`data/policy.yaml`, `backend/tests/test_models.py`, `backend/tests/test_bkt.py`,
+`backend/tests/test_policy.py`
+**Files moved:** `scripts/loc.py` → `tools/loc.py`, `scripts/mutate.py` → `tools/mutate.py`
+**Files modified:** `backend/src/core/config.py`, `backend/src/core/search.py`,
+`backend/tests/test_search_budget.py`, `backend/tests/test_loc.py`,
+`backend/tests/test_docs_version.py`, `backend/tests/test_mutation_driver.py`,
+`data/mutants.json`, `docs/HLD.md` (v2.9 → v2.10), `docs/experiments/mutation_log.md`,
+`CLAUDE.md`, `README.md`, `docs/READING_GUIDE.md`, `.github/workflows/ci.yml`
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** The student's budget decision, one new defect fix, and the first half of Phase 6.
+
+The budget decision was option (c) with six conditions, and all six were applied. Two of the
+proposed simplifications were rejected by the student with reasons that are now recorded in the
+decisions table: the session state stays in the logic layer because the command-line interface
+drives that layer directly and would otherwise have to go through the web layer to play an
+exercise, and the stage-and-action transition table stays in code because transitions decide what
+may happen next and raise named errors, which is behaviour a reader should see rather than look up
+in a data file. The evidence mapping did move to a data file, since it is a pure lookup with no
+control flow in it. The mastery history was cut from the first milestone because it only ever fed
+a stretch feature, and the model needs the current probability rather than the sequence that
+produced it.
+
+Two of the conditions were about the budgets themselves rather than the code. Development tooling
+moved out of the capped bucket, because capping it had been penalising exactly the work that makes
+the other caps trustworthy — hardening the mutation driver after three incidents cost forty-five
+lines of a bucket that also had to hold the evaluation scripts. And every cap now lives in one
+file read by the measuring tool, with the figures removed from the design document, the rules file
+and the README, because three separate tables had each kept their own copy and all three had
+drifted; a test now fails the build if a cap number reappears in prose. All four buckets were
+re-derived from the measured actuals plus a per-module estimate and frozen, with the ceiling set
+ten percent above the estimate and the overrun rule written down: an overrun cuts second-milestone
+scope first, and the caps are not raised again.
+
+The memoised distance table was unbounded, which matters because the server is long running. It
+was measured rather than reasoned about: two hundred distinct requests grew it to one thousand and
+sixty-two entries, about five per request, growing linearly and without limit, at roughly one and
+two thirds kilobytes retained per entry. A single request only ever confirms two distances, so a
+bounded table never evicts anything during a request and every useful hit still lands. Eviction
+can cost a cached answer but a test proves it can never change one.
+
+The first half of Phase 6 was written tests-first, and the tests found a defect in the learning
+model before any deliberate mutation did. A test was written to assert the obvious — that the
+probability of mastery stays strictly between zero and one — and it failed. The model never
+reaches one, but floating-point arithmetic does: twenty-three consecutive correct answers drive it
+to exactly one, and from there the formula for a wrong answer returns one again, so the skill
+freezes permanently and the tutor would have kept asserting mastery that every later wrong answer
+contradicted. The value is now held just inside the interval, which leaves about ten wrong answers
+to bring a mastered skill back below the threshold and is far too small to change any displayed
+number.
+
+Three of the new tests were themselves wrong and were corrected rather than relaxed, which is
+worth recording because each would have passed for broken code. One checked that the data module
+reads no file by searching its text for the word used by the file format, and flagged its own
+explanatory comment; it now examines the parsed syntax tree instead. One asserted a total number
+of combinations that had been miscounted. One checked that nothing depends on the practice or
+own-question mode by searching for the word "mode" and matched the comment explaining that very
+property; it now checks the structure of the table.
+
+Of the twelve deliberate defects injected into the two new modules, all twelve were detected on
+the first run, and the whole set of eighty-two across nine modules was detected on the committed
+code with the source fingerprint unchanged.
