@@ -502,3 +502,74 @@ Both survivors were the same weakness wearing two hats: a property was being ass
 example too small to distinguish right from wrong — one satisfying row, where first and last
 coincide, and three symbols that happened to come out in order. Both tests were widened and all
 eighteen are now detected.
+
+---
+
+**Date:** 2026-10-10
+**Phase:** 5 gate addendum — mutation isolation, search termination, differential gaps, budget
+reconciliation (items A1–A6 of the student's gate instruction)
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/tests/test_mutation_driver.py`, `backend/tests/test_search_budget.py`,
+`docs/experiments/search_latency.md`
+**Files modified:** `scripts/mutate.py`, `data/mutants.json`, `backend/src/core/search.py`,
+`backend/src/core/config.py`, `backend/tests/test_differential.py`, `docs/HLD.md` (v2.8 → v2.9),
+`docs/experiments/mutation_log.md`, `docs/experiments/differential.md`, `CLAUDE.md`, `README.md`,
+`docs/READING_GUIDE.md` (version references only)
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Six items the student set as blocking before the Phase 5 push.
+
+The incident from the previous phase was verified rather than assumed closed. A surviving mutant
+passes the tests by definition, so a green suite says nothing about whether a file is still
+holding an injected defect; every one of the sixty-six definitions was therefore checked directly
+against the committed blob for the presence of its anchor and the absence of its replacement. All
+sixty-six anchors were present and the committed content matched the working tree. Nine
+replacements did appear, and each was traced to a specific line and shown to be a prefix of its
+own anchor, ordinary Python occurring elsewhere, or in one case the English word "pass" inside a
+docstring. The committed source carried no mutation.
+
+The driver was then rebuilt rather than patched again, because it had now failed three times in
+the same way from three different causes. Mutations are applied only inside a detached worktree at
+the committed revision, so the real source is never opened for writing; the run refuses to start
+on a dirty tree or an untracked target, which was the precondition that failed last time; and the
+source tree is fingerprinted before and after, aborting on any difference. A test asserts each of
+those properties, including that a write inside the isolated copy leaves the real source
+byte-identical. The refusals are tested against a throwaway repository, since dirtying the real
+one to test the check would be the bug the check exists to prevent.
+
+The search hang was reproduced under a hard subprocess timeout and measured rather than guessed
+at. The node cap bounded the wrong quantity twice over: successor generation was never charged, so
+a search at its nominal eight-thousand-node cap had generated a hundred and eighty-four thousand
+states and was holding a frontier of forty-six thousand; and the hint function opened a fresh
+full-budget search for every candidate step, which took twelve point seven seconds for a single
+hint on an input inside the documented limits. The cap is now a budget counted in generated
+states, charged one at a time, and shared by one public call. Cost was then measured per proof
+depth and grows about sevenfold per step, which is a property of searching over clause sets rather
+than of the budget, so the value was chosen to cover the deepest proof the exercise bank can
+contain with roughly fifty-seven times headroom, and the point at which own questions fall back to
+the rule-based hint is written down as a limitation with a test behind it. Latency figures are
+recorded as goals for one named machine, never as claims, and the automated assertion is a
+deliberately loose ceiling whose job is to catch a regression of orders of magnitude.
+
+Two gaps in the differential tests were closed. The first test used to skip contradictory premises,
+which exempted the branch the pipeline leans on hardest; it now asserts the stronger claim in both
+directions, that resolution derives the empty clause from the premises alone exactly when the truth
+table finds no model for them. The second only ever measured the filter's willingness to discard,
+because its generator always contained a disconnected component; a third generator builds
+fully-connected shuffled chains where nothing may be dropped, and the shuffle is what makes
+transitivity load-bearing rather than incidental.
+
+Two of the new tests were rewritten after the mutants showed them to be worthless. Asserting that
+a budget had not been overdrawn passes for an implementation that funds each probe separately,
+because such an implementation leaves the shared counter almost untouched and so looks thrifty.
+Both tests now grant exactly the opening search's cost plus one unit, which makes the two
+behaviours give opposite answers.
+
+The line-budget arithmetic was redone and does not come out in the project's favour. The built
+modules measure ninety lines under their own estimates, but the core cap was lowered from
+nine hundred and seventy-five to a six hundred and fifty target and a seven hundred ceiling across
+two earlier change requests without the bottom-up estimate ever being re-derived against it, and
+three of the design document's budget tables were still printing the superseded figures. The
+projection is about eight hundred against the ceiling, the figure of six hundred and ninety-seven
+quoted in the previous change log is not derivable from the table it cites, and the same problem
+affects the API, scripts and frontend buckets. The arithmetic, the plan, and three options are
+recorded for the student's decision; no cap has been moved and no tutoring module was written.

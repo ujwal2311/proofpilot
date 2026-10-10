@@ -26,19 +26,50 @@ The resolution side of Differential 1 is a **resolution closure written inside t
    `3**symbols`, which finishes instantly — and sharing no code path with the truth table beyond
    the resolution rule itself is exactly what makes the comparison worth running.
 
-## Results, 2026-10-09
+## Results, 2026-10-10 (v2.9 A4)
 
 | Test | Seed | Generator | Result |
 |---|---|---|---|
-| **D1** truth table vs resolution | `20261009` | ≤5 symbols, ≤6 clauses, random goal literal | **200 compared · 26 entailed · 174 not entailed · 16 skipped** (inconsistent premises, where the guarantee does not apply) |
-| **D2** relevance safety | `20261010` | two disjoint symbol pools (`ABC`, `XYZ`) so a distractor component usually exists | **200 compared · 200 had clauses dropped** |
+| **D1** truth table vs resolution | `20261009` | ≤5 symbols, ≤6 clauses, random goal literal | **200 compared · 26 entailed · 174 not entailed**, plus **16 inconsistent — now checked, not skipped** |
+| **D2** relevance safety (drops) | `20261010` | two disjoint symbol pools (`ABC`, `XYZ`) so a distractor component usually exists | **200 compared · 200 had clauses dropped** |
+| **D3** relevance safety (keeps) | `20261011` | **fully-connected shuffled chains**, lengths 2–7 | **180 compared · 0 dropped, as required** |
 | **D1-sweep** three further seeds | `20261109–11` | ≤4 symbols, ≤5 clauses, 120 cases each | **360 compared** |
 
-**Agreement rate: 760 / 760 = 100%.** No disagreement has been observed.
+**Agreement rate: 940 / 940 = 100%.** No disagreement has been observed.
 
-D2 additionally asserts, on every case, that the kept clauses are a subset of the input and that
-the verdict on the filtered set equals the verdict on the full set.
+## The two gaps closed in v2.9
 
-Both tests assert their own evidence is not vacuous: D1 requires at least 10 of each verdict, and
-D2 requires at least 20 cases where something was actually dropped. Without those a generator
-that silently produced one trivial shape would still pass.
+**D1 used to `continue` past an inconsistent knowledge base.** That silently exempted the branch
+the whole pipeline leans on hardest: `INCONSISTENT_PREMISES` is what stops the relevance filter and
+the search from running at all (`docs/HLD.md` §6.5, §7). The entailment comparison genuinely does
+not apply there — a contradiction entails everything — but a **stronger** claim does, and it is now
+asserted in both directions on every case:
+
+> the truth table finds **no model for the premises** ⟺ resolution derives the empty clause from
+> **the premises alone**, with the goal excluded.
+
+That is checked on the 16 inconsistent cases *and* as a negative on all 200 consistent ones, and
+D1 now fails if fewer than 10 inconsistent cases occur — an unevidenced branch is not a passing
+branch.
+
+**D2 only ever measured the filter's willingness to DROP.** Its generator used two disjoint symbol
+pools, so a distractor component almost always existed and "keep everything" was never required of
+it. D3 adds knowledge bases where **every clause is reachable**, so a correct filter must keep all
+of them: clause 0 shares the conclusion's symbol and clause *i* shares one with clause *i−1*. The
+clauses are returned **shuffled**, and that is the point — in chain order a single-pass filter would
+sweep the whole chain up by accident, so the shuffle is what makes transitivity load-bearing.
+
+The failure D3 guards against is the worst one the system can produce: the verdict is decided
+separately by truth table, so dropping a reachable clause would tell a student the conclusion
+follows while leaving a board that can no longer prove it.
+
+## Non-vacuity
+
+Every test asserts its own evidence is not trivial — without this a generator that silently
+produced one degenerate shape would still pass:
+
+| Test | Guard |
+|---|---|
+| D1 | ≥10 entailed, ≥10 not entailed, ≥10 inconsistent |
+| D2 | ≥20 cases where something was actually dropped; kept ⊆ input; verdict unchanged after filtering |
+| D3 | ≥150 connected cases survived the inconsistency filter; `kept` equals the input exactly |

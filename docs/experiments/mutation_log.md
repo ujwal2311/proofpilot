@@ -7,8 +7,9 @@ tests cannot see that defect.
 Facts only: every row is an injected change and the observed pytest result. No claim is made
 beyond the counts.
 
-Method: inject one defect, run `python -m pytest`, record the result, revert, verify the tree is
-clean. Machine: Intel64 / Windows 11 / CPython 3.12.10.
+Method: inject one defect **into an isolated `git worktree` at HEAD**, run `python -m pytest`,
+record the result, discard the worktree. `backend/src` is never written to — see "Isolation" below
+for the two incidents that forced that design. Machine: Intel64 / Windows 11 / CPython 3.12.10.
 
 ---
 
@@ -367,3 +368,103 @@ mutant runs; that has no precondition on version control.
 | `entail.py` | 10 | 10 |
 | `relevance.py` | 8 | 8 |
 | **Total** | **66** | **66** |
+
+---
+
+## Isolation — the third process failure, and the structural fix (v2.9 A1/A2, 2026-10-10)
+
+Three runs in a row damaged the working tree, each from a different cause:
+
+| # | Phase | Cause | Fix at the time |
+|---|---|---|---|
+| 1 | 4c | A shell loop timed out on `C7` (unbounded recursion) with no committed copy to restore from | Rewrote the driver in Python with a per-mutant timeout and a `git checkout` restore in `finally` |
+| 2 | 5 | `git checkout` **silently succeeds on a file git does not track**. Both new modules were untracked, so the restore did nothing and two files were left mutated | Restore from an in-memory copy and assert the file matches |
+| 3 | — | Restore-from-memory still *writes to the real file*. A crash between write and restore leaves a mutant on disk, and **a surviving mutant passes the tests by definition**, so a green suite is no evidence the files are clean | **Structural: never write to the real file at all** |
+
+**The fix is structural, not another careful restore** (`scripts/mutate.py`):
+
+1. mutations are applied only inside a **detached `git worktree` at HEAD** — a separate directory,
+   so `backend/src` is never opened for writing. Using a worktree rather than a copy also means
+   mutants always apply to **committed** content, so a stale editor buffer cannot reach a score;
+2. the run **refuses to start** if the working tree is dirty or a target file is untracked — the
+   exact precondition that failed in incident 2;
+3. `backend/src` is **fingerprinted before and after** (paths *and* bytes, so a rename counts) and
+   a difference aborts the run.
+
+All three properties are asserted by `backend/tests/test_mutation_driver.py`, including that a
+write inside the isolated checkout leaves `backend/src` byte-identical. The refusals are tested
+against a throwaway repository, because dirtying this one to test the check would be the bug the
+check exists to prevent.
+
+### Incident verification — was the committed source actually clean?
+
+A passing suite could not answer this, so every one of the 66 mutants was checked directly against
+the **committed blob** (`git show HEAD:<module>`), not the working file. For each: the anchor text
+must be **present** (absent ⇒ the mutation had been applied and the anchor eaten) and the
+replacement text **absent**.
+
+| Result | Count |
+|---|---|
+| Anchor present in the committed blob | **66 / 66** |
+| Committed blob identical to the working tree | **66 / 66** |
+| Replacement text absent | 57 / 66 |
+| Replacement text present — **explained below, all legitimate** | 9 |
+
+Plain substring matching reports a replacement as "present" whenever it is also a prefix of its own
+anchor, or ordinary Python that occurs elsewhere. Each of the nine was traced to a specific line:
+
+| ID | Replacement text | Why it legitimately appears |
+|---|---|---|
+| C15 | `return And(parts)` | A **prefix of its own anchor** on `cnf.py:77` (`return And(parts) if len(parts) > 1 else parts[0]`) |
+| F8 | `return candidate` | A **prefix of its own anchor** on `facts.py:90` |
+| S7 | `        return (a, b, resolvent)` | A **suffix-substring** of the more deeply indented anchor on `search.py:134`, and of `search.py:150` in `fallback_step` |
+| C12 | `return to_clauses(node, literal_of)` | `cnf.py:118` is `premise_clauses`, which correctly does **not** negate. The anchor is `cnf.py:127` in `goal_clauses`, which must. The pair *is* the premise/goal asymmetry |
+| C14 | `f"~{literal_of(...)}"` | `cnf.py:94` is the branch that negates a **positive** literal, which is correct. The anchor is `cnf.py:92`, the branch that strips `~` from a negative one. The mutant would collapse the two |
+| E8 | `tuple(_clause(segment, …) …)` | `english.py:245` is the `and`/`or` grouping, where clauses must **not** be negated. The anchor is `english.py:299`, the `neither` branch, where they must |
+| F3 | `return word` | An ordinary statement at `facts.py:97, 124, 126`; the anchor is line 106 |
+| F14 | `pass` | The only occurrence is the English word inside a docstring — `facts.py:194`, "on the first **pass**". Not code at all |
+| S8 | `key=canonical` | Ordinary determinism sorts at `search.py:51, 54, 148`; the anchor is line 146, the length-aware key |
+
+**Conclusion: the committed source carried no mutation.** The two files left mutated in incident 2
+were repaired before the Phase 5 commit; this check proves it rather than assuming it.
+
+### Full set re-run on committed code under the hardened driver, 2026-10-10
+
+Commit `fd56677`, suite of 342 tests, run inside the isolated worktree:
+
+| Module | Mutants | Caught |
+|---|---|---|
+| `cnf.py` | 15 | 15 |
+| `english.py` | 10 | 10 |
+| `entail.py` | 10 | 10 |
+| `facts.py` | 10 | 10 |
+| `logic.py` | 7 | 7 |
+| `relevance.py` | 8 | 8 |
+| `search.py` | 6 | 6 |
+| **Total** | **66** | **66** |
+
+`source fingerprint unchanged: cafd616ae57f`. `C7` is the timeout case, counted as caught under
+the convention above. One test is reported **skipped** in every run: the driver's own
+isolation self-check detects that it is already inside a mutation run and declines to create a
+nested worktree.
+
+---
+
+## `core/search.py` — the work budget (v2.9 A3, 2026-10-10)
+
+Four mutants were added for the budget logic itself. The fix for a hang is exactly the kind of
+code that attracts a plausible-looking regression, so it is mutation-covered like everything else.
+
+| ID | Injected defect | Caught by |
+|---|---|---|
+| S9 | The work budget never runs out | non-termination ⇒ timeout, and the termination sweeps |
+| S10 | `best_next_step` funds each probe from a fresh budget — **the original defect** | `test_best_next_step_spends_one_allowance_not_one_per_candidate` |
+| S11 | `productive` funds each of its two searches separately | `test_productive_shares_its_allowance_across_both_searches` |
+| S12 | A generation is charged *after* the `visited` test, so revisits are free | `test_the_budget_charges_every_generation_including_revisits` |
+
+**S10 and S11 drove a test rewrite.** The first versions of both tests asserted only that the
+budget was not overdrawn — and a per-probe budget leaves the caller's counter almost untouched,
+which looks *thrifty*. Both mutants would have survived. The tests now grant exactly the opening
+search's cost plus one unit: sharing the allowance makes every probe unaffordable (`None`), while
+funding probes separately lets them succeed. The failure is decisive in either direction, and no
+wall clock is involved.

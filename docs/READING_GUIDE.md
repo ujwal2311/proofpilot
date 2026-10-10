@@ -3,7 +3,7 @@
 Which parts of `docs/HLD.md` to read, and when. **Section numbers and titles only** — no design
 content is repeated here, so this file cannot drift out of date when the HLD changes.
 
-Derived from **HLD v2.8** (frozen 2026-10-08). Ownership roles are defined in HLD §4.1.
+Derived from **HLD v2.9** (frozen 2026-10-10). Ownership roles are defined in HLD §4.1.
 `backend/tests/test_docs_version.py` fails if this reference goes stale.
 
 ## Everyone, before writing any code

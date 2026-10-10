@@ -1,8 +1,8 @@
-# ProofPilot — High-Level Design v2.8
+# ProofPilot — High-Level Design v2.9
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
-Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests).
+Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests). v2.9 applies the Phase-5-gate change request (§16).
 This document is the source of truth. Any later
 design change requires an explicit change request from the student; Claude must not alter the
 design unilaterally.
@@ -20,6 +20,14 @@ student made in this round: keeping the pilot in M1 (**+2.00**) and requiring th
 can explain every module* (**+8.75** of cross-module walkthroughs). The second is the right call
 for the viva and is budgeted rather than hidden. Core lines land at **~945 against the new 975
 cap ✓**, and as of v2.3 **all five line and hour caps are met** (§13.4).
+
+> **v2.9 correction — the paragraph above is superseded and kept only for the record.** The 975
+> core cap it reports was lowered to **650 target / 700 ceiling** in the v2.3 and v2.8 change
+> requests, but §13.4's bottom-up estimate was never re-derived against the new number. Measured
+> at the Phase 5 gate the projection is **~765, not ~945-against-975 and not the 697 quoted in
+> §16 v2.8 A4c**, which is not derivable from §13.4's own figures. All three code caps are
+> affected. §13.4 and §17.12 now carry the corrected arithmetic; the decision is the student's and
+> is open at the Phase 6a gate.
 
 ---
 
@@ -70,24 +78,32 @@ database, Docker, A*.
 
 ### Budgets (changed from v1 — justified in §12)
 
-| Budget | Cap (v2.3) | Scope |
-|---|---|---|
-| Hours | **77.00 person-hours accepted** (≈38.5 h each); contingency 75.00 | includes review-and-understand time **and** cross-module walkthroughs (§13.3) |
-| Core lines | **≤975** | `backend/src/core/*.py` |
-| api + cli | **≤350** | `backend/src/api/*.py` + `backend/src/cli.py`, excluding tests |
-| scripts | **≤250** (separate cap) | `scripts/*.py` — build/eval tooling, never shipped |
-| Frontend | **≤700** | `frontend/src/**` |
+Caps are measured in **CODE lines** — blank, comment and docstring lines excluded (v2.5) — by
+`scripts/loc.py`, which is the enforcing authority and runs in CI. The numbers below are the ones
+it enforces; earlier revisions of this table printed the superseded v2.3 values (975/350/250/700)
+and were corrected in v2.9.
 
-All five caps are now **met** by the §13.4 estimates. The v2.2 deferrals are closed — see §16
-(v2.3) for the one-line justification behind each number.
+| Budget | Cap | Enforced by | Scope |
+|---|---|---|---|
+| Hours | **77.00 person-hours accepted** (≈38.5 h each); contingency 75.00 | §13.3 | includes review-and-understand time **and** cross-module walkthroughs |
+| Core lines | **≤650 target, ≤700 hard ceiling** (v2.8 A4c) | `loc.py` | `backend/src/core/*.py` |
+| api + cli | **≤250** | `loc.py` | `backend/src/api/*.py` + `backend/src/cli.py`, excluding tests |
+| scripts | **≤180** (separate cap) | `loc.py` | `scripts/*.py` — build/eval tooling, never shipped |
+| Frontend | **≤550** | `loc.py` | `frontend/src/**` |
+
+**Not all of these caps are met by the design as frozen.** §13.4 holds the measured-plus-estimated
+projection per bucket and names each breach; §17.12 holds the verdict table. Reporting the breach
+is deliberate: a cap that moves whenever it is reached is not a cap, so the arithmetic is stated
+and the decision is left to the student rather than absorbed quietly.
 
 **Team constraint (approved):** both members must be able to explain every module. This is a
 budget line item (§13.3), not an aspiration — it is what the §17.11 three-sentence explanations
 and the joint walkthroughs exist to deliver.
 
 **Bank constraint:** every exercise in `data/exercises.json` must reduce to **≤7 relevant clauses
-after the relevance filter**. Own-question mode may exceed this; it degrades via the node cap +
-rule-based fallback hint, never by hanging.
+after the relevance filter**. Own-question mode may exceed this; it degrades via the work budget +
+rule-based fallback hint, never by hanging (§6.6, measured in
+`docs/experiments/search_latency.md`).
 
 ---
 
@@ -281,7 +297,7 @@ with no fixture files on disk.
 | `core/cnf.py` | AST → clauses by the **textbook 3-step algorithm** (§6.2) | Parsing, resolution | M1 |
 | `core/entail.py` | Truth-table entailment, inconsistency, counterexample row | Search, resolution | M1 |
 | `core/relevance.py` | Fact-graph BFS; which clauses are needed | Search, hints | M1 |
-| `core/search.py` | Exact BFS distance, best next step, productivity, node cap, rule-based fallback hint | Diagnosis, mastery | M1 |
+| `core/search.py` | Exact BFS distance, best next step, productivity, the shared work budget, rule-based fallback hint | Diagnosis, mastery | M1 |
 | `core/logic.py` | Literal normalization, resolvents, 6-code step diagnosis | Search, CNF | M1 |
 | `core/bkt.py` | Single-skill Bayesian update + parameter validation | Which skills to update | M1 |
 | `core/tutor.py` | Evidence mapping, mastery update orchestration, next-exercise selection, done check | The BKT math | M1 |
@@ -460,15 +476,55 @@ d(new) ∈ {d(old), d(old)−1}. ∎
 — a state is a *set* — so the number of distinct depth-k states is at most C(D, k) where D is the
 count of derivable clauses. For a bank exercise (≤7 relevant clauses, ≤6 facts) D is a few dozen;
 C(30, 5) = 142,506 is the pessimistic ceiling and real exercises are orders of magnitude smaller.
-`max_nodes` is set from a measured benchmark at the Phase-3 gate, not guessed.
+
+**The work budget (v2.9 A3 — replaces the node cap).**
+**`MAX_SEARCH_WORK = 60,000`, counted in GENERATED successor states, and one allowance is shared
+by one public call.** It replaced `MAX_SEARCH_NODES = 8,000` expanded nodes, which bounded the
+wrong quantity twice over and was a product risk, not a test-design detail:
+
+1. one expansion emits every legal successor of a node and **none of them were charged**. Measured
+   at the nominal 8,000-node cap: up to **184,058 states generated** and a **46,491-state frontier
+   held in memory**, so memory and hashing — not expansions — decided when a search finished;
+2. `best_next_step` opened a **fresh full-budget search per candidate step**, and a budget hit is
+   deliberately never cached (§M6), so every probe paid the whole allowance again. Measured at
+   **12.7 s for one hint** on an input inside the documented limits.
+
+The budget is **deterministic** — generations, never wall-clock seconds — so the same input
+consumes the same budget on every machine. A clock-based cut-off would make a hint depend on load,
+and a hint that is not reproducible cannot be tested at all.
+
+**Cost is exponential in proof depth and no budget can change that.** Measured
+(`docs/experiments/search_latency.md`): a chain proof of length 3/4/5/6/7 costs
+28 / 167 / 1,051 / 6,921 / 47,305 units — ≈7× per step. The budget therefore does not buy depth;
+it chooses where the fallback begins. 60,000 is **~57× the worst case the bank can present** (a
+5-step proof, §9 bands), answers own questions to depth 7, and keeps the worst observed wall time
+near 1 s. Doubling it bought one third of a step and cost 3.8 s.
+
+**Latency TARGETS — goals, not guarantees.** Measured on one machine, stated so the project can be
+held to something, and never claimed as a property of every machine:
+
+| Goal | Measured 2026-10-10 |
+|---|---|
+| A hint within **1 s** for any bank exercise | 13.4 ms worst case (~75× margin) |
+| A hint **or** an explicit fallback within **1 s** for an own question | 661 ms to depth 7; depth 8+ falls back at 835 ms |
+| Every input inside §3.4's limits **terminates** | 500 seeded random states per test run, each returning a count, `None`, or `GoalUnreachableError` |
+
+The automated assertion is a deliberately loose **10 s** ceiling, because a shared CI runner under
+unknown load is not a benchmark; its job is to catch a regression of orders of magnitude, which is
+exactly what the defect above was.
 
 **The entailment short-circuit (new in v2.1, fixes BLOCKER V-2).** `search.distance` is **never
 called when `entailment.status != "entails"`**. Two of the twelve bank exercises have conclusions
 that do not follow — for those the empty clause is *unreachable*, so BFS would exhaust the whole
-space to the cap on every single hint request. Since entailment is already decided by truth table
-before the Prove stage, the system simply knows: hints fall to the ladder in §6.6.1, and
-`productive` is `null`. This turns the node cap back into what it should be — a performance guard
-for own-question mode — instead of a crutch covering a known-unreachable goal.
+space to the budget on every single hint request. Since entailment is already decided by truth
+table before the Prove stage, the system simply knows: hints fall to the ladder in §6.6.1, and
+`productive` is `null`. This turns the work budget back into what it should be — a performance
+guard for own-question mode — instead of a crutch covering a known-unreachable goal.
+
+V-2 is also why the random sweeps in `docs/experiments/search_latency.md` are *slower than the
+product*: they are dominated by clause sets with no refutation at all (165 of 200 at bank shape),
+which the product never searches. They are measured anyway, because robustness must not depend on
+the caller being correct.
 
 #### 6.6.1 Hints when the conclusion does **not** follow
 
@@ -492,9 +548,11 @@ the existing hint rule (§9), even though the claim itself is accepted.
 it explicitly so it cannot be mistaken for a gap. All three strings live in `messages.yaml` like
 every other piece of user-facing text.
 
-**Cap fallback.** On a cap hit: `productive = None`, and the hint falls back to a rule-based
-suggestion (prefer resolving with the shortest clause, tie-broken canonically), labelled
-"a suggestion, not necessarily the best step".
+**Budget fallback.** When the work budget runs out: `productive = None`, and the hint falls back to
+a rule-based suggestion (prefer resolving with the shortest clause, tie-broken canonically),
+labelled "a suggestion, not necessarily the best step". This is the documented behaviour for an
+own question whose proof is deeper than 7 steps — degraded, bounded and honest, never a hang and
+never a guess.
 
 ### 6.7 Resolution diagnosis (unchanged from v1)
 Order: `NO_CLASH → DOUBLE_CANCEL → WRONG_RESOLVENT → TAUTOLOGY → DUPLICATE → VALID`. Branches are
@@ -535,7 +593,7 @@ parse → facts → consistency → entailment → relevance → proof
 This order is a correctness requirement, not a convention:
 - **consistency before entailment** — entailment is vacuous from a contradiction (§6.4).
 - **consistency before relevance** — otherwise the filter can delete the only refutation (§6.5).
-- **entailment before any search call** — otherwise an unreachable goal burns the node cap (§6.6).
+- **entailment before any search call** — otherwise an unreachable goal burns the work budget (§6.6).
 
 `test_pipeline_order_enforced` asserts that `relevance` and `search` raise if invoked on a state
 whose consistency/entailment has not been resolved.
@@ -589,7 +647,7 @@ The rule separating HTTP from in-band: *"would this be true regardless of the st
 → HTTP. *"is this itself the teaching content?"* → 200 with a code.
 
 **Limits live in exactly one place:** `core/config.py` holds every threshold (30 words, 10 facts,
-12 sentences, 20 clauses, 6 literals, 1024 rows, `max_nodes`, `mastery_threshold = 0.95`, all
+12 sentences, 20 clauses, 6 literals, 1024 rows, `MAX_SEARCH_WORK`, `mastery_threshold = 0.95`, all
 seeds). API, CLI and scripts import them. No number is retyped anywhere.
 
 ---
@@ -607,7 +665,7 @@ M1 observes CLASH, RESOLVE, STRATEGY. M2 adds TRANSLATE. "–" = **no update**.
 | `step` → VALID, productive=False | right | right | wrong | – |
 | `step` → TAUTOLOGY | right | right | wrong | – |
 | `step` → DUPLICATE | right | right | wrong | – |
-| `step` → VALID, productive=None (cap hit) | right | right | – | – |
+| `step` → VALID, productive=None (budget exhausted) | right | right | – | – |
 | `claim_not_provable` → CLAIM_ACCEPTED | – | – | right | – |
 | `claim_not_provable` → CLAIM_REJECTED | – | – | wrong | – |
 | `claim_not_provable` → CLAIM_ACCEPTED **after any `HINT_NOT_FOLLOW_*`** | – | – | **wrong** | – |
@@ -696,7 +754,7 @@ letters** drawn from `exercises.json`, excluding grammar keywords and the functi
 - **T2 — hint soundness:** seeded random walks of valid steps across all exercises; every level-3
   hint must be valid and non-worsening. A failure is a bug to fix, never a result to report.
 - **T3 — search cost:** per exercise — shortest proof length, nodes expanded, median wall time of
-  5 runs, cap hits. Machine stated; times labelled machine-dependent.
+  5 runs, budget exhaustions. Machine stated; times labelled machine-dependent.
 - **Pilot (E5) — in M1, scheduled last.** `docs/pilot/template.csv` (anonymous IDs, pre/post,
   1–5 ratings, codes seen), a consent note, `scripts/analyze_pilot.py` producing counts and
   medians only. No significance tests at N≤10. Never fabricate rows. **It runs as the final M1
@@ -835,6 +893,76 @@ into `messages.yaml` templates removes ~95 more → **~945 against the raised 97
 more than ~3% breaches the cap, so line counts are reported at every phase gate, not just at the
 end.
 
+#### 13.4.1 Corrected arithmetic, Phase 5 gate (v2.9 A5)
+
+The table above is a **v2.3-era estimate against a 975-line cap that no longer exists.** The cap
+became 650 target / 700 ceiling (v2.3, v2.8 A4c) and the bottom-up estimate was never re-derived,
+so the two have been inconsistent for six revisions. Measured, with every number from
+`python scripts/loc.py` at commit `fd56677` and estimates labelled as estimates:
+
+| Core module | §13.4 estimate | **Measured** | Δ |
+|---|---|---|---|
+| `english.py` | 180 | **188** | +8 |
+| `facts.py` | 100 | **130** | +30 |
+| `logic.py` | 150 | **65** | −85 |
+| `search.py` | 115 | **89** | −26 |
+| `cnf.py` | 55 | **72** | +17 |
+| `entail.py` | 42 → est. 50 | **42** | −8 |
+| `relevance.py` | 35 | **30** | −5 |
+| `config.py` | 25 | **4** | −21 |
+| **Built, measured** | 710 | **620** | **−90** |
+| `models.py` | *absent from §13.4 — a gap* | est. **60** | — |
+| `bkt.py` | 40 | est. **30** | — |
+| `tutor.py` | 120 | est. **90** | — |
+| **PROJECTION** | 870 | **~800** | — |
+
+**The sum against the caps: 620 + 60 + 30 + 90 = 800, versus a 650 target and a 700 ceiling —
+over the ceiling by 100.** `search.py` carries +14 of the measured total from the v2.9 A3 work
+budget, which is a correctness fix and not negotiable.
+
+Three facts this surfaces, none of them an accounting matter:
+
+1. **The built modules are 90 lines UNDER their estimates.** The breach is not caused by anything
+   written so far. It is caused by the cap having been lowered by 275 lines without re-deriving the
+   design's own bottom-up estimate.
+2. **The 697 projection quoted in §16 v2.8 A4c cannot be derived from this table** — 606 measured
+   plus §13.4's own 40 + 120 is 766, with `models.py` missing entirely. It should be treated as an
+   error, not as a baseline.
+3. **The other two code caps are in the same position.** §13.4 estimates api + cli at 325 against a
+   cap of 250, and `scripts` at 205 against a cap of 180 — and `scripts` is already at **151**
+   after the v2.9 A2 hardening, with `difficulty.py`, `run_experiments.py` and `heldout_eval.py`
+   still to come (est. 205), i.e. a projection near 356. Only the frontend (est. 600 under a 550
+   cap after M2's 85) is close enough to argue about.
+
+**Plan chosen to approach the ceiling (v2.9 A5).** The pre-approved option alone is worth ~13
+lines, so it cannot close a 100-line gap and is not presented as if it could:
+
+| # | Change | Saving | Status |
+|---|---|---|---|
+| 1 | The §9 evidence mapping becomes declarative policy data (`data/policy.yaml`), loaded and schema-validated **at the edge** and passed into core as plain data. **One** readable table, byte-for-byte the §9 rows. | **−13** | pre-approved (v2.9 A5) |
+| 2 | **`State` is not a core dataclass.** Core functions take the fields they use; the 19-field wire object is owned by `api/schemas.py`, which already declares every one of those fields in Pydantic. This removes a duplicate declaration rather than relocating logic. | **−35** | **needs approval** — moves the §C JSON round-trip test to the API phase |
+| 3 | `mastery_history` / `HistoryItem` accumulates at the edge; core returns the observation it made. | **−5** | **needs approval** |
+| 4 | The stage × action transition table becomes a second table in `policy.yaml`. | **−15** | **needs approval** — A5 pre-approved *one* table only |
+| | **Projection after 1–4** | **~732** | still over the 700 ceiling by ~32 |
+
+**Therefore the ceiling cannot be met by the design as frozen, and the honest options are the
+student's to choose** (CLAUDE.md: above 700 the answer is to simplify, never to raise the ceiling):
+
+- **(a) Simplify further inside core.** The only remaining sources are logic that is written,
+  tested and mutation-covered (`english.py` 188, `facts.py` 130, `cnf.py` 72). Cheapest in process,
+  most expensive in risk.
+- **(b) Cut M1 scope** so the frozen design fits — e.g. drop the Explanation stage's clause-origin
+  trace, which costs `ClauseRec.source_sentence_id` plumbing across models, tutor and the API.
+- **(c) One change request re-deriving all four caps bottom-up against the frozen v2.8 design** —
+  core ~800, api + cli ~350, scripts ~360, frontend 600 — with the per-module table above as the
+  contract. This is **not** re-basing a cap onto the actual, because the modules concerned are not
+  yet written: it replaces a stale estimate with a current one, once, before the code exists. It
+  does require the student to overrule the "never raise the ceiling again" rule explicitly.
+
+**Recommended: (c), with 1–3 applied regardless** because each is a genuine simplification on the
+merits. Nothing in this section is acted on without an explicit instruction; `tutor.py` is not
+written until the plan is chosen (A5).
+
 | Backend outside core | Lines | | Frontend | Lines |
 |---|---|---|---|---|
 | `api/main.py` | 130 | | `App.jsx` | 100 |
@@ -887,6 +1015,13 @@ by more than a few percent is a STOP-and-justify event, not something to absorb 
 6. **`"Only if B, A"` is rejected**, not interpreted (§3.2).
 7. **SOS-free search** means own-question paragraphs well beyond 7 relevant clauses fall back to a
    rule-based hint labelled "a suggestion, not necessarily the best step".
+7b. **Hints run out at proof depth 8 (v2.9 A3, measured).** Search explores clause *sets*, so its
+   cost grows ≈7× per proof step: 1,051 work units for a 5-step proof, 47,305 for 7, past the
+   budget at 8. An own question needing eight or more resolution steps gets the rule-based fallback
+   instead of the best step. **This is a property of BFS over sets, not of the budget** — raising
+   the budget buys a fraction of a step and costs seconds of latency, so it is not the answer. Bank
+   exercises are unaffected: the deepest proof the bank contains is 5 steps (§9 bands), which
+   leaves ~57× headroom. Numbers and command in `docs/experiments/search_latency.md`.
 8. **BKT parameters are assumed, not fitted**; `g,s < 0.5` individually is not enforced beyond the
    required `g+s < 1`.
 9. **The simulation tests only the stopping rule** under the model's own assumptions — it is not
@@ -918,6 +1053,42 @@ a new version with a Change Log entry.
 ---
 
 ## 16. Change Log
+
+### From v2.8 → v2.9 — Phase 5 gate change request (search termination, budgets, bindings), 2026-10-10
+
+No grammar, meaning, contract, endpoint or scope changed. One algorithm bound changed, and three
+pieces of bookkeeping that were wrong are corrected rather than carried.
+
+1. **A3 — the node cap is replaced by a shared, deterministic work budget.** `MAX_SEARCH_NODES =
+   8,000` expanded nodes becomes **`MAX_SEARCH_WORK = 60,000` generated successor states**, charged
+   one at a time and shared by one public call rather than opened afresh per internal search. The
+   old cap bounded the wrong quantity twice over: successor *generation* was never charged (184,058
+   states generated and a 46,491-state frontier at the nominal cap), and `best_next_step` ran one
+   full-budget search per candidate, measured at **12.7 s for a single hint** on a legal input.
+   Full reasoning, the depth-cost table and the latency goals are in §6.6; the measurement is in
+   `docs/experiments/search_latency.md`. The cost is `search.py` +14 code lines.
+2. **A3 — latency figures are stated as GOALS, never as claims** (§6.6 table, §14 item 7b). The
+   ≈7×-per-proof-step growth means hints run out at depth 8 for own questions; that is now a
+   written limitation with a test behind it, not a surprise waiting in a viva.
+3. **A4 — the two differential gaps are closed** (`docs/experiments/differential.md`). D1 no longer
+   *skips* inconsistent knowledge bases: it asserts the stronger claim both ways, that resolution
+   derives the empty clause from the premises **alone** exactly when the truth table finds them
+   unsatisfiable. D2 gains a third generator of **fully-connected** knowledge bases, shuffled, where
+   nothing may be dropped — it previously only ever measured the filter's willingness to drop.
+4. **A5 — the budget arithmetic is corrected and the breach is reported** (§13.4.1, §17.12). §2,
+   §13.4 and §17.12 had been printing the superseded v2.3 caps; the core projection is **~800
+   against a 700 ceiling**, the built modules are 90 lines *under* their estimates, and the 697
+   figure quoted in v2.8 A4c is not derivable from §13.4. `api + cli`, `scripts` and the frontend
+   are in the same position. No cap has been moved; the options are set out and the decision is the
+   student's, and `tutor.py` is not written until the plan is chosen.
+5. **A6 — rows 38 and 39 are bound to the BANK GATE, not to a phase number** (§17.1.1). The trigger
+   is the arrival of `data/exercises.json`, and the freshness check, the bank collision guard and
+   the ≤7-clause bank constraint are **BLOCKING** items of that gate.
+6. **A1/A2 — mutation runs are isolated** (no design impact, recorded for traceability).
+   `scripts/mutate.py` applies mutants only inside a detached `git worktree` at HEAD, refuses to
+   start on a dirty tree or an untracked target, and fingerprints `backend/src` before and after.
+   The committed source was verified clean mutant-by-mutant before the change, and the full set
+   re-scored **66/66 caught** on committed code afterwards.
 
 ### From v2.7 → v2.8 — approved change request (budget ceiling, derived data), 2026-10-08
 
@@ -1167,7 +1338,7 @@ reason each.
     list with clause origins, the "not needed" sentence report, the entailment verdict);
     `narrate.py` upgrades it to prose in M2 — and remains correct after narrate is cut to stretch.
 24. **V-2** — two bank exercises have non-following conclusions, so the empty clause is
-    unreachable and BFS would exhaust to the node cap on **every** hint request. **Fixed:** the
+    unreachable and BFS would exhaust its whole budget on **every** hint request. **Fixed:** the
     entailment short-circuit (§6.6) — `search.distance` is never called unless
     `entailment.status == "entails"`; hints return `HINT_NOT_PROVABLE`.
 25. **V-3** — the pilot (E5), confirmed in Phase 0, appeared in no milestone list. **Fixed:**
@@ -1236,10 +1407,30 @@ fixed above and re-checked here.*
 | 35 | 3 translation diagnoses | §6.9 | 3 named tests | M2 | COVERED |
 | 36 | Always one counterexample | §6.9 | `test_translation_counterexample_differs_in_truth_value` | M2 | COVERED |
 | 37 | AI log, verified references, no report prose | — | — | both | COVERED by process (CLAUDE.md) |
-| 38 | **Derived data is never stale (v2.8 A4b)** | §16 | CI step re-running `difficulty.py` and diffing | M1 | **PENDING Phase 6** — needs `difficulty.py` + `exercises.json` to exist |
+| 38 | **Derived data is never stale (v2.8 A4b)** | §16, §17.1.1 | CI step re-running `difficulty.py` and diffing | M1 | **PENDING — BLOCKING item of the BANK GATE** (v2.9 A6) |
+| 39 | **No bank exercise relies on a student splitting a false merge (v2.7 A7)** | §16 | `test_no_bank_exercise_has_an_undeclared_collision` — runs on fixtures today, must run over `data/exercises.json` | M1 | **PENDING — BLOCKING item of the BANK GATE** (v2.9 A6) |
+| 40 | **Search terminates on every input inside §3.4's limits (v2.9 A3)** | §6.6 | `test_every_random_state_terminates_within_its_budget`, `test_a_proof_deeper_than_the_budget_degrades_instead_of_hanging` | M1 | COVERED (v2.9) |
 
 **No VIOLATED rows. No MISSING rows (row 30 closed in v2.2). Two accepted PARTIALs (rows 3, 26),
 each with a stated reason.**
+
+#### 17.1.1 The BANK GATE — rows 38 and 39 are bound, not deferred (v2.9 A6)
+
+A deferred check with no owning gate is a check that quietly never happens. Rows 38 and 39 both
+depend on `data/exercises.json`, so they are hereby **bound to the phase that creates it** — the
+gate that also delivers `scripts/difficulty.py` and the twelve exercises, which the HARD CLI GATE
+needs in order to play a full exercise. v2.8 A4b said "lands in Phase 6", but Phase 6 is
+`models.py`, `bkt.py` and `tutor.py`; naming a phase number rather than the artefact is how the
+binding was lost in the first place, so the trigger is now the **artefact**:
+
+> **The moment `data/exercises.json` enters the repository, these are BLOCKING. That gate cannot
+> be reported complete, and nothing may be pushed from it, until all three hold.**
+
+| Blocking item | What must exist | Fails how |
+|---|---|---|
+| **B1** — row 38, freshness | A CI step that re-runs `scripts/difficulty.py` into a temporary copy and diffs it against the committed bank | Non-zero exit if the committed difficulty data would change. Without it, one edit to an exercise or to `search` leaves a wrong band in the bank, and band selection, the simulation and the results table all silently inherit it |
+| **B2** — row 39, bank guard | `undeclared_collisions` moved out of `backend/tests/test_bank_guard.py`'s fixtures and run over every real exercise | Non-zero exit on any undeclared phrase collision. The stemmer over-merges by design (§3.5), which is safe for a student's own paragraph because the Facts screen shows both phrases — but an exercise we ship would hand every student the same confusing screen |
+| **B3** — row 31, bank constraint | Every exercise ≤7 relevant clauses after the relevance filter, and provable or explicitly marked as not following | `test_every_exercise_parses_and_is_provable_or_marked_not_following`. §6.6's measured headroom (~57×) is stated for a 5-step proof and is only true if the bank honours this bound |
 
 ### 17.2 Grammar audit — positive + tricky per production
 
@@ -1330,9 +1521,18 @@ set. **No stage is reachable before its precondition — the order is forced, no
   The proof only needs "actions add one clause and the added clause is derivable from the parent
   state" — both still true. ✔ **This invariant was *weakened* in v2.0 to accommodate SOS; removing
   SOS restores the strict form, which is a genuine simplification, not a loss.**
-- **Cap:** reachable depth-k states ≤ C(D,k); for bank exercises D is a few dozen (§6.6). Cap set
-  from a measured benchmark at the Phase-3 gate. ✔
-- **Fallback:** on cap hit, `productive=None` (never guessed) and a rule-based hint labelled as a
+- **Budget:** reachable depth-k states ≤ C(D,k); for bank exercises D is a few dozen (§6.6).
+  `MAX_SEARCH_WORK` is set from the Phase-5-gate measurement in
+  `docs/experiments/search_latency.md`, in generated states, shared across one public call. The
+  v2.8 claim that the Phase-3 node cap was adequate was **WRONG** and is corrected in v2.9 A3: it
+  measured expansions while the cost lived in generations, and it was per-search while the caller
+  made one search per candidate. ✘ → ✔ (fixed)
+- **Termination:** asserted, not argued — 500 seeded random states per run inside §3.4's limits,
+  each returning a count, `None`, or `GoalUnreachableError`, with the spend bounded by the
+  allowance (`test_search_budget.py`). ✔
+- **Depth cliff:** cost is ≈7× per proof step, so proofs beyond depth 7 degrade to the §6.6
+  fallback. Stated as a limitation (§14) and pinned by a test, not left to be discovered. ✔
+- **Fallback:** on budget exhaustion, `productive=None` (never guessed) and a rule-based hint labelled as a
   suggestion. ✔
 - **Unreachable goals:** handled by the §6.6 short-circuit, not by the cap (V-2). ✔
 
@@ -1498,6 +1698,22 @@ Re-run for v2.2 (pilot kept in M1, walkthroughs added, core cap raised):
 | Frontend M1 | 600 | **600** | ✔ exactly — zero headroom, watch at Phase 7 |
 | Frontend M1+M2 | 600 | **670** | over by 70 — **deferred to M2 gate** |
 
+**v2.9 re-run against the caps that are actually enforced** (`scripts/loc.py`, commit `fd56677`;
+the table above is kept for the record and its cap column is obsolete). Measured code lines plus
+labelled estimates — arithmetic and the chosen plan in §13.4.1:
+
+| Budget | Cap enforced | Measured now | Projection | Verdict |
+|---|---|---|---|---|
+| Core lines | **650 target / 700 ceiling** | **620** | **~800** (~732 after §13.4.1 items 1–4) | **BREACH — decision open at the Phase 6a gate** |
+| api + cli | **250** | **0** | ~325 | **projected breach** — re-derive at the API gate |
+| scripts | **180** | **151** | ~356 | **projected breach** — `difficulty.py`, `run_experiments.py`, `heldout_eval.py` still to come |
+| Frontend | **550** | **0** | 600 (M1) / 685 (M1+M2) | **projected breach** — open at the Phase 7 gate |
+| Total person-hours | 77.00 | — | 77.00 | accepted (§15.1) |
+
+**Nothing here is absorbed and no cap has been moved.** The breaches are reported with their
+arithmetic so the student can choose between simplifying, cutting scope, or issuing one change
+request that re-derives the caps against the frozen design.
+
 Cuts were applied inside M2 first, as mandated; **no M1 test, never-guess error, or held-out
 evaluation item was cut**, and the pilot cut was withdrawn on the student's instruction. The hours
 figure rose rather than fell, and is reported at its computed value with a full reconciliation
@@ -1513,5 +1729,8 @@ hardcoding, no guessing, everything decided by truth table or resolution, simple
 chosen (textbook CNF, one search regime), limitations stated honestly ✔; (6) hours and lines
 computed bottom-up with arithmetic shown, nothing rounded down ✔ (§13).
 
-**HLD v2.4 — APPROVED AND FROZEN, 2026-10-08.** Implementation proceeds against this document.
+**HLD v2.9 — APPROVED AND FROZEN, 2026-10-10.** Implementation proceeds against this document.
 Any design change from here requires an explicit change request from the student.
+
+*(This footer read "v2.4" through v2.5–v2.8 — it was not advanced with the header. Corrected in
+v2.9, and `test_docs_reference_current_hld_version` now covers the referring docs.)*

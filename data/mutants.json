@@ -171,6 +171,30 @@
       "desc": "fallback ignores clause length",
       "find": "key=lambda clause: (len(clause), canonical(clause))",
       "replace": "key=canonical"
+    },
+    {
+      "id": "S9",
+      "desc": "the work budget never runs out",
+      "find": "        if self.left <= 0:\n            return False",
+      "replace": "        if False:\n            return False"
+    },
+    {
+      "id": "S10",
+      "desc": "best_next_step funds each probe from a fresh budget",
+      "find": "        if distance(state | {resolvent}, work) == target - 1:",
+      "replace": "        if distance(state | {resolvent}, MAX_SEARCH_WORK) == target - 1:"
+    },
+    {
+      "id": "S11",
+      "desc": "productive funds each of its two searches separately",
+      "find": "    d_before = distance(before, work)\n    d_after = distance(after, work)",
+      "replace": "    d_before = distance(before)\n    d_after = distance(after)"
+    },
+    {
+      "id": "S12",
+      "desc": "generation charged after the child is kept, not before",
+      "find": "                if not work.spend():\n                    return None\n                if child in visited:\n                    continue",
+      "replace": "                if child in visited:\n                    continue\n                if not work.spend():\n                    return None"
     }
   ],
   "english": [

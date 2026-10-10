@@ -3,7 +3,7 @@
 Step-level formative feedback for propositional logic arguments, built with controlled-English
 parsing, truth tables, resolution refutation, BFS and Bayesian Knowledge Tracing.
 
-> **Status: Phase 1 (scaffold).** The design is frozen at [`docs/HLD.md`](docs/HLD.md) v2.8.
+> **Status: Phase 1 (scaffold).** The design is frozen at [`docs/HLD.md`](docs/HLD.md) v2.9.
 > No logic is implemented yet — this README is a stub and grows at Phase 9.
 
 A college AI course project (3rd year) by **CVS Ujwal** (24BCE0667) and **Keshav Raj**
@@ -88,7 +88,7 @@ newer pip is not a reason to change it mid-project.
 
 ## Documents
 
-- **[`docs/HLD.md`](docs/HLD.md)** — high-level design v2.8, frozen. Architecture, grammar,
+- **[`docs/HLD.md`](docs/HLD.md)** — high-level design v2.9, frozen. Architecture, grammar,
   algorithms with correctness arguments, API contract, budgets, and a verification report.
 - **[`docs/HLD_REVIEW.md`](docs/HLD_REVIEW.md)** — adversarial review of the v1 design (historical).
 - **[`AI_USAGE_LOG.md`](AI_USAGE_LOG.md)** — factual record of AI assistance, updated every phase.
