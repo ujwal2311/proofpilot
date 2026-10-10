@@ -505,8 +505,8 @@ held to something, and never claimed as a property of every machine:
 
 | Goal | Measured 2026-10-10 |
 |---|---|
-| A hint within **1 s** for any bank exercise | 13.4 ms worst case (~75× margin) |
-| A hint **or** an explicit fallback within **1 s** for an own question | 661 ms to depth 7; depth 8+ falls back at 835 ms |
+| A hint within **1 s** for any bank exercise | 11.7 ms worst case (~85× margin) |
+| A hint **or** an explicit fallback within **1 s** for an own question | 586 ms to depth 7; depth 8+ falls back at 835 ms |
 | Every input inside §3.4's limits **terminates** | 500 seeded random states per test run, each returning a count, `None`, or `GoalUnreachableError` |
 
 The automated assertion is a deliberately loose **10 s** ceiling, because a shared CI runner under

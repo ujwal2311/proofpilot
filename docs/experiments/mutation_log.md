@@ -468,3 +468,25 @@ which looks *thrifty*. Both mutants would have survived. The tests now grant exa
 search's cost plus one unit: sharing the allowance makes every probe unaffordable (`None`), while
 funding probes separately lets them succeed. The failure is decisive in either direction, and no
 wall clock is involved.
+
+**S7 was reported RETIRED on the first run after the change**, because renaming `max_nodes` to
+`work` moved its anchor text. A retired mutant is lost coverage, not a pass — the defect it
+injects is still real and still tested — so it was re-anchored rather than left in the report.
+This is the convention doing its job: a silent skip would have hidden it.
+
+### Full set on committed code after A3, 2026-10-10
+
+Commit `f651d3b`, suite of 353 tests, run inside the isolated worktree:
+
+| Module | Mutants | Caught |
+|---|---|---|
+| `cnf.py` | 15 | 15 |
+| `english.py` | 10 | 10 |
+| `entail.py` | 10 | 10 |
+| `facts.py` | 10 | 10 |
+| `logic.py` | 7 | 7 |
+| `relevance.py` | 8 | 8 |
+| `search.py` | **10** | **10** |
+| **Total** | **70** | **70** |
+
+`source fingerprint unchanged: 8860597b9672`.

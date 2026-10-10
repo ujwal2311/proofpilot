@@ -17,7 +17,7 @@ The second form adds the 400-case production-budget sweep (~55 s), which is skip
 because the suite runs six times per CI push.
 
 **Machine:** Intel64 Family 6 Model 154, Windows 11, CPython 3.12.10.
-**Date:** 2026-10-10. **Commit:** `fd56677`. **Budget:** `MAX_SEARCH_WORK = 60,000`.
+**Date:** 2026-10-10. **Commit:** `f651d3b`. **Budget:** `MAX_SEARCH_WORK = 60,000`.
 
 ## The defect this replaced
 
@@ -65,10 +65,10 @@ so their spread is machine noise rather than input variation.
 
 | Workload | p50 | p95 | max |
 |---|---|---|---|
-| Bank worst case (8 clauses, 5-step proof), 15 runs | **11.4 ms** | 12.1 ms | **13.4 ms** |
-| Own-question worst case (10 clauses, 7-step proof), 5 runs | **647.7 ms** | 654.7 ms | **661.3 ms** |
-| Random sweep, bank shape (≤7 clauses, ≤6 facts), 200 cases | 0.10 ms | 669.67 ms | 1,961.39 ms |
-| Random sweep, own shape (≤20 clauses, ≤10 facts), 200 cases | 2.56 ms | 876.85 ms | 1,702.67 ms |
+| Bank worst case (8 clauses, 5-step proof), 15 runs | **11.0 ms** | 11.7 ms | **11.7 ms** |
+| Own-question worst case (10 clauses, 7-step proof), 5 runs | **582.8 ms** | 585.4 ms | **586.3 ms** |
+| Random sweep, bank shape (≤7 clauses, ≤6 facts), 200 cases | 0.10 ms | 624.87 ms | 1,766.28 ms |
+| Random sweep, own shape (≤20 clauses, ≤10 facts), 200 cases | 2.18 ms | 816.28 ms | 1,573.46 ms |
 
 The random sweeps are **slower than the product** and deliberately so. They are dominated by
 clause sets with **no refutation at all** (165 of 200 at bank shape), which exhaust the budget
@@ -85,6 +85,6 @@ is exactly what the defect above was.
 
 | Goal | Status against the measurement |
 |---|---|
-| A hint within **1 s** for any bank exercise | met with ~75× margin (13.4 ms worst) |
-| A hint or an explicit fallback within **1 s** for an own question | met for proofs to depth 7 (661 ms); depth 8+ falls back at 835 ms |
+| A hint within **1 s** for any bank exercise | met with ~85× margin (11.7 ms worst) |
+| A hint or an explicit fallback within **1 s** for an own question | met for proofs to depth 7 (586 ms); depth 8+ falls back at 835 ms |
 | Every input inside the documented limits **terminates** | 500 seeded random states per run, each returning a count, `None`, or `GoalUnreachableError` |
