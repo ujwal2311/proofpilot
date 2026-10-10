@@ -42,3 +42,35 @@ MAX_SENTENCES = 12
 # Distinct facts allowed across a paragraph and its conclusion. DESIGN DECISION: it caps the
 # truth table at 2**10 = 1024 rows (HLD section 6.4) and keeps the Facts screen readable.
 MAX_FACTS = 10
+
+# Bayesian Knowledge Tracing parameters (HLD sections 6.8, 17.7).
+#
+# These four are ASSUMED, not fitted. Fitting them would need response data from real students
+# across many sessions, which this project does not have and will not invent -- the pilot is ten
+# classmates, not a dataset. They are the conventional textbook starting values, and the numbers
+# the design review worked the update through by hand (0.7098 correct, 0.1932 wrong), so they are
+# also the figures the report can be checked against.
+#
+# The report must describe them as assumed. Presenting a chosen parameter as a measured one would
+# be a false claim about the method, not a rounding difference.
+BKT_P0 = 0.3  # prior probability the skill is already mastered
+BKT_GUESS = 0.2  # answering correctly without the skill
+BKT_SLIP = 0.1  # answering wrongly despite having it
+BKT_TRANSIT = 0.15  # chance of learning the skill from one opportunity
+
+# How far mastery is kept from 0 and 1. The BKT model never reaches either value, but float64
+# does: MEASURED on 2026-10-11, 23 consecutive correct answers drive P to EXACTLY 1.0, after
+# which `posterior(1.0, wrong)` is 1.0 * s / (1.0 * s + 0) = 1.0 and the skill can never move
+# again -- the tutor would keep asserting mastery against evidence that contradicts it.
+#
+# 1e-9 leaves (1 - P) with about seven significant digits of headroom over float64's resolution
+# near 1 (~2.2e-16), so the update stays reversible: from the clamp, ~10 wrong answers bring a
+# skill back below the threshold. It is also far below the four decimals any screen or report
+# shows, so it cannot change a displayed number. Only the upper bound is actually reachable --
+# the transit term floors mastery well above 0 -- but both are clamped for symmetry.
+MASTERY_EPSILON = 1e-9
+
+# Mastery required in EVERY active skill before the exercise set is finished (HLD section 9).
+# DESIGN DECISION, deliberately high: at 0.95 a student cannot finish on a lucky streak, and the
+# BKT update reaches it in about eight consecutive correct answers per skill.
+MASTERY_THRESHOLD = 0.95

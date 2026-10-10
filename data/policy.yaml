@@ -1,0 +1,54 @@
+# Evidence mapping (docs/HLD.md section 9) as declarative policy data -- v2.10 item 2.
+#
+# It is DATA, not code, because it is a pure lookup: one row per trigger, one column per skill,
+# no control flow anywhere in it. It is loaded and schema-validated at the EDGE (v2.4) and handed
+# to core as a plain mapping; core itself reads no file. The stage x action TRANSITION table is
+# deliberately NOT here -- transitions decide what may happen next and raise named errors, which
+# is control logic and stays visible in tutor.py.
+#
+# Values: right | wrong | null. `null` means NO UPDATE -- it is not "wrong" and not a default; a
+# skill with no observation must not move, or every action would score every skill.
+#
+# THE HINT RULE IS NOT IN THIS TABLE, and that is deliberate (section 9). If hint_level > 0 when
+# a step or claim_not_provable is submitted, every skill that WOULD be observed in the row is
+# recorded `wrong` instead; rows that are `null` stay `null`, because a hint must never create an
+# observation that was not already there. It is a uniform transform over this table, so writing
+# it as extra rows would double the table and give two places for it to be wrong.
+#
+# MODE (practice | own_question) does not appear either: no row differs by mode. Per OQ2 parse
+# failures are never evidence in EITHER mode, which is the one place a reader might expect a
+# difference -- so it is stated as a row rather than left to inference.
+
+schema_version: 1
+
+# Every trigger the system can produce. The six `step` codes come from logic.Code, and
+# test_policy_covers_every_diagnosis_code asserts this list against that enum, so a new
+# diagnosis code cannot be added without a row here.
+evidence:
+  step.NO_CLASH:            { CLASH: wrong, RESOLVE: null,  STRATEGY: null,  TRANSLATE: null }
+  step.DOUBLE_CANCEL:       { CLASH: right, RESOLVE: wrong, STRATEGY: null,  TRANSLATE: null }
+  step.WRONG_RESOLVENT:     { CLASH: right, RESOLVE: wrong, STRATEGY: null,  TRANSLATE: null }
+  step.TAUTOLOGY:           { CLASH: right, RESOLVE: right, STRATEGY: wrong, TRANSLATE: null }
+  step.DUPLICATE:           { CLASH: right, RESOLVE: right, STRATEGY: wrong, TRANSLATE: null }
+
+  # VALID splits three ways on productivity. `productive=null` means the search ran out of its
+  # work budget, so STRATEGY is genuinely unobserved -- never guessed as wrong (section 6.6).
+  step.VALID.productive:    { CLASH: right, RESOLVE: right, STRATEGY: right, TRANSLATE: null }
+  step.VALID.unproductive:  { CLASH: right, RESOLVE: right, STRATEGY: wrong, TRANSLATE: null }
+  step.VALID.unknown:       { CLASH: right, RESOLVE: right, STRATEGY: null,  TRANSLATE: null }
+
+  claim_not_provable.CLAIM_ACCEPTED: { CLASH: null, RESOLVE: null, STRATEGY: right, TRANSLATE: null }
+  claim_not_provable.CLAIM_REJECTED: { CLASH: null, RESOLVE: null, STRATEGY: wrong, TRANSLATE: null }
+
+  # M2. A hinted TRANSLATE is structurally impossible (V-5), so no hint row is needed here.
+  translate.CORRECT:                 { CLASH: null, RESOLVE: null, STRATEGY: null, TRANSLATE: right }
+  translate.CORRECT_CONTRAPOSITIVE:  { CLASH: null, RESOLVE: null, STRATEGY: null, TRANSLATE: right }
+  translate.ERROR:                   { CLASH: null, RESOLVE: null, STRATEGY: null, TRANSLATE: wrong }
+
+  # Not evidence, in either mode, and written down rather than left to inference.
+  # parse_failure: the student was refused, not assessed (OQ2).
+  # merge: the user is the authority on what their own words mean, so there is no ground truth.
+  # hint: asking for help is not an answer; its cost is the transform above.
+  parse_failure: { CLASH: null, RESOLVE: null, STRATEGY: null, TRANSLATE: null }
+  merge:         { CLASH: null, RESOLVE: null, STRATEGY: null, TRANSLATE: null }
+  hint:          { CLASH: null, RESOLVE: null, STRATEGY: null, TRANSLATE: null }

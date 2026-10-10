@@ -1,4 +1,80 @@
 {
+  "bkt": [
+    {
+      "id": "B1",
+      "desc": "posterior uses slip where guess belongs",
+      "find": "        evidence = p * (1 - params.slip)\n        return evidence / (evidence + (1 - p) * params.guess)",
+      "replace": "        evidence = p * (1 - params.guess)\n        return evidence / (evidence + (1 - p) * params.slip)"
+    },
+    {
+      "id": "B2",
+      "desc": "the wrong-answer denominator loses its (1-g)",
+      "find": "    return evidence / (evidence + (1 - p) * (1 - params.guess))",
+      "replace": "    return evidence / (evidence + (1 - p) * params.guess)"
+    },
+    {
+      "id": "B3",
+      "desc": "the transit term is not scaled by (1-P')",
+      "find": "    moved = after + (1 - after) * params.transit",
+      "replace": "    moved = after + params.transit"
+    },
+    {
+      "id": "B4",
+      "desc": "the g+s<1 validation is removed",
+      "find": "        if self.guess + self.slip >= 1.0:",
+      "replace": "        if False:"
+    },
+    {
+      "id": "B5",
+      "desc": "parameter range becomes closed instead of open",
+      "find": "            if not 0.0 < value < 1.0:",
+      "replace": "            if not 0.0 <= value <= 1.0:"
+    },
+    {
+      "id": "B6",
+      "desc": "is_done needs only ONE skill at the threshold",
+      "find": "    return bool(mastery) and all(value >= params.threshold for value in mastery.values())",
+      "replace": "    return bool(mastery) and any(value >= params.threshold for value in mastery.values())"
+    },
+    {
+      "id": "B7",
+      "desc": "is_done requires strictly above the threshold",
+      "find": "    return bool(mastery) and all(value >= params.threshold for value in mastery.values())",
+      "replace": "    return bool(mastery) and all(value > params.threshold for value in mastery.values())"
+    },
+    {
+      "id": "B8",
+      "desc": "an empty mastery map reads as done",
+      "find": "    return bool(mastery) and all(value >= params.threshold for value in mastery.values())",
+      "replace": "    return all(value >= params.threshold for value in mastery.values())"
+    },
+    {
+      "id": "B9",
+      "desc": "the saturation clamp is removed",
+      "find": "    return min(max(moved, config.MASTERY_EPSILON), 1.0 - config.MASTERY_EPSILON)",
+      "replace": "    return moved"
+    },
+    {
+      "id": "B10",
+      "desc": "from_config swaps guess and slip",
+      "find": "            guess=config.BKT_GUESS,\n            slip=config.BKT_SLIP,",
+      "replace": "            guess=config.BKT_SLIP,\n            slip=config.BKT_GUESS,"
+    }
+  ],
+  "models": [
+    {
+      "id": "MO1",
+      "desc": "State is no longer frozen",
+      "find": "@dataclass(frozen=True)\nclass State:",
+      "replace": "@dataclass\nclass State:"
+    },
+    {
+      "id": "MO2",
+      "desc": "the Skill order is changed",
+      "find": "    STRATEGY = \"STRATEGY\"\n    TRANSLATE = \"TRANSLATE\"",
+      "replace": "    TRANSLATE = \"TRANSLATE\"\n    STRATEGY = \"STRATEGY\""
+    }
+  ],
   "cnf": [
     {
       "id": "C1",
