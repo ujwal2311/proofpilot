@@ -15,7 +15,7 @@ from src.core.english import (
     Or,
     ParseError,
     parse_sentence,
-    split_sentences,
+    prepare,
 )
 
 
@@ -32,8 +32,8 @@ def raises(text: str) -> ErrorCode:
 # ------------------------------------------------------------------------------ normalization
 
 
-def test_split_sentences_on_every_terminator() -> None:
-    assert split_sentences("It rains. It is cold! Is it windy? We stay;") == [
+def test_prepare_on_every_terminator() -> None:
+    assert prepare("It rains. It is cold! Is it windy? We stay;") == [
         "It rains",
         "It is cold",
         "Is it windy",
@@ -41,8 +41,8 @@ def test_split_sentences_on_every_terminator() -> None:
     ]
 
 
-def test_split_sentences_ignores_empty_fragments() -> None:
-    assert split_sentences("It rains... We stay.  ") == ["It rains", "We stay"]
+def test_prepare_ignores_empty_fragments() -> None:
+    assert prepare("It rains... We stay.  ") == ["It rains", "We stay"]
 
 
 def test_contraction_and_double_negation_normalized() -> None:
@@ -232,7 +232,7 @@ def test_paragraph_limits_rejected() -> None:
     # Each sentence must start with a capital, or the splitter treats the full stop as an
     # abbreviation or decimal point and never breaks (HLD 3.1, the B4 rule).
     with pytest.raises(ParseError) as caught:
-        split_sentences(". ".join(f"Sentence {i}" for i in range(13)))
+        prepare(". ".join(f"Sentence {i}" for i in range(13)))
     assert caught.value.code is ErrorCode.TOO_MANY_SENTENCES
 
 

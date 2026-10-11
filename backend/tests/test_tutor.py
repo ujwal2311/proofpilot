@@ -29,12 +29,12 @@ import dataclasses
 from itertools import product
 
 import pytest
+from src.app.data import load_policy
 from src.core import search, session, tutor
 from src.core.bkt import BktParams, is_done
 from src.core.entail import Verdict
 from src.core.logic import Clause, Code, canonical
 from src.core.models import ClauseRec, Fact, MergeChoice, Skill, State, Translation
-from src.loader import load_policy
 
 POLICY = load_policy()
 PARAMS = BktParams.from_config()

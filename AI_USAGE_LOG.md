@@ -781,3 +781,58 @@ cannot be told apart from an ordinary number, and the new bucket's figure collid
 unrelated numbers in the design document. Rather than exempt whole sections, measurement records
 are now fenced explicitly and dated, the guard covers only figures of three digits or more, and
 the gap this leaves is stated in the test rather than left to be discovered.
+
+---
+
+**Date:** 2026-10-12
+**Phase:** Sprint block S3 — the exercise bank, the command-line gate, and the shared edge
+**Tool:** Claude Code (Opus 5)
+**Files created:** `data/exercises.json` (AI-DRAFTED, PENDING HUMAN REVIEW), `data/messages.yaml`,
+`data/difficulty.json` (generated), `scripts/difficulty.py`, `backend/src/cli.py`,
+`backend/src/app/__init__.py`, `backend/src/app/render.py`, `backend/src/app/view.py`,
+`backend/tests/test_bank.py`, `backend/tests/test_cli.py`, `backend/tests/test_adapters.py`,
+`backend/tests/test_normalisation.py`, `docs/experiments/cli_transcript.md`
+**Files moved:** `backend/src/loader.py` → `backend/src/app/data.py`
+**Files modified:** `backend/src/core/english.py`, `backend/src/core/config.py`, `budgets.toml`,
+`.github/workflows/ci.yml`, `docs/HLD.md`, `docs/READING_GUIDE.md`, `data/mutants.json`
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** The twelve practice exercises, the command-line gate that proves the tutor needs no
+web layer, and the restructuring the student directed when the line budget came under pressure.
+
+THE EXERCISES ARE DRAFTED HERE AND AWAIT HUMAN REVIEW. They are listed as such because they are
+content a student reads, not code: the team should read all twelve before the review and change
+anything that reads badly or teaches the wrong habit. What is already checked mechanically is that
+each one parses, that the entailment the author claimed for it is the entailment the truth table
+computes, that it stays inside the clause bound the latency measurements assume, and that it does
+not depend on a student noticing and undoing a merge the stemmer made. Between them they cover
+every connective the grammar supports, three long paragraphs with irrelevant premises, two
+conclusions that do not follow, and a spread of punctuation and capitalisation so that the bank
+itself exercises the text normalisation.
+
+Difficulty is computed from the shortest proof and written to a separate file, never stored beside
+the exercise, and a continuous-integration step regenerates it and fails if the committed version
+would change. A hand-written difficulty would survive an edit to a paragraph and to the search
+itself, and every number downstream would inherit it.
+
+Two findings came from running the bank through the real pipeline rather than reasoning about it.
+The merge guard, written months earlier against fixtures, reported five collisions on the real
+exercises that were all false alarms: a phrase and its own negation share a canonical key by
+design, because the key is computed after the negation is stripped, and they correctly become one
+proposition with opposite signs. Made aware of polarity the guard reported nothing at all, which
+would have left it passing vacuously — so one exercise now carries a genuine same-polarity merge
+that the author declares, and the guard is checked in both directions: an undeclared merge fails,
+and so does a declared merge the stemmer no longer makes.
+
+The student then directed a restructuring, on finding that the line budget for everything outside
+the logic was under pressure. Everything both clients need now lives in one shared edge: loading
+and validating the data files, the single text-preparation entry point, turning a code into the
+words a student reads, and owning the board's clause names. The command line and the web layer
+became input and output only. All user-facing wording moved into one reviewable file, and a test
+parses both adapters and fails on any string that reads like a sentence, because that kind of
+duplication returns one convenient line at a time rather than by decision.
+
+The startup validation of that wording file found two real mistakes on its first run, which is the
+best argument for having written it. One template used a placeholder the renderer never supplies,
+which would have been a crash in front of a student. In the other direction, the renderer supplied
+the offending phrase to the warning about a conclusion mentioning something no premise does, and
+no template used it — so the student was told that something was missing without being told what.

@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "_README": [
+    "The practice bank. AI-DRAFTED, PENDING HUMAN REVIEW -- see AI_USAGE_LOG.md.",
+    "Every exercise was validated against the real pipeline before being committed: it parses,",
+    "its entailment verdict matches `expected_entailment`, and it honours the <=7-relevant-clause",
+    "bank constraint (HLD section 2). Those checks run in backend/tests/test_bank.py, so an edit",
+    "here that breaks one fails the build.",
+    "",
+    "DIFFICULTY IS NOT IN THIS FILE. It is computed from the shortest proof by",
+    "scripts/difficulty.py into data/difficulty.json, and CI re-runs that script and diffs it",
+    "(HLD section 17.1.1 B1), so a hand-written band cannot survive here or there.",
+    "",
+    "`expected_entailment` is the AUTHOR'S CLAIM, not data the system trusts. The test compares it",
+    "against what the truth table computes; a disagreement means the exercise is broken, not that",
+    "the file is authoritative.",
+    "",
+    "`expected_merges` names every pair of phrases the stemmer merges AS THE SAME PROPOSITION",
+    "(same polarity). Declaring them is the v2.7 A7 rule: a shipped exercise must never depend on",
+    "a student noticing and undoing a false merge. Negation pairs ('the train runs' / 'the train",
+    "does not run') are NOT listed -- those are the designed polarity handling, they land in one",
+    "fact with opposite signs, and a separate test asserts that."
+  ],
+  "exercises": [
+    {
+      "id": "ex-01",
+      "topic": "weather",
+      "paragraph": "If it rains then the match is cancelled. It rains.",
+      "conclusion": "The match is cancelled.",
+      "expected_entailment": "entails",
+      "expected_merges": [],
+      "covers": ["if-then", "bare junction"]
+    },
+    {
+      "id": "ex-02",
+      "topic": "warehouse",
+      "paragraph": "The shelf is stocked if the parcel arrives. The parcel arrived.",
+      "conclusion": "The shelf is stocked",
+      "expected_entailment": "entails",
+      "expected_merges": [["the parcel arrives", "the parcel arrived"]],
+      "covers": ["clause-if-cond", "tense collapse", "conclusion with no terminator"]
+    },
+    {
+      "id": "ex-03",
+      "topic": "travel",
+      "paragraph": "Unless the train runs, we take the bus. We take the bus only if the fare is paid. The train does not run.",
+      "conclusion": "The fare is paid!",
+      "expected_entailment": "entails",
+      "expected_merges": [],
+      "covers": ["unless", "only-if", "negation", "conclusion ending in !"]
+    },
+    {
+      "id": "ex-04",
+      "topic": "bakery",
+      "paragraph": "Either the oven works or the bread is bought. The oven does not work. If the bread is bought then the shop is open.",
+      "conclusion": "The shop is open.",
+      "expected_entailment": "entails",
+      "expected_merges": [],
+      "covers": ["either-or", "if-then", "negation"]
+    },
+    {
+      "id": "ex-05",
+      "topic": "network operations",
+      "paragraph": "Neither the link is up nor the backup is ready. If the link is not up then the alarm sounds.",
+      "conclusion": "The alarm sounds.",
+      "expected_entailment": "entails",
+      "expected_merges": [],
+      "covers": ["neither-nor", "if-then", "negation"]
+    },
+    {
+      "id": "ex-06",
+      "topic": "exam rules",
+      "paragraph": "The paper is accepted if and only if the form is signed. The paper is accepted.",
+      "conclusion": "The Form Is Signed.",
+      "expected_entailment": "entails",
+      "expected_merges": [],
+      "covers": ["iff", "mixed-case conclusion"]
+    },
+    {
+      "id": "ex-07",
+      "topic": "building access",
+      "paragraph": "Both the lift is serviced and the stairs are clear. If the stairs are clear then the floor is reachable.",
+      "conclusion": "The floor is reachable.",
+      "expected_entailment": "entails",
+      "expected_merges": [],
+      "covers": ["both-and", "if-then"]
+    },
+    {
+      "id": "ex-08",
+      "topic": "incident response",
+      "paragraph": "If the server is down then the alert fires. If the alert fires then the engineer is paged. If the engineer is paged then the incident opens. The server is down. If the canteen is open then the queue is long. The canteen is open. If the shuttle is late then the meeting slips. The shuttle is late.",
+      "conclusion": "The incident opens.",
+      "expected_entailment": "entails",
+      "expected_merges": [],
+      "covers": ["long paragraph", "distractors", "if-then chain"]
+    },
+    {
+      "id": "ex-09",
+      "topic": "farming",
+      "paragraph": "Either the well is full or the tank is filled. The well is not full. If the tank is filled then the field is watered. If the field is watered then the crop survives. If the market is near then the price is low. The market is near. If the road floods then the lorry waits.",
+      "conclusion": "The crop survives.",
+      "expected_entailment": "entails",
+      "expected_merges": [],
+      "covers": ["long paragraph", "distractors", "either-or", "if-then chain"]
+    },
+    {
+      "id": "ex-10",
+      "topic": "hospital triage",
+      "paragraph": "If the ward is full then the patient waits. The patient does not wait. If the ward is not full then the bed is free. If the canteen is shut then the staff are hungry. The canteen is shut. If the lift is broken then the trolley is used.",
+      "conclusion": "The bed is free.",
+      "expected_entailment": "entails",
+      "expected_merges": [],
+      "covers": ["long paragraph", "distractors", "contrapositive", "negation"]
+    },
+    {
+      "id": "ex-11",
+      "topic": "music practice",
+      "paragraph": "If the hall is booked then the concert happens. The concert happens.",
+      "conclusion": "The hall is booked.",
+      "expected_entailment": "does_not_follow",
+      "expected_merges": [],
+      "covers": ["does not follow", "affirming the consequent"]
+    },
+    {
+      "id": "ex-12",
+      "topic": "sports club",
+      "paragraph": "If the pitch is dry then the game starts. The pitch is dry. If the coach arrives then the warm up begins.",
+      "conclusion": "The coach arrives.",
+      "expected_entailment": "does_not_follow",
+      "expected_merges": [],
+      "covers": ["does not follow", "distractors", "unrelated conclusion"]
+    }
+  ]
+}

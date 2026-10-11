@@ -1,0 +1,115 @@
+# Every piece of user-facing text, in one place (docs/HLD.md section 4.1).
+#
+# It is DATA for the same reason the evidence table is: there is no decision in it. The CLI and the
+# API both render these strings, so a template in either edge would be a template the other one
+# disagrees with -- and wording a student reads is exactly the thing that should be reviewable in
+# one file rather than hunted through two code paths.
+#
+# It carries no logic. Which message to show is decided by `core` (a `logic.Code`, a `Hint.code`,
+# an `ErrorCode`); this file only says how to say it. `test_messages.py` asserts that every code
+# the system can produce has an entry, derived from the enums rather than from this file, so a new
+# code cannot be added without wording.
+#
+# `{placeholders}` are filled by the edge. The names are part of the contract and are checked.
+
+schema_version: 1
+
+# --------------------------------------------------------- resolution step diagnosis (section 6.7)
+# One per logic.Code. Each names the mistake rather than reporting "wrong": naming it is the whole
+# formative premise of the project, and "incorrect" teaches nothing.
+step:
+  NO_CLASH: "those two clauses share no complementary literal, so they cannot be resolved."
+  DOUBLE_CANCEL: "only ONE complementary pair may be cancelled per step; you cancelled several."
+  WRONG_RESOLVENT: "missing {missing}, extra {extra}."
+  TAUTOLOGY: "that clause is always true, so it can never help a refutation."
+  DUPLICATE: "that clause is already on the board."
+  VALID: "valid."
+
+# How a valid step is described, by whether it shortened the proof. `unknown` is the work-budget
+# case: the search ran out, so productivity is genuinely undecided and must not be guessed.
+productivity:
+  productive: "that shortens the proof."
+  unproductive: "legal, but no closer to a refutation."
+  unknown: "legal. (the search ran out of its budget, so I cannot say if it helps.)"
+
+# ------------------------------------------------------------------------ hints (sections 6.6, 6.6.1)
+# The proof ladder reveals one parent, then both, then the resolvent. The wording must not reveal
+# more than the level does -- and it cannot, because the Hint object carries only that much.
+hint:
+  HINT_1: "start from {clauses}."
+  HINT_2: "resolve {clauses}."
+  HINT_3: "resolve {clauses} to get {resolvent}."
+  HINT_FALLBACK: "try resolving {clauses} to get {resolvent} -- a suggestion, not necessarily the best step."
+  HINT_UNAVAILABLE: "there is nothing left to resolve."
+  # Levels 1 and 2 give the METHOD, not the verdict, so a student who follows L2 reaches the
+  # answer themselves. L3 gives it away deliberately, priced by the BKT hint rule (section 9).
+  HINT_NOT_FOLLOW_1: "before proving, check whether the conclusion really follows."
+  HINT_NOT_FOLLOW_2: "look for a situation where every premise is true and the conclusion is false."
+  HINT_NOT_FOLLOW_3: "it does not follow. Say so."
+
+# ----------------------------------------------------------------------- claims (sections 8, 9)
+claim:
+  CLAIM_ACCEPTED: "correct -- it does not follow."
+  CLAIM_REJECTED: "it does follow; keep going."
+
+# ------------------------------------------------------- refusals (section 3.4, never a guess)
+# Every one carries a rephrasing hint. A refusal without one tells the student they are wrong
+# without telling them what to do, which is the failure mode "never guess" is meant to avoid.
+error:
+  UNPARSEABLE: "I cannot read that sentence. Try one of the supported patterns, e.g. \"If A then B.\""
+  AMBIGUOUS_AND_OR: "mixing \"and\" with \"or\" in one sentence is ambiguous. Split it into two sentences."
+  QUANTIFIER_UNSUPPORTED: "words like \"all\", \"every\" and \"some\" are beyond this system. Rewrite about one specific case."
+  TOO_LONG: "that sentence is too long. Split it into shorter ones."
+  EMPTY_FACT_PHRASE: "one side of that connective has no content. Write a full statement on both sides."
+  TOO_MANY_SENTENCES: "too many sentences. Shorten the paragraph."
+  TOO_MANY_FACTS: "too many distinct facts to reason about. Merge the ones that mean the same thing, or shorten the paragraph."
+  SUSPICIOUS_FRAGMENT: "\"{sentence}\" looks like a fragment, probably from an abbreviation. Spell it out."
+  UNKNOWN_PHRASE: "I do not know the phrase \"{sentence}\"."
+  SELF_MERGE: "a phrase cannot be merged with itself."
+  CONFLICTING_MERGE: "those two phrases already have a different relation. Undo it first."
+  RELEVANCE_REQUIRES_CONSISTENCY: "the premises contradict each other, so nothing follows from them."
+
+# ------------------------------------------------------------------ entailment (section 6.4)
+entailment:
+  ENTAILED: "the conclusion does follow from these premises. Now prove it."
+  NOT_ENTAILED: "the truth table says this conclusion does NOT follow -- but you have to decide that."
+  INCONSISTENT_PREMISES: "these premises contradict each other, so anything at all follows. The exercise stops here."
+  counterexample: "a situation where every premise holds and the conclusion fails: {row}"
+
+# ----------------------------------------------------------------------- warnings (not errors)
+warning:
+  # {phrase} is the detail core puts after the code. Naming the phrase is the whole value of this
+  # warning -- "something" would leave the student hunting. The startup check found this: the
+  # renderer supplied the placeholder and no template used it.
+  CONCLUSION_FACT_UNSEEN: "the conclusion mentions {phrase}, which no premise does. Usually a typo -- but it is also what a \"does not follow\" exercise looks like."
+  TAUTOLOGICAL_CONCLUSION: "that conclusion is true in every situation, so it follows from any premises at all."
+
+# ------------------------------------------------- the command-line adapter's own chrome
+# `cli.py` is an I/O adapter and holds NO wording: it reads a line, calls `app`, prints. Every
+# sentence it shows is here, so a reviewer can read everything a student sees in one file and
+# `test_adapters_hold_no_user_facing_wording` can fail the build if any of it creeps back.
+cli:
+  banner: "ProofPilot. Type `help` for commands, `quit` to leave."
+  help: "{commands}"
+  commands: |
+    <a> <b> = <literals>   resolve a with b, e.g. `c1 c2 = B`; `=` alone derives []
+    hint                   ask for a hint; repeating escalates 1 -> 2 -> 3
+    no                     claim the conclusion does not follow
+    facts                  show the facts and the board again
+    skip                   give up on this exercise and move on
+    quit                   leave
+  prompt: "> "
+  paragraph: "paragraph: "
+  conclusion: "conclusion: "
+  header: "[{exercise} / {topic} / {band}]"
+  facts: "facts:"
+  board: "board:"
+  mastery: "mastery:  "
+  not_needed: "not needed for this conclusion"
+  unplayable: "some sentences were refused, so this exercise cannot be played."
+  say_no: "say `no` when you are sure."
+  solved: "EMPTY CLAUSE derived. The conclusion follows -- the proof is complete."
+  finished: "every tracked skill has reached the mastery threshold."
+  bad_step: "a step is `<clause> <clause> = <literals>`, for example `c1 c2 = B`"
+  unknown_clause: "no clause called {sentence}"
+  own_topic: "your own question"

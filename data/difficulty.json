@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "_README": "DERIVED by scripts/difficulty.py from the shortest proof. Never edit by hand.",
+  "bands": {
+    "ex-01": "short",
+    "ex-02": "short",
+    "ex-03": "medium",
+    "ex-04": "medium",
+    "ex-05": "short",
+    "ex-06": "short",
+    "ex-07": "short",
+    "ex-08": "long",
+    "ex-09": "long",
+    "ex-10": "medium",
+    "ex-11": "short",
+    "ex-12": "short"
+  }
+}

@@ -32,7 +32,9 @@ Plus `CLAUDE.md` in full. It is short and it is the rules.
 | 5 — `relevance.py` | §6.5 Relevance filter | §7 Pipeline ordering |
 | 6 — `bkt.py`, `tutor.py` | §6.8 BKT, §9 Evidence Mapping | §17.7 BKT re-check |
 | 6 — `session.py` | §7 Pipeline ordering, §5 Data Model and State, §6.6.1 Hints when the conclusion does not follow | §17.9 scenarios (a), (g), (p), (q); §16 v2.11 — why it is split from `tutor.py`, and the `ast` test that keeps it so |
-| 7 — CLI | §5 Data Model and State | §2 (M1 scope) |
+| 7 — `app/` (the shared edge) | §4.1 module ownership, §4 (core reads no file) | §16 v2.11 — why loading, validation, wording and clause ids live here once rather than in each adapter |
+| 7 — CLI | §4.1 (`cli.py` is I/O only), §9 Evidence Mapping | `docs/experiments/cli_transcript.md` — the HARD GATE played end to end |
+| 7 — the bank | §2 bank constraint, §9 bands, §17.1.1 BANK GATE | `data/exercises.json`'s own header; `scripts/difficulty.py` |
 | 8 — API | §8 API Contract and Error Model | §17.8 API audit |
 | 9 — Frontend | §5 Data Model, §8 API Contract | §13.4 (frontend budget) |
 | 10 — Experiments | §11 Evaluation Plan | §17.10 Determinism audit |

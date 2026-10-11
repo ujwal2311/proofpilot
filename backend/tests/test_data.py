@@ -22,9 +22,9 @@ from pathlib import Path
 
 import pytest
 import yaml
+from src.app.data import POLICY_PATH, PolicyError, load_policy
 from src.core.logic import Code
 from src.core.models import Skill
-from src.loader import POLICY_PATH, PolicyError, load_policy
 
 SKILLS = [skill.value for skill in Skill]
 

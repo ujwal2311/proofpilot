@@ -333,6 +333,12 @@
       "desc": "mixed-connective check removed",
       "find": "if len(present) > 1:",
       "replace": "if False:"
+    },
+    {
+      "id": "E11",
+      "desc": "prepare() stops stripping the terminators, so 'we get wet.' and 'we get wet' are two facts",
+      "find": "    trimmed = [stripped for s in sentences if (stripped := s.strip(\" \t\n\" + _TERMINATORS))]",
+      "replace": "    trimmed = [stripped for s in sentences if (stripped := s.strip(\" \t\n\"))]"
     }
   ],
   "facts": [

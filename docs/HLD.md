@@ -291,6 +291,8 @@ flowchart LR
         D1[(data/exercises.json)]
         D2[(data/heldout_paragraphs.json<br/>human-written, post-freeze)]
         D3[(messages.yaml)]
+        D4[(policy.yaml)]
+        AP["app/ — the shared edge:<br/>load+validate, prepare, render, ids"]
     end
     F[CLI]
 
@@ -298,7 +300,10 @@ flowchart LR
     D1 -- "loaded at the EDGE" --> B
     D1 -- "loaded at the EDGE" --> F
     B -- "Exercise dataclasses in, results out" --> Core
-    B -- "fills templates" --> D3
+    B --> AP
+    F --> AP
+    AP -- "fills templates" --> D3
+    AP -- "evidence table" --> D4
     D2 -. "evaluation only, never tuning" .-> S[scripts/heldout_eval.py]
     S -- "Paragraph text in" --> Core
     F -- "direct import, no HTTP" --> Core
@@ -326,9 +331,12 @@ with no fixture files on disk.
 | `core/narrate.py` | Finished proof → English prose | Step-level feedback (that's `messages.yaml`) | M2 |
 | `core/models.py` | The dataclasses crossing the edge↔core boundary (`Exercise`, …). **Not** `types.py`: that shadows a standard-library module, and a core file silently taking precedence over `types` is the kind of bug that costs an afternoon (v2.7 A2) | Reading any file | M1 |
 | `messages.yaml` | All user-facing text templates | Any decision logic | M1 |
-| `backend/src/loader.py` | **Reads `data/exercises.json` and returns `list[Exercise]`.** The only module that touches that file | Any logic — it validates shape and stops | M1 |
-| `backend/api` | Schemas, routing, ID↔clause mapping, error status codes, CORS, **calling the loader at startup** | Any logic | M1 |
-| `backend/src/cli.py` | Plays a full practice session against core directly, **calling the loader itself** | HTTP, React | M1 |
+| `backend/src/app/data.py` | **The only module that reads a data file**: the bank, the bands, `policy.yaml`, `messages.yaml`. Validates each at startup with a named error per failure mode | Any logic — it validates and stops | M1 |
+| `backend/src/app/render.py` | Code → wording, by filling a `messages.yaml` template. Shared by the CLI and the API so the two clients cannot say different things about the same outcome | Deciding *which* code (that is `core`) | M1 |
+| `backend/src/app/view.py` | The board's clause ids (`c1`, `c2`, …), assigned once and stable for the exercise | Any judgment | M1 |
+| `backend/src/app/__init__.py` | `Runtime.load()` — startup validation of every data file — and `prepare()`, the single text entry point every adapter calls | Rendering and loading (its submodules do that) | M1 |
+| `backend/src/api` | **A thin HTTP adapter**: parse a body, call `app`, return JSON. Schemas, routing, error status codes, CORS | Any logic, **any wording**, any clause ids | M1 |
+| `backend/src/cli.py` | **A thin terminal adapter**: read a line, call `app`, print. Plays a full practice session with no web layer at all — the HARD GATE | HTTP, React, **any wording** | M1 |
 | `frontend/src` | Render, post actions, persist to localStorage | Validating anything, computing anything | M1/M2 |
 
 ### 4.1 Module ownership

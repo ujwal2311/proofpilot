@@ -91,3 +91,10 @@ MASTERY_THRESHOLD = 0.95
 # Shape version of data/policy.yaml. It exists so a change to the evidence table is LOUD: the
 # loader refuses an unknown version rather than starting with a table it does not understand.
 POLICY_SCHEMA_VERSION = 1
+
+# Shape version of data/exercises.json and data/difficulty.json. They move together: the bands
+# are derived from the bank, so a bank shape change invalidates the derived file as well.
+BANK_SCHEMA_VERSION = 1
+
+# Shape version of data/messages.yaml.
+MESSAGES_SCHEMA_VERSION = 1

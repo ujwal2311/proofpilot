@@ -18,7 +18,7 @@ from src.core.english import (
     Or,
     ParseError,
     parse_sentence,
-    split_sentences,
+    prepare,
 )
 
 
@@ -124,7 +124,7 @@ def test_curly_apostrophe_keeps_its_negation_through_to_the_fact_layer() -> None
     ],
 )
 def test_sentence_splitting_rules(paragraph: str, expected: list[str]) -> None:
-    assert split_sentences(paragraph) == expected
+    assert prepare(paragraph) == expected
 
 
 def test_abbreviation_produces_a_suspicious_fragment_and_is_refused() -> None:
@@ -132,14 +132,14 @@ def test_abbreviation_produces_a_suspicious_fragment_and_is_refused() -> None:
     # lexicon -- topic knowledge the project forbids. Rather than let the one-token fragment
     # "Dr" become a fact and reach a proof, the paragraph is refused by name (HLD v2.6 A4).
     with pytest.raises(ParseError) as caught:
-        split_sentences("Dr. Rao arrives.")
+        prepare("Dr. Rao arrives.")
     assert caught.value.code is ErrorCode.SUSPICIOUS_FRAGMENT
     assert caught.value.sentence == "Dr"
 
     # A one-word sentence is refused for the same reason: it is far more often a split accident
     # than a real proposition, and a wrong guess here corrupts the whole argument.
     with pytest.raises(ParseError):
-        split_sentences("It rains. Yes. We stay.")
+        prepare("It rains. Yes. We stay.")
 
 
 # -------------------------------------------------------------------- B5: degenerate input

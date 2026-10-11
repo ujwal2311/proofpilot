@@ -20,7 +20,7 @@ Reads no file. Every data file is loaded by an edge and handed over as plain dat
 from dataclasses import dataclass, replace
 
 from src.core.cnf import goal_clauses, premise_clauses
-from src.core.english import ErrorCode, ParseError, parse_sentence, phrases_of, split_sentences
+from src.core.english import ErrorCode, ParseError, parse_sentence, phrases_of, prepare
 from src.core.entail import Entailment, Verdict, check
 from src.core.facts import extract
 from src.core.logic import Clause
@@ -51,7 +51,7 @@ def _one(conclusion: str) -> list[str]:
     Two sentences in the conclusion box is a refusal rather than a guess about which one is the
     claim -- picking the first would quietly prove something the student did not ask about.
     """
-    found = split_sentences(conclusion)
+    found = prepare(conclusion)
     if len(found) != 1:
         raise ParseError(ErrorCode.UNPARSEABLE, conclusion, "conclusion_must_be_one_sentence")
     return found
@@ -69,7 +69,7 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
     # The conclusion goes through the SAME splitter as the paragraph. Passing it raw left its
     # trailing full stop attached, so "we get wet." and "we get wet" became two different facts
     # and the rain example stopped entailing -- a silent wrong answer, not a crash.
-    for index, text in enumerate([*split_sentences(paragraph), *_one(conclusion)], start=1):
+    for index, text in enumerate([*prepare(paragraph), *_one(conclusion)], start=1):
         try:
             trees.append(parse_sentence(text))
             records.append(SentenceRec(f"s{index}", text, "ok"))

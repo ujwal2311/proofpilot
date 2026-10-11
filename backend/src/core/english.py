@@ -180,8 +180,23 @@ def _is_break(text: str, index: int) -> bool:
     return not rest or rest[0].isupper()
 
 
-def split_sentences(paragraph: str) -> list[str]:
-    """Split a paragraph into sentences on . ! ? ; discarding empty fragments."""
+def prepare(paragraph: str) -> list[str]:
+    """THE entry point for external text: normalize, split on . ! ? ; strip the terminators.
+
+    **Every** path by which text reaches core goes through this one function -- a paragraph, a
+    conclusion, a CLI prompt, an `/api/parse` body, a held-out paragraph, and in M2 a typed
+    formula. That is a rule rather than an observation:
+    `test_every_entry_point_normalizes_alike` feeds each entry point the same messy input and
+    asserts the same facts and the same verdict as the clean version, and
+    `test_no_core_module_normalizes_text_itself` fails if a second normalizer appears.
+
+    It is one function because the alternative already failed. The conclusion used to reach the
+    parser raw while the paragraph went through the splitter, so a trailing full stop survived on
+    the conclusion only: "we get wet." and "we get wet" became two different facts, and the
+    worked example in the design review stopped following from its own premises. There is no
+    second public name for this -- one normalizer with two callers is one normalizer; two names
+    is a coin toss over which one a new caller picks.
+    """
     text = normalize_text(paragraph)
     sentences: list[str] = []
     current = ""

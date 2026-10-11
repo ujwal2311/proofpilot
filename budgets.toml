@@ -135,10 +135,12 @@ ceiling = 270
 
 [api_cli]
 label = "api + cli"
-# `backend/src/*.py` rather than `cli.py` alone: `loader.py` was always meant to be in this
-# bucket (the v2.4 change log says so), but the pattern never matched it, so the one module that
-# reads a data file would have been unmeasured. Found by the sprint's F3 fix.
-patterns = ["backend/src/api/*.py", "backend/src/*.py"]
+# Everything outside core: the shared edge (`app/`), the two thin adapters (`cli.py`,
+# `api/main.py`) and the API schemas. The pattern used to name `cli.py` alone, so `loader.py` --
+# which v2.4 placed in this bucket -- was unmeasured; found by the sprint's F3 fix, and the
+# one-owner test now catches the next one. `app/` joined at S3 when the CLI and the API's shared
+# work (loading, validation, rendering, board ids) was pulled out of the adapters.
+patterns = ["backend/src/api/*.py", "backend/src/app/*.py", "backend/src/*.py"]
 cap = 345
 ceiling = 380
 
