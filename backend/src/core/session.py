@@ -17,14 +17,15 @@ filter can delete the only refutation (section 7).
 Reads no file. Every data file is loaded by an edge and handed over as plain data (v2.4).
 """
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
+from src.core import config
 from src.core.cnf import goal_clauses, premise_clauses
 from src.core.english import ErrorCode, ParseError, parse_sentence, phrases_of, prepare
 from src.core.entail import Entailment, Verdict, check
 from src.core.facts import extract
-from src.core.logic import Clause
-from src.core.models import ClauseRec, Fact, MergeChoice, SentenceRec, State
+from src.core.logic import Clause, canonical
+from src.core.models import ClauseRec, Fact, MergeChoice, SentenceRec, Skill, State
 from src.core.relevance import Relevance, filter_clauses
 
 
@@ -43,6 +44,11 @@ class Analysis:
     entailment: Entailment | None
     relevance: Relevance | None
     warnings: tuple[str, ...]
+    # Which SENTENCE each premise clause came from, so the Explanation panel can say where a
+    # clause on the board came from (`ClauseRec.source_sentence_id`, section 4). Keyed by clause
+    # rather than parallel to `kb`, because positional parallelism between two tuples is the kind
+    # of invariant that breaks silently. A clause two sentences both produce keeps the FIRST.
+    source_of: dict[Clause, str] = field(default_factory=dict)
 
 
 def _one(conclusion: str) -> list[str]:
@@ -93,7 +99,15 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
     def literal_of(phrase: str) -> str:
         return f"{sign[phrase]}{symbol[phrase]}"
 
-    kb = tuple(clause for tree in premises for clause in premise_clauses(tree, literal_of))
+    traced = [
+        (clause, record.id)
+        for record, tree in zip(records[:-1], trees[:-1], strict=True)
+        if tree is not None
+        for clause in premise_clauses(tree, literal_of)
+    ]
+    kb = tuple(clause for clause, _ in traced)
+    # Reversed, so the FIRST sentence to produce a clause is the one that wins the key.
+    source_of = {clause: sentence for clause, sentence in reversed(traced)}
     goal = tuple(goal_clauses(trees[-1], literal_of))
     entailment = check(kb, goal)
     # Relevance refuses an inconsistent KB itself, so the guard here is the second of two.
@@ -104,8 +118,87 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
     )
     facts = tuple(Fact(f.symbol, tuple((p.id, p.text) for p in f.phrases)) for f in found.facts)
     return Analysis(
-        tuple(records), facts, kb, goal, entailment, relevant, found.warnings + entailment.warnings
+        tuple(records),
+        facts,
+        kb,
+        goal,
+        entailment,
+        relevant,
+        found.warnings + entailment.warnings,
+        source_of,
     )
+
+
+def state_of(
+    found: Analysis,
+    *,
+    paragraph: str,
+    conclusion: str,
+    mode: str = "practice",
+    exercise_id: str | None = None,
+    mastery: dict[Skill, float] | None = None,
+    done_ids: tuple[str, ...] = (),
+    merges: tuple[MergeChoice, ...] = (),
+) -> State:
+    """Build the session a client round-trips, and assign the clause ids.
+
+    **This is the only place clause ids are assigned**, and it has to be: `State` is written by
+    this module alone (v2.11), and ids live on `ClauseRec`. An earlier draft had the edge number
+    the board as well, which would have meant the CLI and the API each inventing their own `c1`
+    -- and a session saved by one client reading differently in the other. `app.view.Board` reads
+    these ids back; it never mints one.
+
+    Premises first in paragraph order, then the negated goal, so `c1` is the first premise and the
+    last id is always the goal. `origin` distinguishes the three kinds for the Explanation panel.
+    """
+    clauses, relevant = [], []
+    kept = set(found.relevance.kept) if found.relevance else set(found.kb)
+    for index, clause in enumerate([*found.kb, *found.goal], start=1):
+        goal = clause in set(found.goal)
+        record = ClauseRec(
+            id=f"c{index}",
+            literals=canonical(clause),
+            origin="goal" if goal else "given",
+            source_sentence_id=found.source_of.get(clause),
+        )
+        clauses.append(record)
+        if goal or clause in kept:
+            relevant.append(record.id)
+    return State(
+        schema_version=config.STATE_SCHEMA_VERSION,
+        mode=mode,
+        exercise_id=exercise_id,
+        stage="read" if found.entailment is None else "prove",
+        paragraph=paragraph,
+        conclusion=conclusion,
+        facts=found.facts,
+        sentences=found.sentences,
+        merges_applied=merges,
+        translations=(),
+        clauses=tuple(clauses),
+        relevant_ids=tuple(relevant),
+        mastery=dict(mastery or {}),
+        hint_level=0,
+        done_ids=done_ids,
+        solved=False,
+        entailment=_entailment_view(found.entailment),
+    )
+
+
+# The names section 4 gives the three verdicts in a `State`. A second spelling of an enum, so it
+# lives next to the one function that uses it rather than inside it.
+_STATUS = {
+    Verdict.ENTAILED: "entails",
+    Verdict.NOT_ENTAILED: "does_not_follow",
+    Verdict.INCONSISTENT_PREMISES: "inconsistent",
+}
+
+
+def _entailment_view(found: Entailment | None) -> dict | None:
+    """The entailment as the plain mapping section 4 specifies, or None if it was never decided."""
+    if found is None:
+        return None
+    return {"status": _STATUS[found.verdict], "counterexample": found.counterexample}
 
 
 # ------------------------------- hint-level tracking and the A4 reset (v2.7)

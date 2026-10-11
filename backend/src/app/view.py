@@ -16,7 +16,7 @@ makes an id stable for the lifetime of an exercise.
 from dataclasses import dataclass, field
 
 from src.core.logic import Clause
-from src.core.session import Analysis
+from src.core.models import State
 
 
 @dataclass
@@ -32,19 +32,21 @@ class Board:
     relevant: set[str] = field(default_factory=set)
 
     @classmethod
-    def of(cls, found: Analysis) -> "Board":
-        """Lay out a freshly analysed exercise: premises first, then the negated goal."""
+    def from_state(cls, state: State) -> "Board":
+        """Read a board back out of a stored session.
+
+        The ids come FROM the session -- `session.state_of` minted them and this only reads them.
+        An earlier draft had a `Board.of(analysis)` that numbered the board itself, which meant
+        two id assigners: a session saved by the CLI would have read differently in the browser,
+        and only after a student switched client.
+        """
         board = cls()
-        kept = set(found.relevance.kept) if found.relevance else set()
-        goal = set(found.goal)
-        for clause in [*found.kb, *found.goal]:
-            name = board.add(clause)
-            if clause in kept or clause in goal:
-                board.relevant.add(name)
+        board.named = {record.id: frozenset(record.literals) for record in state.clauses}
+        board.relevant = set(state.relevant_ids)
         return board
 
     def add(self, clause: Clause) -> str:
-        """Give a clause the next id, or return the id it already has.
+        """Give a derived clause the next id, or return the id it already has.
 
         Ids never move and never repeat: `c4` means the same clause for the whole exercise, so a
         hint that says "resolve c1, c2" is still true after the board grows.

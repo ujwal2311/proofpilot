@@ -20,7 +20,7 @@ import sys
 from src import app
 from src.app.render import clause_text, mastery_text
 from src.app.view import Board
-from src.core import search, tutor
+from src.core import search, session, tutor
 from src.core.bkt import is_done
 from src.core.entail import Verdict
 from src.core.logic import diagnose, normalize_literal
@@ -62,7 +62,10 @@ class Play:
             return False
         if self.verdict is Verdict.NOT_ENTAILED:
             print("  " + self.say.cli("say_no"))
-        self.board = Board.of(found)
+        # The ids come from the session, which is the only thing allowed to mint them.
+        self.board = Board.from_state(
+            session.state_of(found, paragraph=exercise.paragraph, conclusion=exercise.conclusion)
+        )
         self.show_board()
         return True
 
