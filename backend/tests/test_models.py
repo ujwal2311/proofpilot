@@ -32,7 +32,6 @@ DATACLASSES = (Exercise, Fact, MergeChoice, ClauseRec, SentenceRec, State)
 
 def _state() -> State:
     return State(
-        schema_version=1,
         mode="practice",
         exercise_id="ex-01",
         stage="prove",
@@ -80,8 +79,10 @@ def test_exercise_carries_exactly_the_four_fields_in_the_bank_file() -> None:
 
 
 def test_state_matches_the_hld_data_model() -> None:
+    # `schema_version` is deliberately ABSENT (v2.11, S4). The localStorage staleness check is a
+    # transport concern and lives in the API envelope as `state_version`; a field here would have
+    # put something in the domain model that only one client has any use for.
     assert {f.name for f in dataclasses.fields(State)} == {
-        "schema_version",
         "mode",
         "exercise_id",
         "stage",
@@ -99,6 +100,30 @@ def test_state_matches_the_hld_data_model() -> None:
         "solved",
         "entailment",
     }
+
+
+def test_the_state_carries_the_verdict_enum_not_a_second_spelling_of_it() -> None:
+    """Core has ONE spelling of a verdict (v2.11, S4).
+
+    `State.entailment` used to be a plain mapping with a `"entails"` / `"does_not_follow"` string,
+    which meant `session.py` kept a translation table -- presentation inside core. The enum is the
+    single spelling; naming it for a client is the edge's job.
+    """
+    from src.core import session
+    from src.core.entail import Entailment, Verdict
+
+    assert typing.get_type_hints(State)["entailment"] == Entailment | None
+
+    # A real State, built by the one function that builds them, carries the dataclass and the
+    # enum -- not a mapping with a string in it.
+    found = session.analyse("If it rains then we get wet. It rains.", "We get wet.")
+    state = session.state_of(found, paragraph="p", conclusion="c")
+    assert isinstance(state.entailment, Entailment)
+    assert state.entailment.verdict is Verdict.ENTAILED
+
+    # And the module that writes a State no longer holds a table to translate one.
+    assert not hasattr(session, "_STATUS")
+    assert not hasattr(session, "_entailment_view")
 
 
 def test_mastery_history_is_absent_from_m1() -> None:

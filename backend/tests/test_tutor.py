@@ -32,7 +32,7 @@ import pytest
 from src.app.data import load_policy
 from src.core import search, session, tutor
 from src.core.bkt import BktParams, is_done
-from src.core.entail import Verdict
+from src.core.entail import Entailment, Verdict
 from src.core.logic import Clause, Code, canonical
 from src.core.models import ClauseRec, Fact, MergeChoice, Skill, State, Translation
 
@@ -76,7 +76,6 @@ def _fresh_cache():
 
 def _state(**overrides) -> State:
     base = State(
-        schema_version=1,
         mode="practice",
         exercise_id="ex-01",
         stage="prove",
@@ -96,7 +95,7 @@ def _state(**overrides) -> State:
         hint_level=0,
         done_ids=(),
         solved=False,
-        entailment={"status": "entails", "counterexample": None},
+        entailment=Entailment(Verdict.ENTAILED),
     )
     return dataclasses.replace(base, **overrides)
 

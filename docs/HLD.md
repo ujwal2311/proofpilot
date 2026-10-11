@@ -361,7 +361,7 @@ allocation is for A to take the CLI, the scripts and the data authoring. This is
 suggestion, not a contract.
 
 ```text
-# --- crosses the edge -> core boundary (core/types.py). Core never reads a file. ---
+# --- crosses the edge -> core boundary (core/models.py). Core never reads a file. ---
 Exercise    = { id: str, paragraph: str, conclusion: str, topic: str }
               # exactly the four fields in data/exercises.json; difficulty is COMPUTED
               # (scripts/difficulty.py), never stored, never hand-labelled
@@ -1021,6 +1021,12 @@ a new version with a Change Log entry.
 ---
 
 ## 16. Change Log
+<!-- historical: the change log, fenced 2026-10-12. Every entry is dated and describes the
+     repository as it
+     stood when it was written, so a file it names may since have moved or been renamed.
+     Rewriting those names would falsify the record, so this whole section is exempt from
+     the dead-reference guard (test_docs_version.py states the rule). -->
+
 
 ### From v2.10 → v2.11 — sprint scope decision + the M2 budget bucket, 2026-10-12
 
@@ -1055,9 +1061,10 @@ Then the sprint's S1 block applied three fixes the student set, two of which tou
    two wrong answers from a mastered student are slips; a third consecutive wrong answer
    un-masters. The window of slacks that satisfies it is narrow, and `config.py` records the
    derivation. **Behaviour change**, deliberate and student-directed.
-7. **The policy table is validated at startup** (§17.7). New `backend/src/loader.py` — already the
-   designated edge loader in §4 — with a `PolicyError` per failure mode and a broken-fixture test
-   for each. No design change; it implements what §4 already said.
+7. **The policy table is validated at startup** (§17.7). A new edge loader — already designated in
+   §4 — with a `PolicyError` per failure mode and a broken-fixture test for each. No design
+   change; it implements what §4 already said. *(historical: it was `backend/src/loader.py` at S1;
+   S3 moved it to `backend/src/app/data.py` with the rest of the shared edge.)*
 8. **A budget-pattern gap closed.** The `api_cli` bucket matched `cli.py` by name, so
    `loader.py` — which the v2.4 change log placed in that bucket — was unmeasured. The pattern now
    covers `backend/src/*.py`, and `test_every_source_file_is_measured_by_exactly_one_bucket`
@@ -1420,11 +1427,14 @@ budget or scope changed.**
    at startup. That contradicted the project's own principle that configuration is loaded at the
    edge and passed in as plain data — the same principle that keeps YAML out of core. The arrow
    is reversed: the API, the CLI and the scripts load the file; core receives dataclasses.
-2. **New `core/types.py`** holds the dataclasses that cross the boundary, starting with
-   `Exercise` (`id`, `paragraph`, `conclusion`, `topic` — §5). This also closes a finding carried
-   since the v1 review, where `Exercise` was referenced in a signature but never defined.
-3. **New `backend/src/loader.py`** is the single module that touches `data/exercises.json`. It
-   validates shape and raises; it contains no logic.
+2. **A new module** holds the dataclasses that cross the boundary, starting with `Exercise`
+   (`id`, `paragraph`, `conclusion`, `topic` — §5). This also closes a finding carried since the
+   v1 review, where `Exercise` was referenced in a signature but never defined. *(historical: it
+   was `core/types.py` here, renamed to `core/models.py` by v2.7 A2 two revisions later — the
+   rename is itself recorded below.)*
+3. **A new edge loader** is the single module that touches `data/exercises.json`. It validates
+   shape and raises; it contains no logic. *(historical: `backend/src/loader.py` then,
+   `backend/src/app/data.py` since S3.)*
 4. **Why it was worth doing now rather than later:** nothing fails today, because `json` is in the
    standard library and the import allowlist would never have flagged it. The cost of the change
    is a few lines while `core` is still empty, and grows with every module that would have reached
@@ -1567,6 +1577,8 @@ reason each.
     such phrase.
 
 ---
+
+<!-- /historical -->
 
 ## 17. Verification Report
 
@@ -1767,7 +1779,7 @@ now structurally impossible (V-5). ✔
 **The table is validated at startup, not trusted** (v2.11, sprint F3). `tutor.py` indexes it with
 no default and no fallback — deliberately, since a default would score a skill the action never
 tested — so an incomplete table is a `KeyError` in front of a student on whichever trigger is
-missing. `backend/src/loader.py` therefore checks the file once at startup against `logic.Code`
+missing. `backend/src/app/data.py` therefore checks the file once at startup against `logic.Code`
 and refuses to start on a bad one. It checks the evidence rule in **both** directions: a scoring
 row that observes nothing is a dead feedback path, and one of the three non-evidence triggers that
 starts scoring would punish a student for being refused by the grammar rather than for being

@@ -20,6 +20,8 @@ precedence over `types` is the kind of bug that costs an afternoon (v2.7 A2).
 from dataclasses import dataclass, field
 from enum import Enum
 
+from src.core.entail import Entailment
+
 
 class Skill(Enum):
     """The skills BKT tracks. Three are active in M1; TRANSLATE joins in M2.
@@ -118,15 +120,22 @@ class Translation:
 class State:
     """The whole session, as it crosses the boundary in both directions.
 
-    `schema_version` is bumped on any shape change: the frontend keeps this in localStorage, and
-    a stale object with a new field list would fail in the browser rather than at the boundary.
+    **No `schema_version`.** The localStorage staleness check is a TRANSPORT concern, so it lives
+    in the API envelope (`api/schemas.py`) as `state_version`: a request carrying the wrong one is
+    refused with `STATE_VERSION_MISMATCH`, and the browser resets. Keeping it here would have put
+    a field in the domain model that only one client has any use for.
+
+    **`entailment` holds the `Entailment` dataclass, enum and all** -- not a plain mapping with a
+    string status. Core has one spelling of a verdict, which is `Verdict`; a second spelling as
+    "entails" / "does_not_follow" is presentation, and translating to it is the edge's job (v2.11,
+    S4). The earlier version carried the mapping and a `_STATUS` table in core to produce it.
 
     `mastery_history` is NOT here. It was cut from M1 in v2.10 item 3 because it served only the
     stretch feature "Why this score?", and BKT needs the posterior, never the sequence that
-    produced it. Re-adding it later bumps `schema_version` and leaves the BKT maths untouched.
+    produced it. Re-adding it later bumps the envelope's `state_version` and leaves the BKT maths
+    untouched.
     """
 
-    schema_version: int
     mode: str  # "practice" | "own_question"
     exercise_id: str | None
     stage: str  # "read" | "facts" | "prove" | "explain"; M2 inserts "translate" before "prove"
@@ -142,4 +151,4 @@ class State:
     hint_level: int = 0
     done_ids: tuple[str, ...] = ()
     solved: bool = False
-    entailment: dict | None = None
+    entailment: Entailment | None = None

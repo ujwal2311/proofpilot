@@ -87,8 +87,3 @@ MASTERY_SLACK = 1e-3
 # DESIGN DECISION, deliberately high: at 0.95 a student cannot finish on a lucky streak, and the
 # BKT update reaches it in about eight consecutive correct answers per skill.
 MASTERY_THRESHOLD = 0.95
-
-# Shape version of the session object a client round-trips. The frontend keeps it in
-# localStorage, so a stale object with a new field list must fail at the boundary rather than in
-# the browser (HLD section 4). Bumped on ANY change to the State field list.
-STATE_SCHEMA_VERSION = 1

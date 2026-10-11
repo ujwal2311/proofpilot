@@ -19,7 +19,6 @@ Reads no file. Every data file is loaded by an edge and handed over as plain dat
 
 from dataclasses import dataclass, field, replace
 
-from src.core import config
 from src.core.cnf import goal_clauses, premise_clauses
 from src.core.english import ErrorCode, ParseError, parse_sentence, phrases_of, prepare
 from src.core.entail import Entailment, Verdict, check
@@ -165,7 +164,6 @@ def state_of(
         if goal or clause in kept:
             relevant.append(record.id)
     return State(
-        schema_version=config.STATE_SCHEMA_VERSION,
         mode=mode,
         exercise_id=exercise_id,
         stage="read" if found.entailment is None else "prove",
@@ -181,24 +179,11 @@ def state_of(
         hint_level=0,
         done_ids=done_ids,
         solved=False,
-        entailment=_entailment_view(found.entailment),
+        # The `Entailment` itself, enum and all. Core has ONE spelling of a verdict; translating
+        # it to "entails" / "does_not_follow" for a client is presentation, and belongs at the
+        # edge (v2.11). An earlier version kept a `_STATUS` table here to do it.
+        entailment=found.entailment,
     )
-
-
-# The names section 4 gives the three verdicts in a `State`. A second spelling of an enum, so it
-# lives next to the one function that uses it rather than inside it.
-_STATUS = {
-    Verdict.ENTAILED: "entails",
-    Verdict.NOT_ENTAILED: "does_not_follow",
-    Verdict.INCONSISTENT_PREMISES: "inconsistent",
-}
-
-
-def _entailment_view(found: Entailment | None) -> dict | None:
-    """The entailment as the plain mapping section 4 specifies, or None if it was never decided."""
-    if found is None:
-        return None
-    return {"status": _STATUS[found.verdict], "counterexample": found.counterexample}
 
 
 # ------------------------------- hint-level tracking and the A4 reset (v2.7)
