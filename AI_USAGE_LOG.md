@@ -836,3 +836,50 @@ best argument for having written it. One template used a placeholder the rendere
 which would have been a crash in front of a student. In the other direction, the renderer supplied
 the offending phrase to the warning about a conclusion mentioning something no premise does, and
 no template used it — so the student was told that something was missing without being told what.
+
+---
+
+**Date:** 2026-10-12
+**Phase:** Sprint re-baseline — the root cause of four overruns, and the two recorded raises
+**Tool:** Claude Code (Opus 5)
+**Files modified:** `budgets.toml`, `backend/src/app/data.py`, `backend/src/core/config.py`,
+`backend/tests/test_data.py`, `backend/tests/test_smoke.py`, `backend/tests/test_docs_version.py`,
+`scripts/difficulty.py`, `docs/HLD.md`
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Find out why four sprint blocks in a row ran past a line budget, and fix the method
+rather than the numbers.
+
+The student decided to record two one-time ceiling raises rather than cut scope or weaken checks,
+and required that they be called what they are. They also asked for the root cause, because four
+of the same surprise in two days is a pattern rather than bad luck.
+
+The cause is a single one. Every line estimate in the design document was produced by listing the
+named modules in its ownership table and costing each of those. Anything that lives between named
+modules — loading a file, validating it, enforcing the order the pipeline must run in, turning a
+code into words, naming the clauses on screen, persisting a session, wiring one layer to another —
+was costed at nothing, because the method never went looking for it. The modules themselves were
+estimated well: the module that prompted the first stop came in within one line of its figure, and
+the two still to be written are now projected under theirs. The method was not wrong about
+modules. It was wrong about glue, and glue is about a third of the system.
+
+So the fix is a single re-derivation covering everything still to build, in which every bucket
+lists its glue items explicitly beside its named modules: the browser's data-fetching wrapper, its
+local-storage guard and its state hook; the shared helper that stamps every results table with the
+commit it was generated at; rebuilding a proof board from a stored session; and the one function
+that constructs a session, which has to live in the module that is the only permitted writer of
+one. Ceilings stay ten percent above the estimates, no bucket is added, and after this no budget
+interrupts the sprint unless a bucket passes its re-baselined ceiling.
+
+The structural validation of the three data files was also rewritten as declarative models, with
+the semantic checks left as explicit code because each is a cross-check against an enumeration
+elsewhere in the system and that argument has to be readable. Honest outcome: the module grew by
+ten lines rather than shrinking. What it bought is a stricter check for less reading — an unknown
+key is now refused rather than ignored, which means a mistyped section name is reported where it
+occurs instead of surfacing later as a missing row, and a hand-written difficulty can no longer be
+placed in the exercise file at all rather than merely being unread. The same models are what the
+web layer will validate requests with, so the cost moves rather than repeating.
+
+One more gap closed on the way. The guard that keeps third-party packages out of the pure logic
+imported only the package, whose initialiser imports none of its modules — so it would not have
+noticed a validation library imported inside one of them. It now imports every module in a clean
+subprocess, and the fix was verified by injecting such an import and watching the test fail.

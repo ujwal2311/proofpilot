@@ -102,13 +102,19 @@ def test_the_budget_guard_would_actually_fail(tmp_path: Path) -> None:
     cap = tomllib.loads((ROOT / "budgets.toml").read_text(encoding="utf-8"))["core"]["cap"]
     assert re.search(rf"(?<![\d,.]){cap}(?![\d,.])", f"core is capped at {cap} lines")
     assert not re.search(rf"(?<![\d,.]){cap}(?![\d,.])", f"see line 1{cap}0")
-    # And the documented gap is real, not accidental: the small caps are knowingly out of scope.
+    # And the documented gap is tracked rather than assumed away. After the 2026-10-12
+    # re-baseline every cap is three digits, so nothing is out of scope -- but a bucket added or
+    # re-derived below the threshold would silently stop being guarded, so the set is asserted
+    # empty rather than left to chance.
     unguarded = {
         name
         for name, spec in tomllib.loads((ROOT / "budgets.toml").read_text(encoding="utf-8")).items()
         if isinstance(spec, dict) and spec.get("cap", GUARDABLE) < GUARDABLE
     }
-    assert unguarded == {"core_session"}, f"a new small-cap bucket is unguarded: {unguarded}"
+    assert unguarded == set(), (
+        f"{sorted(unguarded)} has a cap below {GUARDABLE}, which this guard cannot distinguish "
+        f"from an ordinary number in prose. Raise it, or accept the gap deliberately here."
+    )
 
 
 def test_the_measured_number_exemption_stays_narrow() -> None:

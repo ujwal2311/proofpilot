@@ -26,6 +26,7 @@ from src.app.data import POLICY_PATH, PolicyError, load_policy
 from src.core.logic import Code
 from src.core.models import Skill
 
+ROOT = Path(__file__).resolve().parents[2]
 SKILLS = [skill.value for skill in Skill]
 
 
@@ -202,3 +203,69 @@ def test_every_broken_fixture_differs_from_a_file_that_loads(tmp_path: Path) -> 
     # Proof that the fixtures above test the validator and not the YAML parser: the unmodified
     # structure they are all derived from must itself load cleanly.
     assert load_policy(_write(tmp_path, _good())) == load_policy()
+
+
+# ------------------------------------------- what the Pydantic structure layer added (S3 refactor)
+#
+# The refactor split validation in two: structure as a Pydantic model, semantics as explicit code.
+# It did NOT make the module shorter (167 -> 177 code lines). What it bought is below -- checks the
+# hand-rolled version did not make, declared rather than written -- plus the same models the API
+# reuses at S4, so the marginal cost there is lower.
+
+
+def test_a_stray_top_level_key_is_refused(tmp_path: Path) -> None:
+    # `extra="forbid"`. The hand-rolled loader read the keys it knew and IGNORED the rest, so a
+    # typo'd section name -- `evidances:` -- would have loaded a file with no evidence rows and
+    # failed later as a missing trigger, pointing at the wrong thing.
+    policy = _good()
+    policy["evidances"] = policy.pop("evidence")
+    with pytest.raises(PolicyError, match="evid"):
+        load_policy(_write(tmp_path, policy))
+
+
+def test_a_stray_key_inside_an_exercise_is_refused(tmp_path: Path) -> None:
+    # The specific thing v2.8 A4a forbids: a hand-written difficulty. It is now impossible to put
+    # one in the file at all, rather than merely unread.
+    import json
+
+    from src.app.data import BankError, load_bank
+
+    raw = json.loads((ROOT / "data" / "exercises.json").read_text(encoding="utf-8"))
+    raw["exercises"][0]["difficulty"] = "hard"
+    path = tmp_path / "exercises.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    with pytest.raises(BankError, match="difficulty"):
+        load_bank(path)
+
+
+def test_an_empty_string_field_is_refused(tmp_path: Path) -> None:
+    # `min_length=1`. An exercise with a blank paragraph used to pass the `isinstance(str)` check
+    # if it contained a space, and then presented a student with an empty screen.
+    import json
+
+    from src.app.data import BankError, load_bank
+
+    raw = json.loads((ROOT / "data" / "exercises.json").read_text(encoding="utf-8"))
+    raw["exercises"][0]["paragraph"] = ""
+    path = tmp_path / "exercises.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    with pytest.raises(BankError, match="paragraph"):
+        load_bank(path)
+
+
+def test_every_data_file_declares_the_version_we_accept() -> None:
+    """The schema version lives on the models, and the shipped files must agree with it.
+
+    It is NOT in `core/config.py`: core never reads a data file, and a file-format version is not
+    one of the numeric limits rule 11 is about. This test is what keeps the two in step instead.
+    """
+    import json
+
+    from src.app.data import SCHEMA
+
+    for name in ("exercises.json", "difficulty.json"):
+        raw = json.loads((ROOT / "data" / name).read_text(encoding="utf-8"))
+        assert raw["schema_version"] == SCHEMA, name
+    for name in ("policy.yaml", "messages.yaml"):
+        raw = yaml.safe_load((ROOT / "data" / name).read_text(encoding="utf-8"))
+        assert raw["schema_version"] == SCHEMA, name

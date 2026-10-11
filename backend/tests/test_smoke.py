@@ -18,10 +18,16 @@ BACKEND = Path(__file__).resolve().parents[1]
 MIN_PYTHON = (3, 12)  # single source of truth: pyproject.toml `requires-python`
 OWN_PACKAGE = "src"
 
+# EVERY submodule, not just the package. `core/__init__.py` imports none of them, so importing
+# the package alone proved almost nothing: a `import pydantic` inside `session.py` would have
+# sailed through. Found while introducing pydantic at the EDGE (S3) -- the guard that was supposed
+# to stop it reaching core could not have seen it.
 _PROBE = f"""
-import sys
+import pkgutil, sys
+import {OWN_PACKAGE}.core as core
 baseline = set(sys.modules)
-import {OWN_PACKAGE}.core
+for found in pkgutil.iter_modules(core.__path__):
+    __import__(f"{OWN_PACKAGE}.core.{{found.name}}")
 added = {{m.split(".")[0] for m in set(sys.modules) - baseline}}
 foreign = sorted(m for m in added if m not in sys.stdlib_module_names and m != {OWN_PACKAGE!r})
 print(",".join(foreign))

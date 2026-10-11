@@ -1,110 +1,135 @@
-#  budgets.toml -- the SINGLE SOURCE OF TRUTH for every line budget (HLD v2.10, item 5).
+#  budgets.toml -- the SINGLE SOURCE OF TRUTH for every line budget.
 #
 #  Read by tools/loc.py, which is the enforcing authority and runs in CI. No other file may
 #  restate a number from this table -- not docs/HLD.md, not CLAUDE.md, not the README. That rule
-#  is enforced by `test_no_doc_restates_a_cap_number`, because the caps were duplicated across
-#  three HLD tables for six revisions and all three drifted out of date without anyone noticing.
-#
-#  FROZEN 2026-10-11 by the student's budget decision, option (c): every bucket re-derived
-#  bottom-up from measured actuals plus a per-module estimate, ceiling = estimate + 10%.
-#  "cap" is the frozen estimate and a WARNING band; "ceiling" fails the build.
+#  is enforced by `test_no_doc_restates_a_cap_number` for caps of 100 or more; a two-digit cap
+#  cannot be told from an ordinary number by a textual guard, and the gap is recorded in that test.
 #
 #  ==========================================================================================
-#  WHY THE PREVIOUS CAPS WERE WRONG, so this is not repeated
-#  ==========================================================================================
-#  v1 set core at 450 for a 4-module core over pre-written CNF. The English pipeline then added
-#  six required modules, and the cap was raised 450 -> 850 -> 975 to follow. In v2.3 it was
-#  LOWERED to 650/700 -- but the design's own bottom-up estimate (870 for M1 core, HLD 13.4)
-#  was never re-derived against it, so the document simultaneously claimed a 975 cap was met
-#  and enforced 650. Measured at the Phase 5 gate the projection was ~800 against a 700
-#  ceiling, while the modules already written came in 90 lines UNDER their own estimates. The
-#  caps had never been wrong about the code; they had been wrong about each other.
-#
-#  Calibration evidence: built core measured 625 against a 710-line estimate for the same
-#  modules -- 88%. The estimates below are therefore conservative, not optimistic, and no
-#  correction factor has been applied to them.
-#
-#  ==========================================================================================
-#  OVERRUN POLICY (also stated in CLAUDE.md, which is where the rule lives)
-#  ==========================================================================================
-#  An overrun cuts M2 scope first. These caps are never raised again.
-#
-#  ==========================================================================================
-#  DERIVATION
+#  SPRINT RE-BASELINE, 2026-10-12. ONE re-freeze, with the glue priced.
 #  ==========================================================================================
 #
-#  core -- backend/src/core/*.py
-#    MEASURED 2026-10-11 (tools/loc.py, commit 159ff77 + the v2.10 cache bound):
-#      english.py 188 · facts.py 130 · search.py  93 · cnf.py 72 · logic.py 65
-#      entail.py   42 · relevance.py 30 · config.py 5 · __init__.py 0        = 625
-#    ESTIMATED, and only these three remain in M1:
-#      models.py  55   34 dataclass fields across Exercise/Fact/MergeChoice/ClauseRec/
-#                      SentenceRec/State, 6 decorators, 6 class lines, ~5 imports and aliases.
-#                      State STAYS in core (v2.10 item 1: the CLI uses core directly, so an
-#                      edge-owned State would force the CLI through the API). mastery_history
-#                      is CUT from M1 (item 3), which is 1 field and the HistoryItem type.
-#      bkt.py     30   posterior, update, g+s<1 validation, is_done, a params dataclass. It does
-#                      the arithmetic only: the evidence mapping is policy data (item 2).
-#      tutor.py   95   stage x action transition table in CODE (item 2 rejected YAML for it:
-#                      transitions are control logic), evidence lookup over the policy data,
-#                      the two hint ladders, next_exercise band selection, downstream reset.
-#    M2's own modules are OUTSIDE this cap, in core_m2 below. Only the TRANSLATE wiring inside
-#    tutor.py falls in this bucket, because it is a transition row and a dispatch call in an M1
-#    file; it is covered by the band between the cap and the ceiling, which the gate justifies.
-#    By the overrun policy, if M1 lands over, M2 is cut rather than the cap moved.
-#    => M1 estimate 625 + 180 = 805 · ceiling 805 x 1.10 = 886
+#  ROOT CAUSE. Four sprint blocks in a row hit a component that had no line item anywhere:
 #
-#  core_m2 -- the M2 modules, measured SEPARATELY (v2.11, B0 of the sprint)
-#    The frozen core derivation above costed M2 as a single 170-line line item and then placed it
-#    outside the cap, and it never costed narrate.py at all -- the M2 scope in HLD 2 names three
-#    core modules, not one. Keeping M2 inside `core` would have meant either raising the frozen
-#    cap (forbidden) or measuring M1 against an M2 overrun. So M2 gets its own bucket, and the
-#    `core` bucket excludes these files by name. Re-derived bottom-up, nothing carried over:
-#      translation.py 110  equivalence by truth table over the two parsed formulas; the
-#                          contrapositive accept; the three named diagnoses (CONVERSE,
-#                          MISSING_NEGATION, AND_OR_SWAP) as candidate-rewrite comparisons;
-#                          NOT_EQUIVALENT otherwise; the English counterexample row builder.
-#      formula.py      90  the typed-formula parser: tokenizer for the ASCII and Unicode spellings
-#                          of the five connectives plus parentheses, precedence-climbing parse to
-#                          the same Formula tree logic.py already defines, and the named errors
-#                          (UNKNOWN_SYMBOL, UNBALANCED_PARENS, UNEXPECTED_TOKEN, EMPTY_FORMULA).
-#      narrate.py      45  proof steps -> English, one sentence per step, templates loaded at the
-#                          edge from messages.yaml and passed in as data (same rule as policy).
-#    => estimate 245 · ceiling 245 x 1.10 = 270
-#    SCOPE DECISION (team, 2026-10-12): M2 is kept in scope for the progress review. This bucket
-#    is the cost of that decision, stated before the code was written rather than after.
+#    B0  the second milestone's core modules -- priced as a single 170-line lump deliberately
+#        placed OUTSIDE the cap, and `narrate.py` not priced at all, though HLD section 2 has
+#        named it as scope since v1.
+#    S1  `app/data.py` (then `loader.py`) -- named in HLD section 4.1, priced at ten lines for
+#        "policy load", and its budget pattern did not even match the file.
+#    S2  the section 7 pipeline ordering -- a named CORRECTNESS requirement with its own test,
+#        belonging to no module row in section 4.1 and to no line item here.
+#    S3  the data-validation, rendering and clause-id layers -- all three sit between core and
+#        the adapters, all three were priced at zero.
 #
-#  api_cli -- backend/src/api/*.py + backend/src/cli.py
-#    Nothing built yet, so this is estimate only and UNCALIBRATED -- the 88% figure above was
-#    measured on core and is not evidence about a layer written in a different style.
-#      main.py     130  4 endpoints, routing, the error-code mapping, config and messages.yaml
-#                       loaded at the edge (v2.4)
-#      schemas.py  120  Pydantic request/response models, plus conversion to and from the core
-#                       State in both directions (v2.10 item 1 puts that conversion here)
-#      cli.py       85  practice mode playing a full exercise -- the HARD CLI GATE
-#      policy       10  policy.yaml load + schema validation at the edge (item 2)
-#    => estimate 345 · ceiling 380
+#  The pattern is one thing, not four. **Every estimate was built by listing the NAMED MODULES in
+#  HLD section 4.1 and costing those.** Anything that lives BETWEEN named modules -- loading,
+#  validating, ordering, rendering, naming, wiring, persisting -- was costed at nothing, because
+#  the method never looked for it. The modules themselves were estimated well: `tutor.py` came in
+#  at 96 against 95, `main.py` and `schemas.py` are projected UNDER their original figures. The
+#  method was wrong about glue, and glue is roughly a third of the system.
 #
-#  scripts -- scripts/*.py, EVALUATION tooling only (v2.10 item 4)
-#    difficulty.py 50 (35 + the band computation moved in by v2.8 A4a) · run_experiments.py 120
-#    · heldout_eval.py 50
-#    => estimate 220 · ceiling 242
+#  THE FIX, and the reason this is a re-baseline rather than a fifth exceedance: every bucket
+#  below is re-derived bottom-up over EVERYTHING still to build in S4-S11, and each one lists its
+#  GLUE items explicitly alongside its named modules. Ceiling = cap + 10%, as before.
+#
+#  **After this, no budget stops the sprint unless a bucket crosses its re-baselined ceiling.**
+#  The caps are not raised again, and no bucket is added (team conditions, 2026-10-12).
+#
+#  This re-baseline RECORDS TWO ONE-TIME CEILING RAISES, called what they are rather than
+#  presented as a re-derivation:
+#    * `core` -- measured 842 against a frozen 886 ceiling. See HLD section 16 (S2).
+#    * `api_cli` -- measured 457 against a frozen 380 ceiling, projected 648. See HLD section 16.
+#  Both were taken to keep full scope (M1 + M2) for the progress review.
+#
+#  ==========================================================================================
+#  DERIVATION -- measured actuals, then every remaining item, glue included
+#  ==========================================================================================
+#
+#  core -- backend/src/core/*.py, excluding session.py and the M2 modules
+#    MEASURED 2026-10-12:  english 200 · facts 130 · tutor 96 · search 93 · cnf 72 · logic 65
+#                          models 61 · entail 42 · relevance 30 · bkt 39 · config 9     = 842
+#    REMAINING:  TRANSLATE transition row + dispatch in tutor.py (M2 wiring)             = 12
+#    => 854 · ceiling 940
+#
+#  core_session -- backend/src/core/session.py
+#    The section 7 pipeline and the ONLY writer of a `State` (v2.11; enforced by
+#    `test_only_session_writes_a_state`).
+#    MEASURED 2026-10-12                                                                = 85
+#    REMAINING, and it MUST live here rather than in app/: the API's /parse has to return a
+#    `State`, so something must BUILD one from an `Analysis` -- and only this module may.
+#      state_of(analysis, exercise_id, mode, mastery, done_ids)                          = 22
+#    => 107 · ceiling 118
+#
+#  core_m2 -- translation.py, formula.py, narrate.py (B0 derivation, unchanged)
+#    translation 110 · formula 90 · narrate 45                                           = 245
+#    => 245 · ceiling 270
+#
+#  api_cli -- the shared edge, the two adapters and the API schemas
+#    MEASURED 2026-10-12:  app/data 177 · cli 171 · app/render 49 · app/view 32
+#                          app/__init__ 28                                              = 457
+#    REMAINING -- api/schemas.py, using pydantic TypeAdapter on the CORE dataclasses so the
+#    `State` field list is declared once (the v2.10 decision that keeps State in core costs a
+#    second declaration; TypeAdapter removes it):
+#      TypeAdapter(State) + the canonicalisation wrapper (sorted lists for sets)          10
+#      the `action` discriminated union: step / hint / claim_not_provable / translate      22
+#      request envelopes: next / parse / act                                              13
+#      response envelopes: next / parse / act                                             19
+#      State <-> core conversion, both directions                                         18
+#                                                                                       = 82
+#    REMAINING -- api/main.py:
+#      app + CORS (localhost and 127.0.0.1:5173) + startup Runtime.load()                 14
+#      GET /api/health 3 · POST /api/next 12 · POST /api/parse 16 · POST /api/act 26      57
+#      error mapping: ParseError/TransitionError/ResetRequired/DataError -> 400/404/409    20
+#                                                                                       = 91
+#    REMAINING -- GLUE, the category this re-baseline exists to price:
+#      app/view.py  Board.from_state(), so the API can rebuild a board from a stored State  8
+#      app/render.py  the M2 translate diagnosis + counterexample rendering                10
+#                                                                                       = 18
+#    => 648 · ceiling 713
+#
+#  scripts -- scripts/*.py, EVALUATION tooling only
+#    MEASURED 2026-10-12:  difficulty.py                                                 = 50
+#    REMAINING -- run_experiments.py:
+#      arguments, commit stamp, output paths                                              15
+#      the simulation: synthetic student, 3 arms, seeded, N runs                           35
+#      the bar chart (3 bars, one baseline, the caveat in the caption)                     18
+#      the search-cost table 14 · the hint-soundness table 16                              30
+#      the translation differential statistics                                             14
+#      the markdown writer                                                                 12
+#                                                                                       = 124
+#    REMAINING -- heldout_eval.py 45 · analyze_pilot.py 35                                = 80
+#    REMAINING -- GLUE: scripts/report.py, the commit-stamp + markdown-table helper all four
+#      scripts need. Priced because "every number in the docs is stamped with a commit" is a
+#      CLAUDE.md rule, and four copies of the stamping code is how three of them drift.      30
+#    => 284 · ceiling 313
 #
 #  frontend -- frontend/src/**
-#    App.jsx 100 · ProofBoard 135 · index.css 100 · FactsTable 80 · QuestionInput 55 ·
-#    MasteryBars 35 (was 55; the history chart goes with mastery_history, item 3) ·
-#    api.js 45 · FeedbackBox folded into App 30                     = 580 for M1
-#    + TranslateStep 85 (M2)                                        = 665
-#    => estimate 665 · ceiling 732
+#    Nothing built, so this is estimate only and UNCALIBRATED. The glue items are listed first
+#    because they are the ones the old 665 figure left out entirely.
+#    GLUE:
+#      api.js       fetch wrapper, error-code mapping, base URL from env                   45
+#      storage.js   localStorage in try/catch, schema_version guard, discard on mismatch   35
+#      useSession.js the state hook: current State, pending, error, action dispatch        55
+#      main.jsx 12 · vite.config.js + env 10                                               22
+#    COMPONENTS:
+#      ReadFacts.jsx  sentences with per-sentence errors, facts table, merge/split by
+#                     phrase id, the v2.7 A4 downstream-reset confirmation                120
+#      ProveBoard.jsx clause cards, selection, resolvent input, the [] button, hints 1-3,
+#                     "Does not follow"                                                  135
+#      App.jsx        stage routing Read&Facts -> Translate -> Prove -> Explanation        70
+#      Explanation.jsx the narrative plus the clause trace                                 40
+#      Feedback.jsx 30 · MasteryBars.jsx 30                                                60
+#      TranslateStep.jsx (M2) typed input, insert buttons, per-sentence counterexample     85
+#      index.css                                                                          120
+#    => 787 · ceiling 866
 #
-#  tools -- tools/*.py, DEVELOPMENT tooling, REPORTED BUT NOT CAPPED (v2.10 item 4)
+#  tools -- tools/*.py, DEVELOPMENT tooling, REPORTED BUT NOT CAPPED
 #    loc.py and mutate.py never run in the shipped product and add nothing to runtime
 #    complexity or the viva surface. Capping them penalised exactly the work that makes the
-#    other caps trustworthy: hardening the mutation driver after three incidents cost 45 lines
-#    and consumed most of a 180-line cap that also had to hold the evaluation scripts.
+#    other caps trustworthy.
 
 schema = 1
-frozen = "2026-10-11"
+frozen = "2026-10-12"
 
 [core]
 patterns = ["backend/src/core/*.py"]
@@ -114,14 +139,14 @@ exclude = [
     "backend/src/core/formula.py",
     "backend/src/core/narrate.py",
 ]
-cap = 805
-ceiling = 886
+cap = 854
+ceiling = 940
 
 [core_session]
 label = "core (session)"
 patterns = ["backend/src/core/session.py"]
-cap = 85
-ceiling = 94
+cap = 107
+ceiling = 118
 
 [core_m2]
 label = "core (M2)"
@@ -137,30 +162,28 @@ ceiling = 270
 label = "api + cli"
 # Everything outside core: the shared edge (`app/`), the two thin adapters (`cli.py`,
 # `api/main.py`) and the API schemas. The pattern used to name `cli.py` alone, so `loader.py` --
-# which v2.4 placed in this bucket -- was unmeasured; found by the sprint's F3 fix, and the
-# one-owner test now catches the next one. `app/` joined at S3 when the CLI and the API's shared
-# work (loading, validation, rendering, board ids) was pulled out of the adapters.
+# which v2.4 placed in this bucket -- was unmeasured; found by the sprint's F3 fix, and
+# `test_every_source_file_is_measured_by_exactly_one_bucket` now catches the next one.
 patterns = ["backend/src/api/*.py", "backend/src/app/*.py", "backend/src/*.py"]
-cap = 345
-ceiling = 380
+cap = 648
+ceiling = 713
 
 [scripts]
 patterns = ["scripts/*.py"]
-cap = 220
-ceiling = 242
+cap = 284
+ceiling = 313
 
 [frontend]
 patterns = ["frontend/src/**/*.js", "frontend/src/**/*.jsx", "frontend/src/**/*.css"]
-cap = 665
-ceiling = 732
+cap = 787
+ceiling = 866
 
 [tools]
 patterns = ["tools/*.py"]
 capped = false
 
 # Reported sums, so splitting a bucket can never hide a total (team condition, 2026-10-12).
-# `core` was split three ways for sound design reasons, and three small caps are easy to read as
-# three small costs. The CORE TOTAL row prints the whole tree against the sum of its caps, which
-# is the number the frozen 805/886 was originally meant to cover.
+# `core` is three buckets for sound design reasons, and three small caps are easy to read as
+# three small costs. The CORE TOTAL row prints the whole tree against the sum of its caps.
 [totals]
 "CORE TOTAL" = ["core", "core_session", "core_m2"]

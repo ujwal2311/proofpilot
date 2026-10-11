@@ -1146,6 +1146,85 @@ first" is still the rule for M2's bucket, and is structurally unavailable for `c
 
 No behaviour, algorithm, grammar, data-model or API change.
 
+#### S3 — the sprint re-baseline, and the root cause of four overruns in four blocks
+
+S3 built the bank, the CLI gate and the shared edge, and measured `api_cli` at **457 against a 380
+ceiling** — the fourth block in a row to hit a component with no line item. The student called a
+stop, took the ceiling raise, and directed a single re-baseline of everything still to build so
+that this stops recurring.
+
+**ROOT CAUSE, and it is one thing rather than four.**
+
+| Block | What had no line item | Where it was named |
+|---|---|---|
+| B0 | M2's three core modules | §2 scope since v1; `narrate.py` never costed at all |
+| S1 | the data loader | §4.1's module table; costed at ten lines as "policy load" |
+| S2 | the §7 pipeline ordering | §7, a named *correctness requirement* with its own test; no module row |
+| S3 | data validation, rendering, clause ids | nowhere — all three sit *between* core and the adapters |
+
+**Every estimate in this document was built by listing the named modules in §4.1 and costing
+those.** Anything living *between* named modules — loading, validating, ordering, rendering,
+naming, wiring, persisting — was costed at nothing, because the method never went looking for it.
+The modules themselves were estimated *well*: `tutor.py` measured 96 against 95, and `main.py` and
+`schemas.py` are now projected **under** their original figures. The method was not wrong about
+modules. It was wrong about glue, and glue is roughly a third of the system.
+
+**THE FIX.** `budgets.toml` now carries one bottom-up re-derivation covering S4–S11, and **each
+bucket lists its glue items explicitly alongside its named modules** — `api.js`, `storage.js`,
+`useSession.js` and `vite.config.js` in the frontend; `scripts/report.py` for the commit-stamping
+every results table needs; `Board.from_state` and the M2 rendering in the edge; `session.state_of`
+in core, which must live there because `session.py` is the only module permitted to write a
+`State`. Ceiling = cap + 10%, unchanged.
+
+<!-- measured-numbers: S3 re-baseline, measured 2026-10-12 -->
+
+**Two one-time ceiling raises are recorded here, and called what they are.** Neither is a
+re-derivation that happens to come out higher:
+
+| Bucket | Frozen ceiling | Measured | Re-baselined cap / ceiling |
+|---|---|---|---|
+| `core` | 886 | 842 | 854 / 940 |
+| `core (session)` | 94 | 85 | 107 / 118 |
+| `core (M2)` | 270 | 0 | 245 / 270 |
+| `api + cli` | 380 | 457 | 648 / 713 |
+| `scripts` | 242 | 50 | 284 / 313 |
+| `frontend` | 732 | 0 | 787 / 866 |
+| **CORE TOTAL** | 1250 | 924 | **1206 / 1328** |
+
+Both raises were taken **to keep full scope (M1 + M2) for the progress review**. `api_cli` is the
+larger: its frozen 345 priced `main.py` 130 + `schemas.py` 120 + `cli.py` 85 + ten lines for
+loading policy, and the shared edge alone measures 286.
+
+<!-- /measured-numbers -->
+
+**The conditions attached.** No further bucket may be added. The caps are not raised again. Every
+`loc` table and every budget table prints the combined CORE TOTAL. **After this re-baseline, no
+budget stops the sprint unless a bucket crosses its re-baselined ceiling.**
+
+**Also in S3**, and each one found by running rather than by reading:
+
+1. **A spoiler.** Rendering the `ENTAILED` verdict told the student the answer before they decided
+   it, and `claim_not_provable` is a *scored* action (§9). `render.entailment()` now returns
+   nothing for that verdict.
+2. **The bank merge guard was about to pass vacuously.** Run over the real bank it reported five
+   collisions, all of which were a phrase and its own negation — correct opposite-polarity merges,
+   because the canonical key is computed after the negation is stripped. Made polarity-aware it
+   reported *nothing at all*. One exercise now carries a genuine same-polarity merge that its
+   author declares, and the guard is checked in both directions (v2.7 A7).
+3. **`messages.yaml` startup validation caught two faults on its first run.** One template used a
+   placeholder the renderer never supplies — a crash in front of a student. In the other
+   direction, the renderer supplied the offending phrase to `CONCLUSION_FACT_UNSEEN` and no
+   template used it, so the student was told something was missing without being told what.
+4. **The core purity guard could not have seen a violation.** It imported `src.core` — whose
+   `__init__` imports no submodule — so `import pydantic` inside `session.py` would have passed.
+   It now imports every submodule in a clean subprocess, and the fix was verified by injecting
+   `import pydantic` into a core module and watching it fail.
+5. **§4.1 gained the `app/` rows and the adapters were re-described as I/O only**, with
+   `test_adapters_hold_no_user_facing_wording` parsing `cli.py` and `api/*.py` and failing on any
+   string of four or more words. All user-facing prose moved to `data/messages.yaml`.
+
+No algorithm, grammar, data-model or API change.
+
 ### From v2.9 → v2.10 — student budget decision + bounded cache, 2026-10-11
 
 The student chose option (c) from the §13.4 Phase-5 analysis, with conditions. Applied in full.

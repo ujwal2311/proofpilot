@@ -21,8 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
-from src.app.data import BANDS_PATH, load_bank  # noqa: E402
-from src.core import config, search, session  # noqa: E402  (needs the path above)
+from src.app.data import BANDS_PATH, SCHEMA, load_bank  # noqa: E402
+from src.core import search, session  # noqa: E402  (needs the path above)
 from src.core.entail import Verdict  # noqa: E402
 
 # Proof length -> band. Inclusive upper bounds, longest last, so a proof deeper than the bank is
@@ -59,7 +59,7 @@ def compute() -> dict[str, str]:
 def render(bands: dict[str, str]) -> str:
     """The file's exact bytes. One function, so writing and checking cannot disagree."""
     payload = {
-        "schema_version": config.BANK_SCHEMA_VERSION,
+        "schema_version": SCHEMA,
         "_README": "DERIVED by scripts/difficulty.py from the shortest proof. Never edit by hand.",
         "bands": bands,
     }
