@@ -215,6 +215,40 @@ def test_every_stage_action_pair_resolves_or_raises_with_a_name() -> None:
     assert (len(tutor.STAGES), len(tutor.ACTIONS)) == (5, 7)
 
 
+def test_every_transition_lands_where_the_design_says() -> None:
+    """The DESTINATIONS, written out independently of the table.
+
+    A MUTATION SURVIVOR found this gap. The totality test above asserts only that `advance`
+    returns some stage, so changing `("prove", "merge") -> "facts"` into `-> "prove"` passed the
+    whole suite: the v2.7 A4 rewind -- the thing that sends a student back to re-confirm facts
+    after their symbols were re-assigned -- was never asserted anywhere.
+
+    Spelled out rather than derived from `TRANSITIONS`, because a test that reads the table it is
+    checking agrees with it by construction and can only ever catch a crash.
+    """
+    assert tutor.TRANSITIONS == {
+        ("read", "parse"): "facts",
+        ("facts", "merge"): "facts",
+        ("facts", "confirm"): "prove",
+        ("translate", "translate"): "translate",
+        ("translate", "confirm"): "prove",
+        ("prove", "step"): "prove",
+        ("prove", "hint"): "prove",
+        ("prove", "claim_not_provable"): "prove",
+        # The A4 rewind. A merge re-assigns symbols from scratch, so the proof is no longer about
+        # the same propositions and the student must re-confirm the facts.
+        ("prove", "merge"): "facts",
+        ("explain", "parse"): "read",
+    }
+
+
+def test_a_merge_in_the_prove_stage_rewinds_to_facts() -> None:
+    # The same property as one row above, asserted on its own because it is the one transition
+    # that LOSES the student's work, and it should fail loudly rather than as part of a dict.
+    assert tutor.advance("prove", "merge") == "facts"
+    assert tutor.advance("facts", "merge") == "facts"
+
+
 def test_allowed_agrees_with_the_table() -> None:
     for stage in tutor.STAGES:
         expected = {action for (s, action) in tutor.TRANSITIONS if s == stage}
