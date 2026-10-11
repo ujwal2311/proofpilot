@@ -7,7 +7,9 @@ string literal that merely starts a line.
 
 The numbers come from `budgets.toml` and appear nowhere else (v2.10). Each bucket has a `cap`,
 which is the frozen bottom-up estimate and warns, and a `ceiling` of cap + 10%, which fails. A
-bucket may be `capped = false` to be reported without a limit.
+bucket may be `capped = false` to be reported without a limit, and may `exclude` paths its
+pattern would otherwise swallow -- `core` and `core_m2` live in one directory and must not be
+measured against each other's cap (v2.11).
 """
 
 import sys
@@ -68,7 +70,8 @@ def main(buckets: dict | None = None) -> int:
     print(f"{'bucket':12} {'code':>6} {'cap':>6} {'ceil':>6} {'doc':>6} {'blank':>6} {'total':>6}")
     breached = []
     for name, spec in buckets.items():
-        files = sorted({f for p in spec["patterns"] for f in ROOT.glob(p)})
+        excluded = {ROOT / p for p in spec.get("exclude", ())}
+        files = sorted({f for p in spec["patterns"] for f in ROOT.glob(p)} - excluded)
         totals = {
             k: sum(measure(f)[k] for f in files)
             for k in ("code", "docstring", "comment", "blank", "total")

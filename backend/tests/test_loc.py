@@ -95,6 +95,40 @@ def test_real_buckets_are_within_their_ceilings() -> None:
     assert loc.main() == 0
 
 
+def test_an_excluded_file_is_not_counted_twice(capsys) -> None:
+    # `core` and `core_m2` share a directory (v2.11), so the M1 bucket excludes the M2 files by
+    # name. If `exclude` were ignored, M1 would be measured against an M2 overrun.
+    everything = loc.main({"all": {"patterns": CORE, "capped": False}})
+    assert everything == 0
+    with_all = capsys.readouterr().out
+
+    loc.main({"some": {"patterns": CORE, "exclude": ["backend/src/core/bkt.py"], "capped": False}})
+    with_one_dropped = capsys.readouterr().out
+
+    def code_of(text: str) -> int:
+        return int(text.splitlines()[1].split()[1])
+
+    assert code_of(with_one_dropped) < code_of(with_all)
+
+
+def test_every_core_module_is_measured_by_exactly_one_bucket() -> None:
+    # The real risk the exclude list creates: a new core module that matches no bucket, or
+    # matches both, is silently uncapped or double-counted. Checked against the directory as it
+    # actually is, so adding a file without budgeting it fails the build.
+    buckets = loc.load_buckets()
+    owners: dict[Path, list[str]] = {}
+    for name, spec in buckets.items():
+        excluded = {loc.ROOT / p for p in spec.get("exclude", ())}
+        for pattern in spec["patterns"]:
+            for path in loc.ROOT.glob(pattern):
+                if path not in excluded:
+                    owners.setdefault(path, []).append(name)
+
+    for path in sorted((loc.ROOT / "backend" / "src" / "core").glob("*.py")):
+        assert owners.get(path), f"{path.name} is in no budget bucket"
+        assert len(owners[path]) == 1, f"{path.name} is counted by {owners[path]}"
+
+
 def test_every_bucket_ceiling_is_the_frozen_estimate_plus_ten_percent() -> None:
     # The rule the student froze (v2.10 item 6). Written as a test so a hand-edited ceiling in
     # budgets.toml cannot quietly become a cap raise.

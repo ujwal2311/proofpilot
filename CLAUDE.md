@@ -1,6 +1,6 @@
 # CLAUDE.md — ProofPilot rules and constraints
 
-**Design: see `docs/HLD.md` v2.10 — APPROVED AND FROZEN (2026-10-11).** Any design change requires
+**Design: see `docs/HLD.md` v2.11 — APPROVED AND FROZEN (2026-10-12).** Any design change requires
 an explicit change request from the student; never alter the design unilaterally. That document is
 the single source of truth for architecture,
 grammar, algorithms, data model, API contract, budgets, milestones and test names. This file holds
@@ -111,5 +111,26 @@ message contains the word "approved" for that specific gate. There are no carve-
 repository creation, not for CI fixes, not for "finishing" a phase that was explicitly requested.
 Committing locally is always fine; publishing is not.** If in doubt, commit and ask.
 
-`docs/HLD.md` §15 Open Questions are resolved and v2.10 is frozen. Implementation proceeds
+`docs/HLD.md` §15 Open Questions are resolved and v2.11 is frozen. Implementation proceeds
 milestone by milestone: **M1 first and complete**, M2 only after M1 ships.
+
+## TEMPORARY SPRINT RULE — EXPIRES AT THE `progress-v1` TAG
+
+Granted by the student on 2026-10-12 for the full-scope sprint ahead of the 2026-10-13 progress
+review. **It narrows only the push rule above, and nothing else.** Everything in ACADEMIC
+INTEGRITY, HARD CONSTRAINTS, NON-NEGOTIABLE DESIGN PRINCIPLES and ENGINEERING RULES stands
+unchanged.
+
+For each sprint block, Claude may commit **and push** without waiting for a per-gate "approved",
+**only if every one of these passes**: pytest at the repo root and in `backend/`; both hash seeds;
+`ruff check` and `ruff format --check`; `python tools/loc.py` within `budgets.toml`; the
+version/consistency check; the frontend build once it exists; and CI green after the push.
+
+**STOP and ask the student if** a check fails and the root cause is not found inside the block ·
+a design change to `docs/HLD.md` is needed · a budget **ceiling** would be crossed · a
+never-guess rule would have to be weakened · or the work needs content only humans may write
+(held-out paragraphs, pilot data, report prose).
+
+Each block ends with a report of at most 15 lines: what was built, tests, loc, CI link, issues.
+
+**At the `progress-v1` tag this section is deleted and the absolute push rule in GATES resumes.**

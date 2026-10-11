@@ -641,3 +641,39 @@ property; it now checks the structure of the table.
 Of the twelve deliberate defects injected into the two new modules, all twelve were detected on
 the first run, and the whole set of eighty-two across nine modules was detected on the committed
 code with the source fingerprint unchanged.
+
+---
+
+**Date:** 2026-10-12
+**Phase:** Full-scope sprint to the `progress-v1` tag — standing approval recorded, block B0
+**Tool:** Claude Code (Opus 5)
+**Files modified:** `budgets.toml`, `tools/loc.py`, `backend/tests/test_loc.py`,
+`docs/HLD.md` (v2.10 → v2.11), `CLAUDE.md`
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Record the standing approval the student granted for the sprint, and run the budget
+check that opens it.
+
+The student granted a standing approval for the sprint ahead of the progress review: within a
+sprint block, Claude may commit and push without waiting for a per-gate approval, but only if the
+whole test suite passes under both hash seeds, the formatter and linter are clean, the line
+budgets hold, the version and consistency checks pass, the frontend builds once it exists, and
+continuous integration is green after the push. The approval narrows the publishing rule and
+nothing else; it is written into the project rules as a clearly marked temporary section that is
+deleted at the tag, and it names the five conditions that still require stopping to ask. Every
+academic-integrity rule is unchanged, in particular that no report prose is written here, that the
+held-out paragraphs and the pilot data are written only by the team, and that no reference enters
+the bibliography without its publisher page having been fetched.
+
+The budget check that opens the sprint asked whether the frozen core derivation covered the
+second-milestone modules. It did not, and the gap was wider than the question assumed: the
+translation module had been priced as a single line item deliberately placed outside the cap, the
+narration module had never been priced at all despite being named in the scope list since the
+first revision, and the typed-formula parser had been priced as a piece of the user interface
+rather than as the core module it has to be. The second milestone therefore had a scope but no
+budget, and the only two ways to build it were to raise a frozen cap, which the overrun policy
+forbids, or to let its overrun be charged against the first milestone. It now has its own bucket,
+derived module by module before any of the code exists, with the ceiling set ten percent above the
+estimate as everywhere else, and the first-milestone cap untouched. The two buckets share one
+directory, so the measuring tool learned to exclude files by name and a new test fails the build
+if any core module is owned by both buckets or by neither — which is the one failure an exclude
+list makes possible and the one that would go unnoticed.

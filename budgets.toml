@@ -48,9 +48,31 @@
 #      tutor.py   95   stage x action transition table in CODE (item 2 rejected YAML for it:
 #                      transitions are control logic), evidence lookup over the policy data,
 #                      the two hint ladders, next_exercise band selection, downstream reset.
-#    M2 adds translation.py 150 + TRANSLATE wiring 20 = 170, OUTSIDE this cap by the overrun
-#    policy: if M1 lands over, M2 is cut rather than the cap moved.
+#    M2's own modules are OUTSIDE this cap, in core_m2 below. Only the TRANSLATE wiring inside
+#    tutor.py falls in this bucket, because it is a transition row and a dispatch call in an M1
+#    file; it is covered by the band between the cap and the ceiling, which the gate justifies.
+#    By the overrun policy, if M1 lands over, M2 is cut rather than the cap moved.
 #    => M1 estimate 625 + 180 = 805 · ceiling 805 x 1.10 = 886
+#
+#  core_m2 -- the M2 modules, measured SEPARATELY (v2.11, B0 of the sprint)
+#    The frozen core derivation above costed M2 as a single 170-line line item and then placed it
+#    outside the cap, and it never costed narrate.py at all -- the M2 scope in HLD 2 names three
+#    core modules, not one. Keeping M2 inside `core` would have meant either raising the frozen
+#    cap (forbidden) or measuring M1 against an M2 overrun. So M2 gets its own bucket, and the
+#    `core` bucket excludes these files by name. Re-derived bottom-up, nothing carried over:
+#      translation.py 110  equivalence by truth table over the two parsed formulas; the
+#                          contrapositive accept; the three named diagnoses (CONVERSE,
+#                          MISSING_NEGATION, AND_OR_SWAP) as candidate-rewrite comparisons;
+#                          NOT_EQUIVALENT otherwise; the English counterexample row builder.
+#      formula.py      90  the typed-formula parser: tokenizer for the ASCII and Unicode spellings
+#                          of the five connectives plus parentheses, precedence-climbing parse to
+#                          the same Formula tree logic.py already defines, and the named errors
+#                          (UNKNOWN_SYMBOL, UNBALANCED_PARENS, UNEXPECTED_TOKEN, EMPTY_FORMULA).
+#      narrate.py      45  proof steps -> English, one sentence per step, templates loaded at the
+#                          edge from messages.yaml and passed in as data (same rule as policy).
+#    => estimate 245 · ceiling 245 x 1.10 = 270
+#    SCOPE DECISION (team, 2026-10-12): M2 is kept in scope for the progress review. This bucket
+#    is the cost of that decision, stated before the code was written rather than after.
 #
 #  api_cli -- backend/src/api/*.py + backend/src/cli.py
 #    Nothing built yet, so this is estimate only and UNCALIBRATED -- the 88% figure above was
@@ -86,8 +108,23 @@ frozen = "2026-10-11"
 
 [core]
 patterns = ["backend/src/core/*.py"]
+exclude = [
+    "backend/src/core/translation.py",
+    "backend/src/core/formula.py",
+    "backend/src/core/narrate.py",
+]
 cap = 805
 ceiling = 886
+
+[core_m2]
+label = "core (M2)"
+patterns = [
+    "backend/src/core/translation.py",
+    "backend/src/core/formula.py",
+    "backend/src/core/narrate.py",
+]
+cap = 245
+ceiling = 270
 
 [api_cli]
 label = "api + cli"

@@ -1,8 +1,8 @@
-# ProofPilot — High-Level Design v2.10
+# ProofPilot — High-Level Design v2.11
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
-Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests). v2.9 applies the Phase-5-gate change request; v2.10 the budget decision and the cache bound (§16).
+Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests). v2.9 applies the Phase-5-gate change request; v2.10 the budget decision and the cache bound; v2.11 the sprint scope decision and the M2 budget bucket (§16).
 This document is the source of truth. Any later
 design change requires an explicit change request from the student; Claude must not alter the
 design unilaterally.
@@ -62,8 +62,10 @@ GitHub · AI log.
 
 `translation.py` (truth-table equivalence; contrapositive accepted; **exactly 3 diagnoses** —
 `CONVERSE`, `MISSING_NEGATION`, `AND_OR_SWAP` — otherwise `NOT_EQUIVALENT`; **always** one English
-counterexample row) · TRANSLATE as the 4th BKT skill · a typed formula input (`R -> C`) with
-insert buttons, **no drag-and-drop builder** · `narrate.py` (English proof explanation).
+counterexample row) · `formula.py` (the typed-formula parser: `R -> C`, the five connectives in
+ASCII and Unicode, parentheses, named errors) · TRANSLATE as the 4th BKT skill · a typed formula
+input with insert buttons, **no drag-and-drop builder** · `narrate.py` (English proof
+explanation). Budgeted as `[core_m2]` in `budgets.toml` (v2.11).
 
 ### STRETCH (listed only, not designed)
 
@@ -89,7 +91,8 @@ overrun rule — without repeating a single figure.
 | Budget | Where the number lives | Scope |
 |---|---|---|
 | Hours | §13.3 (**77.00 person-hours accepted**, ≈38.5 h each; contingency 75.00) | includes review-and-understand time **and** cross-module walkthroughs |
-| Core lines | `budgets.toml` → `[core]` | `backend/src/core/*.py` |
+| Core lines | `budgets.toml` → `[core]` | `backend/src/core/*.py`, **excluding the M2 modules** |
+| core (M2) | `budgets.toml` → `[core_m2]` | `translation.py`, `formula.py`, `narrate.py` (v2.11) |
 | api + cli | `budgets.toml` → `[api_cli]` | `backend/src/api/*.py` + `backend/src/cli.py`, excluding tests |
 | scripts | `budgets.toml` → `[scripts]` | `scripts/*.py` — **evaluation** tooling, never shipped |
 | Frontend | `budgets.toml` → `[frontend]` | `frontend/src/**` |
@@ -99,6 +102,15 @@ All four capped buckets were **re-derived bottom-up and frozen on 2026-10-11** (
 after the Phase 5 gate found that the caps and the design had contradicted each other for six
 revisions. The derivation, the measured actuals behind it and the record of what went wrong are
 all in `budgets.toml`.
+
+**Scope decision (team, 2026-10-12, v2.11): M2 is kept in scope for the progress review.** The
+frozen `[core]` derivation costed M2 as a single line item placed *outside* the cap, and never
+costed `narrate.py` at all — so M2 had a scope but not a budget. It now has its own bucket,
+`[core_m2]`, derived bottom-up per module with the same cap + 10% ceiling rule, and `[core]`
+excludes those files by name. **The frozen `[core]` cap was not raised**; the only M2 code inside
+it is the TRANSLATE transition row and dispatch call in `tutor.py`, which the cap-to-ceiling band
+covers. `test_every_core_module_is_measured_by_exactly_one_bucket` fails the build if a new core
+module lands in both buckets or in neither.
 
 **Team constraint (approved):** both members must be able to explain every module. This is a
 budget line item (§13.3), not an aspiration — it is what the §17.11 three-sentence explanations
@@ -789,6 +801,7 @@ Every output file is stamped with date, git commit hash, seed, Python version an
 | **Module ownership A/B with mutual review** (§4.1) | Each module has a named reviewer and a primary viva explainer; neither member has a blind spot | Costs 8.75 h of cross-module walkthroughs that a divide-and-conquer split would not | **Adopted, and budgeted (§13.3)** | Easy — reassign at any gate |
 | **`State` stays a core dataclass** rather than moving to `api/schemas.py` (v2.10 item 1) | The **CLI uses core directly** (`python -m src.cli`, the HARD CLI GATE), so an edge-owned `State` would force the CLI through the API or make it build its own parallel object. Core staying usable without the web layer is what lets the whole pipeline be driven and tested with no server at all | Costs ~35 core lines, and the field list is declared twice — once as a core dataclass, once as a Pydantic schema. A schema test keeps the two honest | **Rejected the move. `State` is core; the API converts to and from it in `schemas.py`** | Hard — every core signature would change |
 | **Evidence mapping as policy YAML, transitions as code** (v2.10 item 2) | §9's evidence table is a pure lookup — ~18 declarative rows with no control flow — so it is data, loaded and schema-validated at the **edge** and passed into core as a plain mapping (v2.4). Stage × action **transitions are control logic**: they decide what may happen next and raise named errors, which is behaviour a reader must see in code | Two homes for "policy"; a reader must know which is which | **Evidence table → `data/policy.yaml`. Transition table stays in `tutor.py` as one compact table** | Easy — both are one table either way |
+| **M2 kept in scope, in its own budget bucket** (v2.11, sprint B0) | The frozen `[core]` derivation priced M2 as one 170-line item placed outside the cap and never priced `narrate.py`, so M2 had a scope with no budget — the next honest option would have been raising a frozen cap, which the overrun policy forbids. A separate `[core_m2]` bucket prices the decision *before* the code exists, and keeps an M2 overrun from being charged against M1 | Five capped buckets to track; two buckets share one directory, so `[core]` needs an exclude list and a test that every core module is owned exactly once | **M2 in scope. `[core_m2]` derived bottom-up per module, cap + 10% ceiling, `[core]` cap unchanged** | Easy — cutting M2 deletes the bucket and three files |
 | **`mastery_history` cut from M1** (v2.10 item 3) | It served only the stretch feature *"Why this score?"*; BKT needs the posterior, never the sequence that produced it. Cutting it removes a core field, the `HistoryItem` type, the append path through `tutor`, its API serialization and the history chart in `MasteryBars` | A later *"Why this score?"* must re-add the field and a migration of `schema_version` | **Cut from M1. Listed as stretch** | Easy — append-only data, re-addable without touching the BKT maths |
 
 ---
@@ -909,6 +922,11 @@ What belongs here is the policy, not the arithmetic:
   cost 45 lines out of a bucket that also had to hold the evaluation scripts.
 - `scripts/*.py` stays capped, and now means **evaluation** tooling only: `difficulty.py`,
   `run_experiments.py`, `heldout_eval.py`.
+- **M1 core and M2 core are separate buckets** (v2.11). They share `backend/src/core/`, so
+  `[core]` carries an `exclude` list naming the three M2 modules, and
+  `test_every_core_module_is_measured_by_exactly_one_bucket` fails the build if a core module
+  ends up in both buckets or in neither. An M2 overrun therefore cuts M2 without ever being
+  charged against M1's frozen cap.
 
 ---
 
@@ -972,6 +990,33 @@ a new version with a Change Log entry.
 ---
 
 ## 16. Change Log
+
+### From v2.10 → v2.11 — sprint scope decision + the M2 budget bucket, 2026-10-12
+
+Raised by the sprint's B0 budget check, which asked one question: does the frozen `[core]`
+derivation include the M2 core modules?
+
+**It did not, and it was worse than that.** `budgets.toml` priced M2 as a single 170-line item
+(`translation.py` 150 + TRANSLATE wiring 20) and explicitly placed it *outside* the `[core]` cap,
+and it never priced `narrate.py` at all — even though §2 has named `narrate.py` as M2 scope since
+v1. The typed-formula parser was priced as frontend input, not as the core module it has to be.
+So M2 was in scope with no budget, and the only ways to build it were to raise a frozen cap
+(forbidden by the overrun policy) or to let an M2 overrun be charged against M1.
+
+1. **New bucket `[core_m2]`**, derived bottom-up per module (`translation.py`, `formula.py`,
+   `narrate.py`) with the same cap + 10% ceiling rule. Numbers in `budgets.toml` only.
+2. **`[core]` cap unchanged**, and now carries an `exclude` list naming the three M2 files. The
+   only M2 code left inside `[core]` is the TRANSLATE transition row and dispatch call in
+   `tutor.py` — a transition row in an M1 file — which the cap-to-ceiling band covers.
+3. **`tools/loc.py` learned `exclude`**, because the two buckets share one directory.
+4. **New test `test_every_core_module_is_measured_by_exactly_one_bucket`** — the risk an exclude
+   list creates is a module owned by both buckets or by neither, which is silently uncapped. It
+   is checked against the directory as it actually is, so adding a core module without budgeting
+   it fails the build.
+5. **§2 and §12 record the scope decision**: *M2 is kept in scope for the progress review*, with
+   its cost stated before the code was written rather than after.
+
+No behaviour, algorithm, grammar, data-model or API change.
 
 ### From v2.9 → v2.10 — student budget decision + bounded cache, 2026-10-11
 
