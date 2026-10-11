@@ -677,3 +677,55 @@ estimate as everywhere else, and the first-milestone cap untouched. The two buck
 directory, so the measuring tool learned to exclude files by name and a new test fails the build
 if any core module is owned by both buckets or by neither — which is the one failure an exclude
 list makes possible and the one that would go unnoticed.
+
+---
+
+**Date:** 2026-10-12
+**Phase:** Sprint block S1 — the three fixes the student set at the Phase 6a gate
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/src/loader.py`, `backend/tests/test_loader.py`
+**Files modified:** `backend/src/core/config.py`, `backend/src/core/bkt.py`,
+`backend/tests/test_bkt.py`, `backend/tests/test_models.py`, `backend/tests/test_loc.py`,
+`data/mutants.json`, `budgets.toml`, `docs/HLD.md`
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Three fixes, each of which replaced a value or a promise with something derived.
+
+The ceiling on the probability of mastery had been introduced as a guard against floating-point
+arithmetic, and the recovery length it implied — about ten consecutive wrong answers before a
+mastered skill is lost — was a side effect that nobody had chosen. The student replaced it with a
+teaching rule: one or two wrong answers from a student who has mastered a skill are slips and must
+not revoke it, and a third consecutive wrong answer must. That rule is a condition on the ceiling,
+and bisecting the exact update showed it admits only a narrow window: set any higher and the
+second wrong answer already revokes mastery, any lower and the third one still does not. One power
+of ten lies inside the window, and it is now the value, with the window re-derived from the shipped
+formulas by a test so that changing a learning parameter or the threshold fails the build rather
+than quietly lengthening recovery.
+
+The lossless round trip of the session state belongs to the block that builds the web layer, since
+that is where the conversion will live. What was added now is the structural precondition that
+makes such a round trip possible at all, because that is a property of the data model and one new
+field can break it: every field is checked against a recursive notion of what can be written as
+JSON, with the key rule deliberately stricter than the value rule, since an object key must be a
+string while a pair is a perfectly good value. The first version collapsed the two rules into one
+and accepted a mapping keyed by pairs. A companion test shows the check rejecting a set, a frozen
+set and a badly keyed mapping, all of which are natural things to reach for in a codebase where a
+clause is itself a frozen set.
+
+The evidence table is indexed with no default and no fallback, deliberately, because a default
+would score a skill the student's action never tested. The cost of that choice is that an
+incomplete table is a crash in front of a student, mid-session, on whichever trigger happens to be
+missing. It is now validated once at startup by the edge loader against the enumeration of what a
+step can actually produce, with a named error for every failure mode and a deliberately broken
+fixture file for each one. The rule about which triggers are evidence is checked in both
+directions, since a scoring row that observes nothing is a dead feedback path and a non-evidence
+row that starts scoring would punish a student for being refused by the grammar rather than for
+being wrong.
+
+Writing that loader exposed an unrelated gap: the bucket meant to measure it matched the command
+line interface by name, so the one module that reads a data file was in no budget at all. The
+pattern now covers the whole directory, and the check that every core module belongs to exactly
+one bucket was generalised to every measured tree in both directions. The same gap leaves a risk
+that is recorded rather than acted on: the frozen estimate for that bucket allowed ten lines for
+loading the policy and no line item for the loader itself, and the validator alone is larger than
+that. The projection is checked against the ceiling before the web layer is written, and crossing
+it stops for a decision rather than being absorbed.

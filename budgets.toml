@@ -128,7 +128,10 @@ ceiling = 270
 
 [api_cli]
 label = "api + cli"
-patterns = ["backend/src/api/*.py", "backend/src/cli.py"]
+# `backend/src/*.py` rather than `cli.py` alone: `loader.py` was always meant to be in this
+# bucket (the v2.4 change log says so), but the pattern never matched it, so the one module that
+# reads a data file would have been unmeasured. Found by the sprint's F3 fix.
+patterns = ["backend/src/api/*.py", "backend/src/*.py"]
 cap = 345
 ceiling = 380
 

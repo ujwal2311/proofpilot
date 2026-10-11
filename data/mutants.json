@@ -51,7 +51,7 @@
     {
       "id": "B9",
       "desc": "the saturation clamp is removed",
-      "find": "    return min(max(moved, config.MASTERY_EPSILON), 1.0 - config.MASTERY_EPSILON)",
+      "find": "    return min(max(moved, config.MASTERY_SLACK), 1.0 - config.MASTERY_SLACK)",
       "replace": "    return moved"
     },
     {
@@ -507,6 +507,20 @@
       "desc": "everything is kept regardless of reachability",
       "find": "if _symbols(clause) & reached:",
       "replace": "if True:"
+    }
+  ],
+  "config": [
+    {
+      "id": "C1",
+      "desc": "the mastery ceiling drops below its derived window, so a mastered skill is never lost",
+      "find": "MASTERY_SLACK = 1e-3",
+      "replace": "MASTERY_SLACK = 1e-9"
+    },
+    {
+      "id": "C2",
+      "desc": "the mastery ceiling rises above its window, so the SECOND wrong answer un-masters",
+      "find": "MASTERY_SLACK = 1e-3",
+      "replace": "MASTERY_SLACK = 2e-3"
     }
   ]
 }

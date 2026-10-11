@@ -81,6 +81,9 @@ def test_a_long_run_of_correct_answers_converges_upward_and_monotonically() -> N
     assert seen == sorted(seen), "mastery must never fall on a correct answer"
     assert seen[-1] > HLD.threshold
     assert seen[-1] < 1.0
+    # The run settles ON the ceiling rather than crawling towards it, which is what makes the
+    # ceiling the state the F1 slip rule is derived from.
+    assert seen[-1] == 1.0 - config.MASTERY_SLACK
 
 
 def test_mastery_never_saturates_so_a_skill_can_always_move_again() -> None:
@@ -92,16 +95,71 @@ def test_mastery_never_saturates_so_a_skill_can_always_move_again() -> None:
     for _ in range(200):
         p = update(p, True, HLD)
     assert p < 1.0, "mastery saturated; a frozen skill can never be lost"
-    assert p == 1.0 - config.MASTERY_EPSILON
+    assert p == 1.0 - config.MASTERY_SLACK
 
-    # Recovery must be possible in a realistic number of attempts, or the clamp would only move
-    # the problem rather than fix it.
-    wrong = 0
-    while p >= HLD.threshold:
+
+def test_two_wrong_answers_after_mastery_are_slips_and_the_third_un_masters() -> None:
+    """The PEDAGOGICAL rule the ceiling is derived from (sprint F1).
+
+    `MASTERY_SLACK` was first chosen as a float-representation guard (1e-9) and the recovery
+    length -- about ten wrong answers -- was a side effect nobody had picked. It is now derived
+    from a stated teaching rule: one or two wrong answers from a mastered student are SLIPS and
+    must not revoke mastery; a third consecutive wrong answer is evidence and must.
+
+    From the ceiling 1 - slack the trace is 0.993247, 0.956154, 0.771866. The first two sit above
+    the 0.95 threshold and the third is far below it, so the rule is satisfied with margin in
+    both directions rather than on a knife edge.
+    """
+    p = 1.0 - config.MASTERY_SLACK
+    after = []
+    for _ in range(3):
         p = update(p, False, HLD)
-        wrong += 1
-        assert wrong < 50, "a mastered skill could not be lost in any reasonable run"
-    assert wrong <= 15, f"took {wrong} wrong answers to fall below the threshold"
+        after.append(p)
+
+    assert after[0] >= HLD.threshold, "one slip must not revoke mastery"
+    assert after[1] >= HLD.threshold, "two slips must not revoke mastery"
+    assert after[2] < HLD.threshold, "a third consecutive wrong answer must un-master the skill"
+
+
+def test_the_slack_is_inside_the_window_the_rule_allows_and_no_rounder_value_is() -> None:
+    """Why 1e-3 and not another round number -- the derivation, as an executable check.
+
+    The rule above admits a window of slacks, not a single value. Measured by bisection on the
+    exact update: the second wrong answer stops being a slip above ~1.1492e-3, and the third
+    wrong answer stops un-mastering below ~1.6919e-4. 1e-3 is the ONLY power of ten in that
+    window, which is the whole reason it was picked over a prettier-looking 1e-4.
+
+    This test re-derives the window from the shipped formulas rather than trusting those two
+    bounds, so a change to g, s, T or the threshold that invalidates the choice fails here
+    instead of quietly lengthening the recovery.
+    """
+
+    def trace(slack: float) -> list[float]:
+        p, out = 1.0 - slack, []
+        for _ in range(3):
+            after = posterior(p, False, HLD)
+            p = min(max(after + (1 - after) * HLD.transit, slack), 1.0 - slack)
+            out.append(p)
+        return out
+
+    def obeys_the_rule(slack: float) -> bool:
+        a, b, c = trace(slack)
+        return a >= HLD.threshold and b >= HLD.threshold and c < HLD.threshold
+
+    assert obeys_the_rule(config.MASTERY_SLACK)
+    assert not obeys_the_rule(1e-4), "1e-4 leaves a mastered skill mastered after three wrongs"
+    assert not obeys_the_rule(1e-2), "1e-2 revokes mastery on the second answer, not the third"
+
+    # And the neighbouring powers of ten are outside the window in BOTH directions, so the choice
+    # is pinned rather than merely admissible.
+    assert not obeys_the_rule(config.MASTERY_SLACK / 10)
+    assert not obeys_the_rule(config.MASTERY_SLACK * 10)
+
+
+def test_the_slack_is_too_small_to_change_a_displayed_number() -> None:
+    # Mastery is shown as a percentage. A ceiling of 1 - 1e-3 displays as 100%, so the guard is
+    # invisible to a student while remaining large enough to be reversible.
+    assert round((1.0 - config.MASTERY_SLACK) * 100) == 100
 
 
 def test_the_clamp_does_not_disturb_the_hand_example() -> None:

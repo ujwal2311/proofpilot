@@ -89,12 +89,13 @@ def update(p: float, correct: bool, params: BktParams) -> float:
     The result is clamped strictly inside (0, 1). The model never reaches either bound, but
     float64 does: MEASURED, 23 consecutive correct answers drive P to exactly 1.0, and from there
     `posterior(1.0, wrong)` is also 1.0, so the skill freezes and the tutor keeps asserting
-    mastery that later evidence contradicts. The clamp is a float-representation guard, not a
-    change to the model -- it restores the 0 < P < 1 precondition section 17.7 argues from.
+    mastery that later evidence contradicts. The clamp restores the 0 < P < 1 precondition
+    section 17.7 argues from; its SIZE is derived from the slip rule in `config.py`, so the
+    ceiling is the point from which two wrong answers are forgiven and a third is not.
     """
     after = posterior(p, correct, params)
     moved = after + (1 - after) * params.transit
-    return min(max(moved, config.MASTERY_EPSILON), 1.0 - config.MASTERY_EPSILON)
+    return min(max(moved, config.MASTERY_SLACK), 1.0 - config.MASTERY_SLACK)
 
 
 def is_done(mastery: dict[Skill, float], params: BktParams) -> bool:

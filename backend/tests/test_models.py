@@ -17,7 +17,11 @@ is the narrower one that nothing in core opens anything.
 
 import copy
 import dataclasses
+import json
+import types
+import typing
 from dataclasses import FrozenInstanceError
+from enum import Enum
 
 import pytest
 from src.core import models
@@ -147,6 +151,88 @@ def test_models_are_comparable_by_value() -> None:
     assert Fact(symbol="P", phrases=(("p1", "it rains"),)) == Fact(
         symbol="P", phrases=(("p1", "it rains"),)
     )
+
+
+# --------------------------------------------------------------- JSON representability (F2)
+#
+# The BLOCKING round-trip property test -- 200 random States, lossless and canonical across both
+# hash seeds -- belongs to S4, where `api/schemas.py` owns the conversion. What belongs HERE is
+# the structural precondition that makes such a round-trip possible at all, because that is a
+# property of the data model and it can be broken by adding one field.
+#
+# The failure this guards against is concrete: a `set` or `frozenset` field is not JSON-
+# representable, and a `dict` keyed by anything but a string is not either. Both are natural
+# things to reach for in a clause-set codebase where `Clause = frozenset[str]`, and neither would
+# fail any test above.
+
+JSON_SCALARS = (int, float, str, bool, type(None))
+
+
+def _is_representable(annotation: object) -> bool:
+    """Can this annotation be encoded as JSON without inventing an encoding for it?"""
+    if annotation in JSON_SCALARS or annotation is dict:
+        return True
+    if dataclasses.is_dataclass(annotation):
+        # Resolved with get_type_hints rather than reading `field.type`, which is a STRING
+        # whenever the module uses postponed annotations -- a string would fall through to the
+        # final `return False` and report a perfectly good model as unencodable.
+        hints = typing.get_type_hints(annotation)
+        return all(_is_representable(hints[f.name]) for f in dataclasses.fields(annotation))
+    if isinstance(annotation, type) and issubclass(annotation, Enum):
+        # Only if every member's VALUE is a JSON scalar -- that is what gets written out.
+        return all(type(m.value) in JSON_SCALARS for m in annotation)
+
+    origin, args = typing.get_origin(annotation), typing.get_args(annotation)
+    if origin in (tuple, list):
+        return all(a is Ellipsis or _is_representable(a) for a in args)
+    if origin is dict:
+        # A JSON object's keys are STRINGS, so the key rule is stricter than the value rule: an
+        # Enum key is fine because its value is a string, but a tuple key is not, even though a
+        # tuple is a perfectly good JSON *value*. Collapsing the two rules into one recursive
+        # call was the first draft, and it accepted `dict[tuple[str, str], float]`.
+        key, value = args
+        key_ok = key is str or (
+            isinstance(key, type)
+            and issubclass(key, Enum)
+            and all(type(m.value) is str for m in key)
+        )
+        return key_ok and _is_representable(value)
+    if origin in (types.UnionType, typing.Union):
+        return all(_is_representable(a) for a in args)
+    return False
+
+
+def test_every_state_field_is_json_representable() -> None:
+    hints = typing.get_type_hints(State)
+    for name, annotation in hints.items():
+        assert _is_representable(annotation), f"State.{name}: {annotation} cannot be JSON"
+
+
+def test_the_representability_check_would_actually_reject_a_set_or_a_bad_key() -> None:
+    # A guard nobody has seen fail is a guard nobody should trust. `frozenset[str]` is exactly
+    # what a clause looks like in this codebase, so it is the realistic mistake.
+    assert not _is_representable(frozenset[str])
+    assert not _is_representable(set[str])
+    assert not _is_representable(dict[tuple[str, str], float])
+    assert not _is_representable(tuple[frozenset[str], ...])
+    assert _is_representable(dict[Skill, float])
+    assert _is_representable(tuple[Fact, ...])
+
+
+def test_asdict_on_a_state_is_already_json_encodable_once_enum_keys_are_named() -> None:
+    # The structural claim, exercised rather than only type-checked: `dataclasses.asdict` plus
+    # naming the Skill keys is enough. If it were not, S4's conversion would need an encoding
+    # decision, which is the thing this test exists to discover early.
+    raw = dataclasses.asdict(_state())
+    raw["mastery"] = {skill.value: value for skill, value in raw["mastery"].items()}
+    text = json.dumps(raw, sort_keys=True)
+
+    back = json.loads(text)
+    assert back["facts"][0]["phrases"] == [["p1", "it rains"]]  # tuples land as lists
+    assert back["mastery"]["CLASH"] == 0.3
+    # Canonical: the same State always produces the same bytes, which is what makes the S4
+    # round-trip assertion meaningful rather than merely usually true.
+    assert text == json.dumps(raw, sort_keys=True)
 
 
 def test_models_reads_no_file() -> None:

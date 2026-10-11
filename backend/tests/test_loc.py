@@ -111,22 +111,49 @@ def test_an_excluded_file_is_not_counted_twice(capsys) -> None:
     assert code_of(with_one_dropped) < code_of(with_all)
 
 
-def test_every_core_module_is_measured_by_exactly_one_bucket() -> None:
-    # The real risk the exclude list creates: a new core module that matches no bucket, or
-    # matches both, is silently uncapped or double-counted. Checked against the directory as it
-    # actually is, so adding a file without budgeting it fails the build.
-    buckets = loc.load_buckets()
+def _owners() -> dict[Path, list[str]]:
     owners: dict[Path, list[str]] = {}
-    for name, spec in buckets.items():
+    for name, spec in loc.load_buckets().items():
         excluded = {loc.ROOT / p for p in spec.get("exclude", ())}
         for pattern in spec["patterns"]:
             for path in loc.ROOT.glob(pattern):
                 if path not in excluded:
                     owners.setdefault(path, []).append(name)
+    return owners
 
-    for path in sorted((loc.ROOT / "backend" / "src" / "core").glob("*.py")):
-        assert owners.get(path), f"{path.name} is in no budget bucket"
-        assert len(owners[path]) == 1, f"{path.name} is counted by {owners[path]}"
+
+# Every shipped or evaluated source tree. `backend/tests` is absent on purpose -- tests are not
+# capped, because capping them is an incentive to write fewer.
+MEASURED_TREES = (
+    "backend/src/**/*.py",
+    "scripts/*.py",
+    "tools/*.py",
+    "frontend/src/**/*.js",
+    "frontend/src/**/*.jsx",
+    "frontend/src/**/*.css",
+)
+
+
+def test_every_source_file_is_measured_by_exactly_one_bucket() -> None:
+    # Two ways a budget stops binding without anyone noticing, and both have happened here:
+    #
+    #   1. A file matches NO pattern. `backend/src/loader.py` was like this -- the v2.4 change log
+    #      placed it in the api+cli bucket, but the pattern listed `cli.py` by name, so the one
+    #      module that reads a data file was unmeasured. Found by the F3 fix, not by the budget.
+    #   2. A file matches TWO patterns, which is what the v2.11 core/core_m2 exclude list creates
+    #      if a new M2 module is added to the pattern list but not to the exclude list.
+    #
+    # Checked against the trees as they actually are, so adding a source file without budgeting it
+    # fails the build.
+    owners = _owners()
+    for pattern in MEASURED_TREES:
+        for path in sorted(loc.ROOT.glob(pattern)):
+            if path.name == "__init__.py" and path.stat().st_size == 0:
+                continue  # an empty package marker has nothing to budget
+            assert owners.get(path), f"{path.relative_to(loc.ROOT)} is in no budget bucket"
+            assert len(owners[path]) == 1, (
+                f"{path.relative_to(loc.ROOT)} is counted by {owners[path]}"
+            )
 
 
 def test_every_bucket_ceiling_is_the_frozen_estimate_plus_ten_percent() -> None:

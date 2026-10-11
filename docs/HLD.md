@@ -585,6 +585,15 @@ never collide with `TAUTOLOGY`.
 `P_next = P' + (1−P')T`. Validate `0 < g,s,T,P0 < 1` and `g+s < 1`. Parameters are **assumed, not
 fitted** (stated in `config.py` and the README). Re-verified in §17.7.
 
+`P_next` is clamped to `[slack, 1−slack]`. The clamp is **required**: the model never reaches 0 or
+1 but float64 does, and from `P=1` a wrong answer returns 1 again, freezing the skill. The **size**
+of the slack is a teaching decision, not a floating-point one (v2.11, sprint F1): **one or two
+wrong answers from a mastered student are slips and must not revoke mastery; a third consecutive
+wrong answer must.** That rule admits a narrow window of slacks, and the value in `config.py` is
+the only power of ten inside it — derived there from the shipped formulas, and re-derived by
+`test_the_slack_is_inside_the_window_the_rule_allows` so a change to `g`, `s`, `T` or the
+threshold fails the build instead of silently lengthening recovery.
+
 ### 6.9 Translation check (M2)
 Equivalence of the student's formula to the reference is decided by a full truth table over the
 sentence's facts — exact, never string comparison. If equivalent → `CORRECT`. If equivalent to the
@@ -1016,7 +1025,26 @@ So M2 was in scope with no budget, and the only ways to build it were to raise a
 5. **§2 and §12 record the scope decision**: *M2 is kept in scope for the progress review*, with
    its cost stated before the code was written rather than after.
 
-No behaviour, algorithm, grammar, data-model or API change.
+Then the sprint's S1 block applied three fixes the student set, two of which touch this document:
+
+6. **The mastery clamp is now derived from a teaching rule** (§6.8, §17.7). It was introduced at
+   the v2.10 gate as a float-representation guard, and the recovery length it implied — about ten
+   consecutive wrong answers — was a side effect nobody had chosen. The rule is now stated: one or
+   two wrong answers from a mastered student are slips; a third consecutive wrong answer
+   un-masters. The window of slacks that satisfies it is narrow, and `config.py` records the
+   derivation. **Behaviour change**, deliberate and student-directed.
+7. **The policy table is validated at startup** (§17.7). New `backend/src/loader.py` — already the
+   designated edge loader in §4 — with a `PolicyError` per failure mode and a broken-fixture test
+   for each. No design change; it implements what §4 already said.
+8. **A budget-pattern gap closed.** The `api_cli` bucket matched `cli.py` by name, so
+   `loader.py` — which the v2.4 change log placed in that bucket — was unmeasured. The pattern now
+   covers `backend/src/*.py`, and `test_every_source_file_is_measured_by_exactly_one_bucket`
+   generalises the v2.11 core check to every measured tree, in both directions.
+
+Item 8 also surfaced a **risk, recorded rather than acted on**: the frozen `api_cli` derivation
+allowed ten lines for policy loading and no line item for the loader at all, and the policy
+validator alone is larger than that. See the sprint report — the projection is checked against the
+ceiling at S4, before `main.py` and `schemas.py` are written, and crossing it stops for a decision.
 
 ### From v2.9 → v2.10 — student budget decision + bounded cache, 2026-10-11
 
@@ -1556,6 +1584,15 @@ failures (no evidence, both modes) · merge actions (no evidence) · the `hint` 
 evidence). **Every (code × hint × mode) combination resolves to exactly one row — no gap, no
 double counting.** The one combination that looked like a gap in v2.0 — a hinted TRANSLATE — is
 now structurally impossible (V-5). ✔
+
+**The table is validated at startup, not trusted** (v2.11, sprint F3). `tutor.py` indexes it with
+no default and no fallback — deliberately, since a default would score a skill the action never
+tested — so an incomplete table is a `KeyError` in front of a student on whichever trigger is
+missing. `backend/src/loader.py` therefore checks the file once at startup against `logic.Code`
+and refuses to start on a bad one. It checks the evidence rule in **both** directions: a scoring
+row that observes nothing is a dead feedback path, and one of the three non-evidence triggers that
+starts scoring would punish a student for being refused by the grammar rather than for being
+wrong (OQ2). Every check has a broken-fixture test. ✔
 
 ### 17.8 API audit
 

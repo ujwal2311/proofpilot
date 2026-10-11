@@ -58,19 +58,36 @@ BKT_GUESS = 0.2  # answering correctly without the skill
 BKT_SLIP = 0.1  # answering wrongly despite having it
 BKT_TRANSIT = 0.15  # chance of learning the skill from one opportunity
 
-# How far mastery is kept from 0 and 1. The BKT model never reaches either value, but float64
-# does: MEASURED on 2026-10-11, 23 consecutive correct answers drive P to EXACTLY 1.0, after
-# which `posterior(1.0, wrong)` is 1.0 * s / (1.0 * s + 0) = 1.0 and the skill can never move
-# again -- the tutor would keep asserting mastery against evidence that contradicts it.
+# How far mastery is kept from 0 and 1. A clamp is REQUIRED: the BKT model never reaches either
+# value, but float64 does. MEASURED on 2026-10-11, 23 consecutive correct answers drive P to
+# EXACTLY 1.0, after which `posterior(1.0, wrong)` is 1.0 * s / (1.0 * s + 0) = 1.0, the skill can
+# never move again, and the tutor keeps asserting mastery against evidence that contradicts it.
 #
-# 1e-9 leaves (1 - P) with about seven significant digits of headroom over float64's resolution
-# near 1 (~2.2e-16), so the update stays reversible: from the clamp, ~10 wrong answers bring a
-# skill back below the threshold. It is also far below the four decimals any screen or report
-# shows, so it cannot change a displayed number. Only the upper bound is actually reachable --
-# the transit term floors mastery well above 0 -- but both are clamped for symmetry.
-MASTERY_EPSILON = 1e-9
+# The SIZE of the clamp is a DESIGN DECISION, derived from a stated teaching rule rather than from
+# float64's resolution (sprint F1). The first version used 1e-9 -- enough headroom to be
+# reversible, but the recovery length it implied, about ten consecutive wrong answers, was a side
+# effect nobody had chosen. The rule now fixes it:
+#
+#   one or two wrong answers from a mastered student are SLIPS and must not revoke mastery;
+#   a third consecutive wrong answer is evidence and must.
+#
+# The ceiling 1 - s is the state a long correct run settles on, so the rule is a condition on s.
+# Bisecting the exact update with g=0.2, s=0.1, T=0.15 against a 0.95 threshold:
+#   above ~1.1492e-3 the SECOND wrong answer already un-masters -- one slip too few
+#   below ~1.6919e-4 the THIRD wrong answer still leaves the skill mastered -- never reversible
+# 1e-3 is the only power of ten inside (1.6919e-4, 1.1492e-3], giving the trace 0.993247,
+# 0.956154, 0.771866: two slips with margin, then a clear fall. 1 - 1e-3 still displays as 100%,
+# so the guard is invisible to a student. Only the upper bound is reachable -- the transit term
+# floors mastery at ~0.1714 -- but both are clamped so the invariant holds without a case split.
+# `test_the_slack_is_inside_the_window_the_rule_allows` re-derives the window from the shipped
+# formulas, so changing g, s, T or the threshold fails the build instead of silently moving this.
+MASTERY_SLACK = 1e-3
 
 # Mastery required in EVERY active skill before the exercise set is finished (HLD section 9).
 # DESIGN DECISION, deliberately high: at 0.95 a student cannot finish on a lucky streak, and the
 # BKT update reaches it in about eight consecutive correct answers per skill.
 MASTERY_THRESHOLD = 0.95
+
+# Shape version of data/policy.yaml. It exists so a change to the evidence table is LOUD: the
+# loader refuses an unknown version rather than starting with a table it does not understand.
+POLICY_SCHEMA_VERSION = 1
