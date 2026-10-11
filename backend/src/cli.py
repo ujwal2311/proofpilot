@@ -16,6 +16,7 @@ the API adapter is held to the same rule, so the two clients cannot drift apart 
 """
 
 import sys
+from collections.abc import Callable
 
 from src import app
 from src.app.render import clause_text, mastery_text
@@ -146,23 +147,30 @@ def read(prompt: str, script: list[str] | None) -> str:
     return line
 
 
+# command -> (handler, the outcome to stop on when the handler returns True).
+# A table rather than a chain of `elif`: the chain scored 11 on mccabe, over the complexity gate,
+# and the table also makes the set of commands something a reader can check against the help text
+# in one glance. `None` as the outcome means the command never ends the exercise.
+COMMANDS: dict[str, tuple[Callable[[Play, str], bool], str | None]] = {
+    "facts": (lambda play, _: bool(play.show_board()), None),
+    "hint": (lambda play, _: bool(play.hint()), None),
+    "no": (lambda play, _: play.claim(), "claimed"),
+}
+LEAVING = {"quit": "quit", "": "quit", "skip": "skipped"}
+
+
 def loop(exercise: Exercise, play: Play, script: list[str] | None) -> str:
     """One exercise until it is solved, skipped or abandoned."""
     if not play.open(exercise):
         return "unplayable"
     while True:
         command = read(play.say.cli("prompt"), script).strip()
-        if command in ("quit", ""):
-            return "quit"
-        if command == "skip":
-            return "skipped"
-        if command == "facts":
-            play.show_board()
-        elif command == "hint":
-            play.hint()
-        elif command == "no":
-            if play.claim():
-                return "claimed"
+        if command in LEAVING:
+            return LEAVING[command]
+        handler, outcome = COMMANDS.get(command, (None, None))
+        if handler is not None:
+            if handler(play, command) and outcome:
+                return outcome
         elif "=" in command:
             if play.step(command):
                 print("\n" + play.say.cli("solved"))

@@ -143,4 +143,37 @@ never-guess rule would have to be weakened · or the work needs content only hum
 
 Each block ends with a report of at most 15 lines: what was built, tests, loc, CI link, issues.
 
+### Budgets during the sprint (team, 2026-10-12)
+
+**Bucket caps are REPORTED, not blocking.** `python tools/loc.py` prints the table and exits zero;
+`--strict` restores the blocking behaviour. Every block report still shows the table.
+
+*Why.* Five budget stops in one sprint, every one of them an estimate that had missed real code —
+M2's core modules, the data loader, the §7 pipeline, the shared edge, `state_of` — rather than
+bloat. The caps were only ever a proxy for "both members can explain every module" (§13.3), and a
+proxy that stops work five times while the thing it proxies for is fine is the wrong instrument.
+
+**Two gates replace them, and both BLOCK in CI:**
+
+1. `ruff C901` with `max-complexity = 10` over `backend/src`, `tools`, `scripts`.
+2. **Every function at most 60 code lines** — `tools/loc.py`, `tokenize`-based, docstrings and
+   comments excluded, so the WHY-comments rule 9 requires are never charged.
+
+A function may be allowlisted in `budgets.toml` under `[long_functions]` with a one-line reason.
+**The allowlist is printed on every run**, and it is empty: the gate found two complexity breaches
+the day it was switched on — the grammar's `parse_sentence` at 18 and the CLI's command chain at
+11 — and both were fixed by extraction rather than excused.
+
+**S11 must report** the bucket totals against *every* cap version (the full history), both gate
+results, and the allowlist.
+
+### Autonomy during the sprint (team, 2026-10-12)
+
+A defect in a test or in tooling that changes no design, no behaviour and no never-guess rule:
+**fix it immediately and list it in the block report.** Do not stop.
+
+**STOP only for:** a failing check whose root cause you cannot find inside the block · a change to
+behaviour or to `docs/HLD.md` · weakening a never-guess rule · content only humans may write
+(held-out paragraphs, pilot data, report prose).
+
 **At the `progress-v1` tag this section is deleted and the absolute push rule in GATES resumes.**

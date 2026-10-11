@@ -137,11 +137,18 @@ jobs:
       - name: Install pinned dependencies
         run: python -m pip install -r requirements-dev.txt -c constraints.txt
 
-      - name: Lint
+      # `ruff check` includes C901 at max-complexity 10 (pyproject.toml). It is one of the two
+      # BLOCKING explainability gates that replaced the line caps as a blocking check on
+      # 2026-10-12 -- a cap on a bucket was only ever a proxy for "both members can explain every
+      # module", and complexity measures that directly.
+      - name: Lint (includes the C901 complexity gate)
         run: ruff check .
 
       - name: Format check
         run: ruff format --check .
 
-      - name: Line budgets
+      # The other blocking gate: every function at most 60 code lines. This step also prints the
+      # bucket table and the length-gate allowlist, so both stay visible in the log even though
+      # the caps now only report. `--strict` returns when the sprint rule expires at progress-v1.
+      - name: Function length gate, and the reported line budgets
         run: python tools/loc.py

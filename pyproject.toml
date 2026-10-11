@@ -19,4 +19,15 @@ extend-exclude = [".venv", "frontend"]
 # I    import sorting, so import order never shows up as diff noise
 # B    flake8-bugbear: real bug patterns (mutable defaults, loop-variable capture) that
 #      matter in a codebase built on dataclasses and closures
-select = ["E", "F", "I", "B"]
+# C901 mccabe cyclomatic complexity. BLOCKING, and it replaced the line budgets as the gate on
+#      viva explainability (sprint rule, 2026-10-12): a cap on a bucket was only ever a proxy for
+#      "both members can explain every module", and five sprint stops showed it was a bad one --
+#      every overrun was estimation error, not bloat. Complexity measures the thing directly.
+select = ["E", "F", "I", "B", "C901"]
+
+[tool.ruff.lint.mccabe]
+# 10 is the conventional threshold. It found two functions on the day it was switched on: the
+# grammar's `parse_sentence` at 18, now three phases plus a head-word dispatch table, and the
+# CLI's command chain at 11, now a table. Both were genuine simplifications -- nothing was
+# allowlisted to get under it.
+max-complexity = 10

@@ -65,9 +65,12 @@ def test_measure_counts_every_line_exactly_once(sample: Path) -> None:
 CORE = ["backend/src/core/*.py"]
 
 
-def test_main_exits_non_zero_when_a_ceiling_is_exceeded(capsys) -> None:
-    assert loc.main({"tiny": {"patterns": CORE, "cap": 0, "ceiling": 0}}) == 1
+def test_a_breached_ceiling_is_reported_and_blocks_only_in_strict_mode(capsys) -> None:
+    # Caps REPORT during the sprint; `--strict` restores blocking (see the sprint rule below).
+    tiny = {"tiny": {"patterns": CORE, "cap": 0, "ceiling": 0}}
+    assert loc.main(tiny) == 0
     assert "OVER CEILING" in capsys.readouterr().out
+    assert loc.main(tiny, strict=True) == 1
 
 
 def test_over_the_cap_but_under_the_ceiling_warns_without_failing(capsys) -> None:
@@ -90,9 +93,147 @@ def test_an_uncapped_bucket_is_reported_but_never_fails(capsys) -> None:
     assert "OVER" not in capsys.readouterr().out
 
 
-def test_real_buckets_are_within_their_ceilings() -> None:
-    # The gate check itself, so a breach fails the suite and not only CI.
-    assert loc.main() == 0
+def test_the_real_bucket_table_is_reported(capsys) -> None:
+    """Caps REPORT; they no longer block (sprint rule, 2026-10-12, expires at progress-v1).
+
+    Five budget stops in one sprint were all estimation error rather than bloat -- the §7
+    pipeline, the data loader, the shared edge, `state_of` -- and a cap on a bucket was only ever
+    a proxy for "both members can explain every module". The blocking gates now measure that
+    directly: `ruff C901` and the per-function length gate below.
+
+    What this test still guarantees is that the table is PRODUCED, with a row per bucket, so the
+    numbers appear in every block report and a drift is visible even though it is not fatal.
+    """
+    assert loc.main() == 0, "caps must not block while the sprint rule is in force"
+    rows = capsys.readouterr().out.splitlines()
+    labelled = {spec.get("label", name) for name, spec in loc.load_buckets().items()}
+    printed = {line.split()[0] for line in rows[1:] if line.strip()}
+    assert labelled <= {p for row in rows[1:] for p in [row[:15].strip()]}, (
+        f"a bucket is missing from the table: {labelled - printed}"
+    )
+
+
+def test_strict_mode_still_blocks_so_the_capability_is_not_lost() -> None:
+    # The sprint rule expires at the tag. `--strict` is how the pre-sprint behaviour comes back,
+    # and a switch nobody exercises is a switch that has quietly rotted by then.
+    tiny = {"tiny": {"patterns": CORE, "cap": 0, "ceiling": 0}}
+    assert loc.main(tiny, strict=True) == 1
+    assert loc.main(tiny, strict=False) == 0
+
+
+# ------------------------------------------------- the blocking explainability gates (sprint)
+
+
+def test_no_function_exceeds_the_length_gate() -> None:
+    # BLOCKING. The replacement for the bucket caps: a function longer than a screen cannot be
+    # explained in a viva from the screen, which is what the caps were a proxy for.
+    assert loc.check_functions() == 0
+
+
+def test_the_length_gate_would_actually_fail() -> None:
+    # A guard nobody has seen fail is a guard nobody should trust. Run at a limit of 1, every
+    # function in the repo breaches, so a non-zero result proves the gate is wired to something.
+    assert loc.check_functions(limit=1) == 1
+
+
+def test_the_length_gate_measures_code_not_prose() -> None:
+    # It must count what the buckets count. A docstring is required by rule 9 and WHY-comments
+    # are the point of the codebase; a function of two statements wrapped in eighty lines of
+    # explanation must measure 2, or the gate would punish exactly the work it exists to reward.
+    source = 'def wordy():\n    """A deliberately long explanation."""\n'
+    source += "".join(f"    # comment {n}\n" for n in range(80))
+    source += "    return 1\n"
+
+    label = loc._labels(source)
+    lines = source.splitlines()
+    code = sum(
+        1
+        for row in range(len(lines))
+        if not label[row] and lines[row].strip() and not lines[row].strip().startswith("#")
+    )
+    assert code == 2, f"a docstring and 80 comments were charged as code: {code}"
+
+
+def test_the_complexity_gate_is_configured_and_can_fail(tmp_path: Path) -> None:
+    """`ruff C901` at max-complexity 10, the other blocking explainability gate.
+
+    Asserted two ways: that it is selected in `pyproject.toml` with the threshold, and that ruff
+    actually reports a breach. A gate that is configured but unreachable is no gate.
+    """
+    import subprocess
+    import sys
+    import tomllib
+
+    config = tomllib.loads((loc.ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    lint = config["tool"]["ruff"]["lint"]
+    assert "C901" in lint["select"], "C901 is not selected; the complexity gate is off"
+    assert lint["mccabe"]["max-complexity"] == 10
+
+    # A function with twelve branches. Checked through the real `ruff` the CI job runs, not a
+    # reimplementation of mccabe.
+    branches = "".join(f"    if n == {n}:\n        return {n}\n" for n in range(12))
+    sample = tmp_path / "complex_sample.py"
+    sample.write_text(f"def tangled(n):\n{branches}    return None\n", encoding="utf-8")
+    done = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "--select",
+            "C901",
+            "--isolated",
+            "--config",
+            "lint.mccabe.max-complexity = 10",
+            str(sample),
+        ],
+        capture_output=True,
+        cwd=loc.ROOT,
+    )
+    assert done.returncode == 1, "ruff did not flag a 12-branch function"
+    assert b"C901" in done.stdout
+
+
+def test_the_real_tree_passes_the_complexity_gate() -> None:
+    # The gate itself, so a breach fails the suite and not only CI. It found two functions the
+    # day it was switched on -- the grammar's `parse_sentence` at 18 and the CLI's command chain
+    # at 11 -- and both were fixed by extraction.
+    import subprocess
+    import sys
+
+    done = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "--select",
+            "C901",
+            "backend/src",
+            "tools",
+            "scripts",
+        ],
+        capture_output=True,
+        cwd=loc.ROOT,
+    )
+    assert done.returncode == 0, done.stdout.decode("utf-8", "replace")
+
+
+def test_the_allowlist_is_printed_and_currently_empty(capsys) -> None:
+    """An exemption nobody sees is an exemption nobody revisits.
+
+    Empty at the time the gate was switched on: the longest function was 48 lines, and the two
+    complexity breaches it found were fixed by extraction rather than excused.
+    """
+    import tomllib
+
+    allowed = tomllib.loads((loc.ROOT / "budgets.toml").read_text(encoding="utf-8"))
+    assert allowed.get("long_functions") == {}, (
+        f"the length-gate allowlist is no longer empty: {allowed['long_functions']}. "
+        f"Each entry needs a one-line reason and should be a last resort."
+    )
+    loc.check_functions()
+    assert "function length gate" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------- reported totals (v2.11)
@@ -105,7 +246,7 @@ def test_a_total_sums_its_members_and_is_printed(capsys) -> None:
         "a": {"patterns": CORE, "cap": 10, "ceiling": 11},
         "b": {"patterns": CORE, "cap": 20, "ceiling": 22},
     }
-    assert loc.main(buckets, {"SUM": ["a", "b"]}) == 1  # both over, as expected
+    assert loc.main(buckets, {"SUM": ["a", "b"]}) == 0  # both over, but caps only report now
     rows = {line.split()[0]: line.split()[1:4] for line in capsys.readouterr().out.splitlines()[1:]}
     assert rows["SUM"][1:] == ["30", "33"], "the total must sum the member caps and ceilings"
     assert int(rows["SUM"][0]) == int(rows["a"][0]) + int(rows["b"][0])

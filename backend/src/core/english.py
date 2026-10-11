@@ -281,13 +281,12 @@ def _junction(tokens: list[str], sentence: str) -> Node:
     return And(items) if operator == "and" else Or(items)
 
 
-def parse_sentence(sentence: str) -> Node:
-    """Parse one sentence into a formula AST, or raise ParseError.
+def _refuse_bad_input(tokens: list[str], sentence: str) -> None:
+    """The three refusals that depend only on the token list (section 3.4).
 
-    Checks run cheapest-and-most-specific first so the student gets the most useful name for
-    what is wrong, rather than a blanket "unparseable".
+    Cheapest and most specific first, so a student gets the most useful name for what is wrong
+    rather than a blanket "unparseable".
     """
-    tokens = _tokenize(sentence)
     if sum(1 for token in tokens if token != ",") > MAX_SENTENCE_WORDS:
         raise ParseError(ErrorCode.TOO_LONG, sentence)
     if QUANTIFIERS & set(tokens):
@@ -295,43 +294,99 @@ def parse_sentence(sentence: str) -> Node:
     if not tokens:
         raise ParseError(ErrorCode.EMPTY_FACT_PHRASE, sentence)
 
-    # Sentence-initial forms, checked before any infix scan so that a leading "if"/"unless" is
-    # never mistaken for the infix keyword of a different production.
-    head = tokens[0]
-    if head == "if":
-        split = next((i for i, token in enumerate(tokens) if i and token in (",", "then")), None)
-        if split is None:
-            raise ParseError(ErrorCode.UNPARSEABLE, sentence, "if_without_then")
-        rest = split
-        while rest < len(tokens) and tokens[rest] in (",", "then"):
-            rest += 1
-        return Implies(_junction(tokens[1:split], sentence), _junction(tokens[rest:], sentence))
-    if head == "unless":
-        split = _find(tokens, (",",))
-        if split is None:
-            raise ParseError(ErrorCode.UNPARSEABLE, sentence, "unless_without_comma")
-        return Or((_junction(tokens[split + 1 :], sentence), _clause(tokens[1:split], sentence)))
-    if head == "only" and _find(tokens, ("only", "if")) == 0:
+
+def _initial_if(tokens: list[str], sentence: str) -> Node:
+    """`if cond then junction` / `if cond, junction` -- the antecedent comes first."""
+    split = next((i for i, token in enumerate(tokens) if i and token in (",", "then")), None)
+    if split is None:
+        raise ParseError(ErrorCode.UNPARSEABLE, sentence, "if_without_then")
+    rest = split
+    while rest < len(tokens) and tokens[rest] in (",", "then"):
+        rest += 1
+    return Implies(_junction(tokens[1:split], sentence), _junction(tokens[rest:], sentence))
+
+
+def _initial_unless(tokens: list[str], sentence: str) -> Node:
+    """`unless cond, clause` -- the supported sentence-initial form (section 3.2)."""
+    split = _find(tokens, (",",))
+    if split is None:
+        raise ParseError(ErrorCode.UNPARSEABLE, sentence, "unless_without_comma")
+    return Or((_junction(tokens[split + 1 :], sentence), _clause(tokens[1:split], sentence)))
+
+
+def _initial_only(tokens: list[str], sentence: str) -> Node | None:
+    """`Only if B, A` is REFUSED, not interpreted (section 3.2, limitation 6)."""
+    if _find(tokens, ("only", "if")) == 0:
         raise ParseError(ErrorCode.UNPARSEABLE, sentence, "sentence_initial_only_if")
-    # "either"/"both"/"neither" act as bracketing prefixes only when the connective they govern
-    # is actually present. Otherwise the word is ordinary phrase content -- "both lights are on"
-    # is a perfectly good fact, and rejecting it to catch a malformed "Either it rains" would
-    # trade a common sentence for a rare one.
-    for prefix, wanted, other in (("either", "or", "and"), ("both", "and", "or")):
-        if head != prefix:
-            continue
-        if wanted in tokens[1:]:
-            return _junction(tokens[1:], sentence)
-        if other in tokens[1:]:
-            # "Either A and B" promises a choice and delivers a conjunction. Only one
-            # connective is present, so the generic mixed-connective check cannot see it --
-            # without this branch the sentence would parse as the OPPOSITE of what it says.
-            raise ParseError(ErrorCode.AMBIGUOUS_AND_OR, sentence, f"{prefix}_governs_{other}")
-    if head == "neither" and "nor" in tokens[1:]:
-        segments: list[list[str]] = [[]]
-        for token in tokens[1:]:
-            segments.append([]) if token == "nor" else segments[-1].append(token)
-        return And(tuple(_negated(_clause(segment, sentence)) for segment in segments))
+    return None
+
+
+def _initial_bracketed(tokens: list[str], sentence: str) -> Node | None:
+    """`either … or …` and `both … and …`.
+
+    These words bracket only when the connective they govern is actually present. Otherwise the
+    word is ordinary phrase content -- "both lights are on" is a perfectly good fact, and
+    rejecting it to catch a malformed "Either it rains" would trade a common sentence for a rare
+    one.
+    """
+    wanted, other = {"either": ("or", "and"), "both": ("and", "or")}[tokens[0]]
+    if wanted in tokens[1:]:
+        return _junction(tokens[1:], sentence)
+    if other in tokens[1:]:
+        # "Either A and B" promises a choice and delivers a conjunction. Only ONE connective is
+        # present, so the generic mixed-connective check cannot see it -- without this branch the
+        # sentence would parse as the OPPOSITE of what it says.
+        raise ParseError(ErrorCode.AMBIGUOUS_AND_OR, sentence, f"{tokens[0]}_governs_{other}")
+    return None
+
+
+def _initial_neither(tokens: list[str], sentence: str) -> Node | None:
+    """`neither A nor B [nor C]` -- n-ary, one negated clause each (section 3.3)."""
+    if "nor" not in tokens[1:]:
+        return None
+    segments: list[list[str]] = [[]]
+    for token in tokens[1:]:
+        segments.append([]) if token == "nor" else segments[-1].append(token)
+    return And(tuple(_negated(_clause(segment, sentence)) for segment in segments))
+
+
+# Head word -> the production it opens. A table rather than a chain of `if head == ...`: the
+# parser recognises five sentence-initial forms and one body testing all five scored 13 on
+# mccabe, over the complexity gate. Each handler now reads on its own, and the DISPATCH is the
+# thing a reader checks for completeness.
+_SENTENCE_INITIAL = {
+    "if": _initial_if,
+    "unless": _initial_unless,
+    "only": _initial_only,
+    "either": _initial_bracketed,
+    "both": _initial_bracketed,
+    "neither": _initial_neither,
+}
+
+
+def _sentence_initial(tokens: list[str], sentence: str) -> Node | None:
+    """The production recognised by the FIRST word, or None if none applies.
+
+    Separated from the infix scan because the order between them is load-bearing: a leading
+    "if"/"unless" must never be read as the infix keyword of a different production. Two phases
+    as two functions makes that ordering a single visible line in `parse_sentence` rather than an
+    implicit property of a long body.
+    """
+    handler = _SENTENCE_INITIAL.get(tokens[0])
+    return handler(tokens, sentence) if handler else None
+
+
+def parse_sentence(sentence: str) -> Node:
+    """Parse one sentence into a formula AST, or raise ParseError.
+
+    Three phases, in an order that is a correctness requirement rather than a preference:
+    refuse bad input, then the sentence-initial productions, then the infix ones. A leading
+    "if"/"unless" read as an infix keyword would parse a different production silently.
+    """
+    tokens = _tokenize(sentence)
+    _refuse_bad_input(tokens, sentence)
+    if initial := _sentence_initial(tokens, sentence):
+        return initial
 
     # Infix forms, longest keyword first. Scanning for "if" before "if and only if" would read a
     # biconditional as its converse and never report an error -- see HLD section 3.3.

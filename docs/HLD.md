@@ -1075,6 +1075,53 @@ allowed ten lines for policy loading and no line item for the loader at all, and
 validator alone is larger than that. See the sprint report — the projection is checked against the
 ceiling at S4, before `main.py` and `schemas.py` are written, and crossing it stops for a decision.
 
+#### S3/S4 — the line caps stop blocking, and two gates replace them
+
+The fifth budget stop of the sprint came from `session.state_of`: estimated at 22 lines, measured
+at 42. The student set `core_session` from measurement (the figure is in `budgets.toml`, with the
+derivation) and then changed the instrument, because five stops is a pattern in the instrument
+rather than in the code.
+
+**The root cause of that fifth miss, stated separately because it is not the same as the earlier
+four.** B0, S1, S2 and S3 each missed a whole *component* — the estimate had no line item for it.
+`state_of` had a line item; the item was wrong by 90%. It was priced as *the idea of a function
+that builds a session*. The code is 42 lines because `State` has 16 fields, so the constructor is
+16 lines; the keyword-only signature is 8 parameters; the clause loop is 13. **That is 37
+mechanical lines before any logic at all** — lines the language requires, which an estimate of the
+idea never counts.
+
+**The caps become REPORTED.** `tools/loc.py` prints the table and exits zero; `--strict` restores
+blocking, and the sprint rule expires at `progress-v1`. Every block report still prints the table,
+so the totals stay visible. The rationale is that a cap on a bucket was never the goal: §13.3's
+team constraint is *both members must be able to explain every module*, and the caps were a proxy
+for it. A proxy that halted work five times while the thing it proxies for was never in doubt is
+the wrong instrument.
+
+**Two gates replace them, measuring explainability directly, and both block in CI:**
+
+| Gate | Threshold | Found on the day it was switched on |
+|---|---|---|
+| `ruff C901` (mccabe) | 10, over `backend/src`, `tools`, `scripts` | **2 breaches**: `english.parse_sentence` at 18, `cli.loop` at 11 |
+| per-function code lines | 60, `tokenize`-based, docstrings and comments excluded | **0 of 131 functions**; the longest was 48 |
+
+Both breaches were fixed by **genuine extraction, with nothing allowlisted**:
+
+- `parse_sentence` became three phases — refuse bad input, the sentence-initial productions, the
+  infix ones — and the five sentence-initial forms became a **head-word dispatch table**
+  (`_SENTENCE_INITIAL`). The phase order is a correctness requirement (a leading "if" must never
+  be read as an infix keyword), and it is now one visible line rather than an implicit property of
+  a long body. All 128 grammar and CNF tests pass unchanged.
+- `cli.loop`'s `elif` chain became a `COMMANDS` table, which also lets a reader check the command
+  set against the help text in one glance.
+
+The length gate deliberately counts **code** only, so the WHY-comments rule 9 requires are never
+charged: a two-statement function wrapped in eighty lines of explanation measures 2, and a test
+asserts exactly that. `budgets.toml` carries a `[long_functions]` allowlist, printed on every run
+and currently **empty**.
+
+**S11 must report** the bucket totals against every cap version in this change log, both gate
+results, and the allowlist.
+
 #### S2 — `core/session.py`, and a conscious one-time decision to exceed the frozen core budget
 
 <!-- measured-numbers: S2 budget decision, measured 2026-10-12 -->

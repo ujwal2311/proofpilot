@@ -883,3 +883,48 @@ One more gap closed on the way. The guard that keeps third-party packages out of
 imported only the package, whose initialiser imports none of its modules — so it would not have
 noticed a validation library imported inside one of them. It now imports every module in a clean
 subprocess, and the fix was verified by injecting such an import and watching the test fail.
+
+---
+
+**Date:** 2026-10-12
+**Phase:** Sprint budget policy change — line caps become reported, two gates replace them
+**Tool:** Claude Code (Opus 5)
+**Files modified:** `budgets.toml`, `pyproject.toml`, `tools/loc.py`, `backend/src/core/english.py`,
+`backend/src/cli.py`, `backend/tests/test_loc.py`, `.github/workflows/ci.yml`, `CLAUDE.md`,
+`docs/HLD.md`
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Stop measuring the wrong thing. Five budget stops in one sprint were all estimation
+error rather than excess code, so the student made the bucket caps reported and replaced them with
+two checks that measure the actual goal.
+
+The goal the caps stood in for is that both team members must be able to explain every module in
+the viva. A ceiling on the total lines in a directory is a poor proxy for that, and a proxy that
+halts work five times while the thing it proxies for was never in doubt is the wrong instrument.
+The two replacements measure it directly and both fail the build: a cyclomatic-complexity limit of
+ten per function, and a limit of sixty code lines per function. The second counts code only, so
+the explanatory comments the project rules require are never charged against it — a function of
+two statements wrapped in eighty lines of explanation measures two, and a test asserts that, since
+a gate that punished comments would work against the thing it exists to protect.
+
+Switched on, the length limit found nothing: the longest function in the repository was
+forty-eight lines of the sixty allowed. The complexity limit found two, and both were fixed by
+extraction rather than excused. The grammar's sentence parser scored eighteen; it is now three
+phases — refuse bad input, then the productions recognised by the first word, then the infix ones
+— with the five first-word forms moved into a dispatch table. The order of those phases is a
+correctness requirement rather than a preference, because a sentence beginning with "if" must
+never be read as the infix keyword of a different production, and that ordering is now one visible
+line instead of an implicit property of a long function body. All the grammar and clause-form
+tests pass unchanged, which is what makes the extraction safe to believe. The command loop of the
+terminal client scored eleven and became a table, which has the side benefit that its command set
+can be checked against the help text at a glance.
+
+An exemption list exists for functions that genuinely cannot be shortened, each needing a one-line
+reason, and it is printed on every run so that an exemption is visible rather than buried. It is
+empty.
+
+The root cause of the fifth miss is worth separating from the four before it. Those four had no
+line item at all for a whole component. This one had an item and the item was wrong by ninety per
+cent, because it priced the idea of a function rather than the lines the language requires: the
+session object has sixteen fields, so its constructor is sixteen lines, the keyword-only signature
+is eight parameters, and the loop that names the clauses is thirteen — thirty-seven mechanical
+lines before any logic at all.

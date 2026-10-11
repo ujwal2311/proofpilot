@@ -54,11 +54,19 @@
 #  core_session -- backend/src/core/session.py
 #    The section 7 pipeline and the ONLY writer of a `State` (v2.11; enforced by
 #    `test_only_session_writes_a_state`).
-#    MEASURED 2026-10-12                                                                = 85
-#    REMAINING, and it MUST live here rather than in app/: the API's /parse has to return a
-#    `State`, so something must BUILD one from an `Analysis` -- and only this module may.
-#      state_of(analysis, exercise_id, mode, mastery, done_ids)                          = 22
-#    => 107 · ceiling 118
+#    MEASURED 2026-10-12, after the layering fix moved presentation out (no `_STATUS` table, no
+#    `schema_version`; `State.entailment` holds the `Entailment` dataclass and its enum):
+#      analyse 48 · state_of 42 · change_merges 13 · Analysis 9 · record_clause 9 · _one 5
+#      · enter_stage 4 · record_hint 2 · imports 8 · ResetRequired 1                     = 142
+#    REMAINING: the M2 translate record                                                  = 6
+#    => 148 · ceiling 163
+#
+#    ROOT CAUSE of the estimate that missed (22 against an actual 42 for `state_of`): it priced
+#    the IDEA of the function, not the lines the language requires. `State` has 16 fields, so the
+#    constructor is 16 lines; the keyword-only signature is 8 parameters; the clause loop is 13.
+#    That is 37 mechanical lines before any logic at all. This was the fifth budget stop of the
+#    sprint and the reason the caps became REPORTED rather than blocking -- see the sprint rule
+#    in CLAUDE.md and HLD section 16.
 #
 #  core_m2 -- translation.py, formula.py, narrate.py (B0 derivation, unchanged)
 #    translation 110 · formula 90 · narrate 45                                           = 245
@@ -145,8 +153,8 @@ ceiling = 940
 [core_session]
 label = "core (session)"
 patterns = ["backend/src/core/session.py"]
-cap = 107
-ceiling = 118
+cap = 148
+ceiling = 163
 
 [core_m2]
 label = "core (M2)"
@@ -187,3 +195,9 @@ capped = false
 # three small costs. The CORE TOTAL row prints the whole tree against the sum of its caps.
 [totals]
 "CORE TOTAL" = ["core", "core_session", "core_m2"]
+
+# Functions allowed to exceed the length gate, each with a one-line reason. Printed by
+# `tools/loc.py` on every run, so an exemption is visible in the CI log rather than buried here.
+# EMPTY at the time the gate was switched on: the longest function in the repo was 48 lines, and
+# the two complexity breaches were fixed by extraction rather than excused.
+[long_functions]
