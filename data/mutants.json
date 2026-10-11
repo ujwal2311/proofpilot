@@ -337,8 +337,8 @@
     {
       "id": "E11",
       "desc": "prepare() stops stripping the terminators, so 'we get wet.' and 'we get wet' are two facts",
-      "find": "    trimmed = [stripped for s in sentences if (stripped := s.strip(\" \t\n\" + _TERMINATORS))]",
-      "replace": "    trimmed = [stripped for s in sentences if (stripped := s.strip(\" \t\n\"))]"
+      "find": "    trimmed = [stripped for s in sentences if (stripped := s.strip(\" \\t\\n\" + _TERMINATORS))]",
+      "replace": "    trimmed = [stripped for s in sentences if (stripped := s.strip(\" \\t\\n\"))]"
     }
   ],
   "facts": [
@@ -533,8 +533,8 @@
     {
       "id": "SE1",
       "desc": "the conclusion is parsed raw instead of through the sentence splitter, so its trailing stop becomes part of the fact",
-      "find": "    for index, text in enumerate([*split_sentences(paragraph), *_one(conclusion)], start=1):",
-      "replace": "    for index, text in enumerate([*split_sentences(paragraph), conclusion], start=1):"
+      "find": "    for index, text in enumerate([*prepare(paragraph), *_one(conclusion)], start=1):",
+      "replace": "    for index, text in enumerate([*prepare(paragraph), conclusion], start=1):"
     },
     {
       "id": "SE2",
