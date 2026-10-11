@@ -4,7 +4,7 @@ on:
   push:
   pull_request:
 
-# 6 jobs total: 4 matrix + 1 determinism + 1 lint.
+# 7 jobs total: 4 matrix + 1 determinism + 1 lint + 1 slow sweep.
 # Runner labels are PINNED, never `-latest`: a runner that changes underneath the project turns a
 # passing build into an unreproducible failure. Labels confirmed against
 # docs.github.com/en/actions/reference/runners/github-hosted-runners.
@@ -74,6 +74,38 @@ jobs:
         env:
           PYTHONHASHSEED: "4242"
         run: python -m pytest
+
+  slow:
+    # The opt-in sweeps -- the 400-case production-budget sweep in test_search_budget.py and
+    # anything else gated on PROOFPILOT_SLOW. They are opt-in locally because they cost about a
+    # minute, but "skipped by default" plus "nobody sets the variable" is a test that does not
+    # exist. This job is the thing that sets it, so the count in CI is always the full count.
+    name: pytest (slow sweeps)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+            constraints.txt
+
+      - name: Install pinned dependencies
+        run: python -m pip install -r requirements-dev.txt -c constraints.txt
+
+      # -rs lists skip reasons. With the flag set there must be none: a test skipped in every job
+      # is a test that does not exist, and a NEW opt-in test added later must not be able to go
+      # unrun in CI the way this one did.
+      - name: pytest with the slow sweeps enabled, and nothing skipped
+        env:
+          PROOFPILOT_SLOW: "1"
+        run: |
+          python -m pytest -rs | tee slow.log
+          ! grep -q "^SKIPPED" slow.log
 
   lint:
     name: ruff
