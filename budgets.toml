@@ -109,12 +109,19 @@ frozen = "2026-10-11"
 [core]
 patterns = ["backend/src/core/*.py"]
 exclude = [
+    "backend/src/core/session.py",
     "backend/src/core/translation.py",
     "backend/src/core/formula.py",
     "backend/src/core/narrate.py",
 ]
 cap = 805
 ceiling = 886
+
+[core_session]
+label = "core (session)"
+patterns = ["backend/src/core/session.py"]
+cap = 85
+ceiling = 94
 
 [core_m2]
 label = "core (M2)"
@@ -148,3 +155,10 @@ ceiling = 732
 [tools]
 patterns = ["tools/*.py"]
 capped = false
+
+# Reported sums, so splitting a bucket can never hide a total (team condition, 2026-10-12).
+# `core` was split three ways for sound design reasons, and three small caps are easy to read as
+# three small costs. The CORE TOTAL row prints the whole tree against the sum of its caps, which
+# is the number the frozen 805/886 was originally meant to cover.
+[totals]
+"CORE TOTAL" = ["core", "core_session", "core_m2"]

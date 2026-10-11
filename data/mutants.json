@@ -522,5 +522,165 @@
       "find": "MASTERY_SLACK = 1e-3",
       "replace": "MASTERY_SLACK = 2e-3"
     }
+  ],
+  "session": [
+    {
+      "id": "SE1",
+      "desc": "the conclusion is parsed raw instead of through the sentence splitter, so its trailing stop becomes part of the fact",
+      "find": "    for index, text in enumerate([*split_sentences(paragraph), *_one(conclusion)], start=1):",
+      "replace": "    for index, text in enumerate([*split_sentences(paragraph), conclusion], start=1):"
+    },
+    {
+      "id": "SE2",
+      "desc": "relevance runs on an inconsistent KB, where it may delete the only refutation",
+      "find": "        if entailment.verdict is Verdict.INCONSISTENT_PREMISES\n        else filter_clauses(kb, goal, entailment)",
+      "replace": "        if False\n        else filter_clauses(kb, goal, entailment)"
+    },
+    {
+      "id": "SE3",
+      "desc": "a sentence that fails to parse is dropped instead of kept with its error code",
+      "find": "            trees.append(None)\n            records.append(SentenceRec(f\"s{index}\", text, \"error\", refused.code.value))",
+      "replace": "            trees.append(None)"
+    },
+    {
+      "id": "SE4",
+      "desc": "an unparseable conclusion still gets an entailment verdict invented for it",
+      "find": "    if trees[-1] is None:",
+      "replace": "    if False:"
+    },
+    {
+      "id": "SE5",
+      "desc": "fact polarity is ignored, so a negated phrase maps to a positive literal",
+      "find": "    sign = {p.text: (\"\" if found.polarity_of[p.id] else \"~\") for p in found.phrase_of.values()}",
+      "replace": "    sign = dict.fromkeys((p.text for p in found.phrase_of.values()), \"\")"
+    },
+    {
+      "id": "SE6",
+      "desc": "the student's merges are not replayed, so a correction is silently discarded",
+      "find": "        tuple((m.a, m.b, m.relation) for m in merges),",
+      "replace": "        (),"
+    },
+    {
+      "id": "SE7",
+      "desc": "the hint ladder wraps past 3 instead of topping out",
+      "find": "    return replace(state, hint_level=min(state.hint_level + 1, 3))",
+      "replace": "    return replace(state, hint_level=state.hint_level + 1)"
+    },
+    {
+      "id": "SE8",
+      "desc": "adding a clause does not reset the hint level, so the next step is charged as hinted",
+      "find": "        clauses=(*state.clauses, clause),\n        hint_level=0,",
+      "replace": "        clauses=(*state.clauses, clause),\n        hint_level=state.hint_level,"
+    },
+    {
+      "id": "SE9",
+      "desc": "deriving the empty clause does not solve the exercise",
+      "find": "    solved = not clause.literals",
+      "replace": "    solved = False"
+    },
+    {
+      "id": "SE10",
+      "desc": "a merge change is applied without confirmation, destroying the proof silently",
+      "find": "    if state.stage in (\"translate\", \"prove\", \"explain\") and not confirmed:",
+      "replace": "    if False:"
+    },
+    {
+      "id": "SE11",
+      "desc": "a confirmed merge change keeps the clauses built on the OLD symbol assignment",
+      "find": "        translations=(),\n        clauses=(),\n        relevant_ids=(),",
+      "replace": "        translations=(),\n        clauses=state.clauses,\n        relevant_ids=(),"
+    },
+    {
+      "id": "SE12",
+      "desc": "changing stage does not reset the hint level",
+      "find": "    return replace(state, stage=stage, hint_level=0)",
+      "replace": "    return replace(state, stage=stage, hint_level=state.hint_level)"
+    }
+  ],
+  "tutor": [
+    {
+      "id": "T1",
+      "desc": "V-2 is broken: search runs even when the conclusion does not follow",
+      "find": "    if verdict is not Verdict.ENTAILED:\n        return Hint(f\"HINT_NOT_FOLLOW_{level}\", level)",
+      "replace": "    if False:\n        return Hint(f\"HINT_NOT_FOLLOW_{level}\", level)"
+    },
+    {
+      "id": "T2",
+      "desc": "level 1 already carries the resolvent, leaking the answer into the payload",
+      "find": "        resolvent if level == 3 else None,",
+      "replace": "        resolvent,"
+    },
+    {
+      "id": "T3",
+      "desc": "every level reveals both parent clauses",
+      "find": "        parents if level == 3 else parents[:level],",
+      "replace": "        parents,"
+    },
+    {
+      "id": "T4",
+      "desc": "a budget fallback is reported as a searched best step",
+      "find": "        f\"HINT_{level}\" if searched else \"HINT_FALLBACK\",",
+      "replace": "        f\"HINT_{level}\","
+    },
+    {
+      "id": "T5",
+      "desc": "the hint rule creates observations that were not there, scoring null skills wrong",
+      "find": "        if value is not None",
+      "replace": "        if True"
+    },
+    {
+      "id": "T6",
+      "desc": "a hint no longer turns an observation wrong, so hints become free",
+      "find": "        Skill(name): (value == \"right\" and not hinted)",
+      "replace": "        Skill(name): (value == \"right\")"
+    },
+    {
+      "id": "T7",
+      "desc": "an exhausted work budget scores STRATEGY wrong instead of leaving it unobserved",
+      "find": "    split = \"unknown\" if productive is None else (\"productive\" if productive else \"unproductive\")",
+      "replace": "    split = \"productive\" if productive else \"unproductive\""
+    },
+    {
+      "id": "T8",
+      "desc": "apply_evidence adds skills the student's milestone does not track",
+      "find": "        skill: update(value, observed[skill], params) if skill in observed else value\n        for skill, value in mastery.items()",
+      "replace": "        skill: update(mastery.get(skill, 0.5), correct, params)\n        for skill, correct in observed.items()"
+    },
+    {
+      "id": "T9",
+      "desc": "an action is allowed in any stage, so the transition table stops refusing",
+      "find": "    if (stage, action) not in TRANSITIONS:",
+      "replace": "    if False:"
+    },
+    {
+      "id": "T10",
+      "desc": "a merge in the Prove stage no longer rewinds to Facts, so the A4 reset is skipped",
+      "find": "    (\"prove\", \"merge\"): \"facts\",",
+      "replace": "    (\"prove\", \"merge\"): \"prove\","
+    },
+    {
+      "id": "T11",
+      "desc": "the band boundary is strict, sending a student at exactly 0.4 to the short band",
+      "find": "    if mean < 0.4:",
+      "replace": "    if mean <= 0.4:"
+    },
+    {
+      "id": "T12",
+      "desc": "next_exercise prefers seen exercises over unseen ones",
+      "find": "        return (seen, last_seen.get(exercise.id, 0) if seen else distance, distance, exercise.id)",
+      "replace": "        return (not seen, last_seen.get(exercise.id, 0) if seen else distance, distance, exercise.id)"
+    },
+    {
+      "id": "T13",
+      "desc": "a repeat is chosen by its FIRST sighting, so the student is re-offered what they just did",
+      "find": "    last_seen = {exercise_id: index for index, exercise_id in enumerate(done_ids)}",
+      "replace": "    last_seen = {}\n    for index, exercise_id in enumerate(done_ids):\n        last_seen.setdefault(exercise_id, index)"
+    },
+    {
+      "id": "T14",
+      "desc": "band distance ignores the tie-break toward the easier band",
+      "find": "        distance = abs(BANDS.index(band) - target) if band in BANDS else 0",
+      "replace": "        distance = -abs(BANDS.index(band) - target) if band in BANDS else 0"
+    }
   ]
 }

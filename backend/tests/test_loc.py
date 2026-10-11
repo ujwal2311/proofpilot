@@ -95,6 +95,58 @@ def test_real_buckets_are_within_their_ceilings() -> None:
     assert loc.main() == 0
 
 
+# ---------------------------------------------------------------- reported totals (v2.11)
+
+
+def test_a_total_sums_its_members_and_is_printed(capsys) -> None:
+    # The condition behind the v2.11 split: a bucket divided for sound design reasons must still
+    # show its whole cost, because three small caps read as three small costs.
+    buckets = {
+        "a": {"patterns": CORE, "cap": 10, "ceiling": 11},
+        "b": {"patterns": CORE, "cap": 20, "ceiling": 22},
+    }
+    assert loc.main(buckets, {"SUM": ["a", "b"]}) == 1  # both over, as expected
+    rows = {line.split()[0]: line.split()[1:4] for line in capsys.readouterr().out.splitlines()[1:]}
+    assert rows["SUM"][1:] == ["30", "33"], "the total must sum the member caps and ceilings"
+    assert int(rows["SUM"][0]) == int(rows["a"][0]) + int(rows["b"][0])
+
+
+def test_the_core_total_covers_every_core_bucket_and_nothing_else() -> None:
+    # The whole point is that no core bucket can hide outside the reported total, so this is
+    # checked against the bucket list rather than against a copy of it.
+    totals = loc.load_totals()
+    assert "CORE TOTAL" in totals, "budgets.toml must report a combined core figure"
+    every_core = {name for name in loc.load_buckets() if name.startswith("core")}
+    assert set(totals["CORE TOTAL"]) == every_core, (
+        f"CORE TOTAL lists {sorted(totals['CORE TOTAL'])}, core buckets are {sorted(every_core)}"
+    )
+
+
+def test_totals_is_not_mistaken_for_a_bucket() -> None:
+    # `[totals]` is a TOML table like any other. The first version of load_buckets took every
+    # table and crashed on the missing `patterns` key rather than ignoring it.
+    assert "totals" not in loc.load_buckets()
+
+
+def test_the_number_of_capped_buckets_is_frozen() -> None:
+    """No more new buckets to absorb an overrun (team condition, 2026-10-12).
+
+    Three buckets were added in two days -- core_m2 at B0, core_session at S2 -- each for a real
+    reason, and each one also made the next overrun easier to absorb. That stops here: a further
+    overrun is a STOP-and-ask, not a new row in this file. Asserted as a count so adding one
+    fails the build and has to be a deliberate, discussed change rather than a quiet commit.
+    """
+    capped = [name for name, spec in loc.load_buckets().items() if spec.get("capped", True)]
+    assert sorted(capped) == [
+        "api_cli",
+        "core",
+        "core_m2",
+        "core_session",
+        "frontend",
+        "scripts",
+    ], "a bucket was added or removed; see the v2.11 overrun condition in CLAUDE.md"
+
+
 def test_an_excluded_file_is_not_counted_twice(capsys) -> None:
     # `core` and `core_m2` share a directory (v2.11), so the M1 bucket excludes the M2 files by
     # name. If `exclude` were ignored, M1 would be measured against an M2 overrun.

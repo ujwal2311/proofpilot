@@ -91,8 +91,10 @@ overrun rule — without repeating a single figure.
 | Budget | Where the number lives | Scope |
 |---|---|---|
 | Hours | §13.3 (**77.00 person-hours accepted**, ≈38.5 h each; contingency 75.00) | includes review-and-understand time **and** cross-module walkthroughs |
-| Core lines | `budgets.toml` → `[core]` | `backend/src/core/*.py`, **excluding the M2 modules** |
+| Core lines | `budgets.toml` → `[core]` | `backend/src/core/*.py`, **excluding `session.py` and the M2 modules** |
+| core (session) | `budgets.toml` → `[core_session]` | `session.py` (v2.11) |
 | core (M2) | `budgets.toml` → `[core_m2]` | `translation.py`, `formula.py`, `narrate.py` (v2.11) |
+| **CORE TOTAL** | `budgets.toml` → `[totals]`, **reported, not enforced** | the three core buckets summed, so a split can never show its cost as three small ones |
 | api + cli | `budgets.toml` → `[api_cli]` | `backend/src/api/*.py` + `backend/src/cli.py`, excluding tests |
 | scripts | `budgets.toml` → `[scripts]` | `scripts/*.py` — **evaluation** tooling, never shipped |
 | Frontend | `budgets.toml` → `[frontend]` | `frontend/src/**` |
@@ -281,6 +283,7 @@ flowchart LR
             E7[logic.py]
             E8[bkt.py]
             E9[tutor.py]
+            E9b[session.py]
             E10[config.py]
             E11["translation.py (M2)"]
             E12["narrate.py (M2)"]
@@ -315,8 +318,9 @@ with no fixture files on disk.
 | `core/relevance.py` | Fact-graph BFS; which clauses are needed | Search, hints | M1 |
 | `core/search.py` | Exact BFS distance, best next step, productivity, the shared work budget, rule-based fallback hint | Diagnosis, mastery | M1 |
 | `core/logic.py` | Literal normalization, resolvents, 6-code step diagnosis | Search, CNF | M1 |
-| `core/bkt.py` | Single-skill Bayesian update + parameter validation | Which skills to update | M1 |
-| `core/tutor.py` | Evidence mapping, mastery update orchestration, next-exercise selection, done check | The BKT math | M1 |
+| `core/bkt.py` | Single-skill Bayesian update, parameter validation, **the done check** | Which skills to update | M1 |
+| `core/tutor.py` | **Policy only:** the stage x action transition table, the evidence mapping, the hint ladders, next-exercise selection | The BKT math, the done check (`bkt.py`), **any `State`** | M1 |
+| `core/session.py` | **Mechanics only:** the §7 pipeline (`analyse`), and **every** edit to a `State` — hint-level tracking, clause recording, the v2.7 A4 reset (v2.11) | Deciding what an action means | M1 |
 | `core/config.py` | **Every** numeric limit and seed, as named constants | Any logic | M1 |
 | `core/translation.py` | Symbolic formula parsing, equivalence, 3 diagnoses, counterexample | The reference parse | M2 |
 | `core/narrate.py` | Finished proof → English prose | Step-level feedback (that's `messages.yaml`) | M2 |
@@ -931,11 +935,21 @@ What belongs here is the policy, not the arithmetic:
   cost 45 lines out of a bucket that also had to hold the evaluation scripts.
 - `scripts/*.py` stays capped, and now means **evaluation** tooling only: `difficulty.py`,
   `run_experiments.py`, `heldout_eval.py`.
-- **M1 core and M2 core are separate buckets** (v2.11). They share `backend/src/core/`, so
-  `[core]` carries an `exclude` list naming the three M2 modules, and
-  `test_every_core_module_is_measured_by_exactly_one_bucket` fails the build if a core module
-  ends up in both buckets or in neither. An M2 overrun therefore cuts M2 without ever being
-  charged against M1's frozen cap.
+- **Core is three buckets** (v2.11): `[core]` for M1, `[core_session]` for `session.py`,
+  `[core_m2]` for the M2 modules. They share `backend/src/core/`, so `[core]` carries an
+  `exclude` list, and `test_every_source_file_is_measured_by_exactly_one_bucket` fails the build
+  if a core module ends up in two buckets or in none.
+- **Every table prints the combined CORE TOTAL** beside them. Splitting a bucket for a sound
+  design reason is legitimate; letting the split present one cost as three small ones is not. The
+  total is **reported, not enforced** — it cannot exceed the sum of the ceilings unless a member
+  already exceeded its own, so enforcing it would add nothing.
+- **NO MORE BUCKETS (team, 2026-10-12).** Three buckets were added in two days, each for a real
+  reason and each one also making the next overrun easier to absorb. A new bucket is no longer an
+  available answer: **a further overrun is a STOP and ask.**
+  `test_the_number_of_capped_buckets_is_frozen` asserts the list.
+- **Cutting M2 no longer relieves a `core` overrun.** B0 moved M2 into its own bucket, so the
+  frozen remedy "an overrun cuts M2 scope first" cannot be applied to `[core]` any more. There,
+  the answer is to simplify or to stop and ask.
 
 ---
 
@@ -1045,6 +1059,84 @@ Item 8 also surfaced a **risk, recorded rather than acted on**: the frozen `api_
 allowed ten lines for policy loading and no line item for the loader at all, and the policy
 validator alone is larger than that. See the sprint report — the projection is checked against the
 ceiling at S4, before `main.py` and `schemas.py` are written, and crossing it stops for a decision.
+
+#### S2 — `core/session.py`, and a conscious one-time decision to exceed the frozen core budget
+
+<!-- measured-numbers: S2 budget decision, measured 2026-10-12 -->
+
+The sprint's S2 block wrote `tutor.py` and it measured **200 code lines against a 95-line
+estimate**, taking `core` to **921 against its 886 ceiling**. The block stopped and the team
+decided. This is the record of that decision, with the measured numbers rather than a summary.
+
+**The estimate was not wrong about what it covered.** Measured per function, the parts the
+derivation priced — the transition table, the evidence lookup, the hint ladders, the A4 reset,
+next-exercise selection — came to **~100 lines against 95**. What blew the budget was an omission:
+
+| part of the one module | code lines | line item in the frozen derivation? |
+|---|---|---|
+| §7 pipeline (`analyse`, `Analysis`) | 47 | **none — in any bucket** |
+| transitions table + `allowed`/`advance` | 20 | yes |
+| evidence (`step_trigger`/`observe`/`apply_evidence`) | 20 | yes |
+| hints (`Hint`, `plan_hint`) | 25 | yes |
+| `State` mechanics (hint level, clause recording, A4 reset) | 28 | the reset only (13) |
+| selection (`band_of_mastery`, `next_exercise`) | 22 | yes |
+| imports and module scaffolding | 15 | no |
+
+**§7's mandatory pipeline ordering is a named correctness requirement with its own test, and it
+belonged to no module in §4.1 and to no line item in `budgets.toml`.** That is the third gap of
+exactly this shape found in two days — M2's modules at B0, `loader.py` at S1, the pipeline here —
+and all three were omissions from the bottom-up estimate rather than code that grew.
+
+**The decision (team, 2026-10-12), taken for the DESIGN reason and not the budget one.** The
+pipeline and the `State` edits move to a new core module, **`session.py`**, split from `tutor.py`
+along what each one is *about*:
+
+- `tutor.py` is **policy** — what a student's action means, what may happen next, what to hint,
+  what to offer next. Pure functions over plain data; it never touches a `State`.
+- `session.py` is **mechanics** — the §7 pipeline, and every edit to a `State`.
+
+So **`State` is written by exactly one module.** While both lived together, the module deciding
+policy also edited the session, and a change to either could reach the other with nothing to say
+so. That boundary is now enforced structurally, not by review:
+`test_only_session_writes_a_state` parses every core module and fails if any but `session.py`
+constructs a `State` or `dataclasses.replace()`s one, with a companion test proving the guard is
+not vacuous.
+
+**Measured after the split**, and the honest total is stated rather than the three small ones:
+
+| bucket | code | cap | ceiling | |
+|---|---|---|---|---|
+| `core` (11 M1 modules) | 840 | 805 | 886 | warn band, justified here |
+| `core_session` (`session.py`) | 85 | 85 | 94 | new bucket |
+| `core_m2` | 0 | 245 | 270 | built at S6 |
+| **CORE TOTAL** | **925** | **1135** | **1250** | reported, not enforced |
+
+`tutor.py` now measures **96 against its 95-line estimate**. All 85 `tutor`/`session` tests pass
+either way — the split moved no logic and changed no behaviour.
+
+**What is being admitted.** The frozen 805/886 was meant to cover M1's core tree. Measured as one
+tree that tree now needs **925 lines — 120 over the frozen cap and 39 over the frozen ceiling.**
+Three buckets make each number look compliant; the CORE TOTAL row exists so the 925 is never
+hidden behind them. **This is a conscious, one-time decision to exceed the frozen core budget in
+order to keep full scope (M1 + M2) for the progress review**, not a re-derivation and not a cap
+raise.
+
+<!-- /measured-numbers -->
+
+The conditions attached to it:
+
+1. every `tools/loc.py` table and every budget table in the docs prints the combined CORE TOTAL;
+2. **no more buckets** — a further overrun is a STOP and ask, asserted by
+   `test_the_number_of_capped_buckets_is_frozen`;
+3. the `tutor`/`session` boundary is enforced by the `ast` test above;
+4. `session.py` joins the reading guide, the §17.11 viva list and the mutation targets (≥10
+   mutants at S9), so a new module does not become a module nobody can defend.
+
+It also records a consequence of B0 that the frozen policy does not cover: **cutting M2 can no
+longer relieve a `core` overrun**, because M2 now has its own bucket. "An overrun cuts M2 scope
+first" is still the rule for M2's bucket, and is structurally unavailable for `core`'s.
+
+No behaviour, algorithm, grammar, data-model or API change.
 
 ### From v2.9 → v2.10 — student budget decision + bounded cache, 2026-10-11
 
@@ -1696,9 +1788,17 @@ and (o) was undefined until v2.2; all are now pinned by a named test or an expli
   holds tuples rather than lists, so a function that tried to modify its argument crashes instead
   of corrupting the caller's copy. It contains no logic and reads no file.
 - **`tutor.py`** — It decides which skills a given outcome is evidence about, then asks `bkt.py` to
-  update each one. It picks the next exercise by matching average mastery to a difficulty band,
-  preferring exercises not yet seen. It declares the student done when every tracked skill passes
-  the threshold.
+  update each one. It also holds the table of which actions are allowed in which stage, and
+  works out what each hint level is allowed to reveal. It picks the next exercise by matching
+  average mastery to a difficulty band, preferring exercises not yet seen — and it never touches
+  the session itself, so every function in it can be tested from plain values.
+- **`session.py`** — It runs the whole reading pipeline in one place, in the one order that is
+  correct: parse the sentences, group them into facts, check the premises do not contradict each
+  other, decide by truth table whether the conclusion follows, and only then work out which
+  premises are relevant. It is also the only module that writes a session, so every change to
+  what the student has done — a hint used, a clause added, a merge undone — happens here and
+  nowhere else. That is why changing a merge can safely throw away the proof built on the old
+  symbols: one module decides what survives.
 - **`translation.py` (M2)** — It parses the student's typed formula and compares it to the system's
   own formula using a truth table, so two differently written but equivalent formulas both count
   as correct. If they differ, it tries three specific mutations of the correct answer — converse,

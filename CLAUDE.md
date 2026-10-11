@@ -61,6 +61,16 @@ must be disclosed. Therefore:
   **OVERRUN POLICY (frozen 2026-10-11): an overrun cuts M2 scope first. The caps are never raised
   again.** Above a ceiling the answer is to simplify or to cut M2 — a cap that moves whenever it
   is reached is not a cap.
+  **NO MORE BUCKETS (team, 2026-10-12).** Three buckets were added in two days — `core_m2` at B0,
+  `core_session` at S2 — each for a real design reason, and each one also made the next overrun
+  easier to absorb. A new bucket is no longer an available answer to an overrun: **any further
+  overrun is a STOP and ask the student.** `test_the_number_of_capped_buckets_is_frozen` asserts
+  the bucket list so adding one fails the build. Note also that **cutting M2 no longer relieves a
+  `core` overrun** — B0 moved M2 into its own bucket, so the sentence above cannot be applied to
+  that bucket any more; the remedy there is to simplify or to stop and ask.
+  Every `tools/loc.py` table and every budget table in the docs must print the **combined
+  CORE TOTAL** (`core` + `core_session` + `core_m2`) beside the individual buckets, so that a
+  bucket split for sound design reasons can never present its cost as three small ones.
 - Both members must be able to explain every module. Joint walkthroughs are budgeted (§13.3), and
   `docs/HLD.md` §17.11 holds the three-sentence explanation of each module.
 

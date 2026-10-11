@@ -31,6 +31,7 @@ Plus `CLAUDE.md` in full. It is short and it is the rules.
 | 5 — `entail.py` | §6.4 Entailment | §17.5 Correctness arguments |
 | 5 — `relevance.py` | §6.5 Relevance filter | §7 Pipeline ordering |
 | 6 — `bkt.py`, `tutor.py` | §6.8 BKT, §9 Evidence Mapping | §17.7 BKT re-check |
+| 6 — `session.py` | §7 Pipeline ordering, §5 Data Model and State, §6.6.1 Hints when the conclusion does not follow | §17.9 scenarios (a), (g), (p), (q); §16 v2.11 — why it is split from `tutor.py`, and the `ast` test that keeps it so |
 | 7 — CLI | §5 Data Model and State | §2 (M1 scope) |
 | 8 — API | §8 API Contract and Error Model | §17.8 API audit |
 | 9 — Frontend | §5 Data Model, §8 API Contract | §13.4 (frontend budget) |
@@ -40,7 +41,7 @@ Plus `CLAUDE.md` in full. It is short and it is the rules.
 ## By owner (HLD §4.1)
 
 - **Member A** — own §3, §6.1, §6.2, §6.3, §6.4, §6.5 and their audits (§17.2–17.5).
-- **Member B** — own §6.6, §6.6.1, §6.7, §6.8, §8, §9 and their audits (§17.6–17.8).
+- **Member B** — own §6.6, §6.6.1, §6.7, §6.8, §7, §8, §9 and their audits (§17.6–17.8).
 - **Both** — read the other's sections before that phase's gate. Both members must be able to
   explain every module (HLD §2); the joint walkthroughs that deliver this are budgeted in §13.3.
 

@@ -22,9 +22,28 @@ BUDGETS = ROOT / "budgets.toml"
 
 
 def load_buckets(path: Path = BUDGETS) -> dict[str, dict]:
-    """Bucket definitions from budgets.toml, in declaration order."""
+    """Bucket definitions from budgets.toml, in declaration order.
+
+    A table only counts as a bucket if it declares `patterns`; `[totals]` is a table too, and
+    treating it as a bucket crashed on the missing key rather than being ignored.
+    """
     config = tomllib.loads(path.read_text(encoding="utf-8"))
-    return {name: table for name, table in config.items() if isinstance(table, dict)}
+    return {
+        name: table
+        for name, table in config.items()
+        if isinstance(table, dict) and "patterns" in table
+    }
+
+
+def load_totals(path: Path = BUDGETS) -> dict[str, list[str]]:
+    """Reported sums: label -> the buckets it adds up.
+
+    They exist so that splitting a bucket can never hide a total. `core` is three buckets for
+    sound design reasons, and three small caps read as three small costs unless the whole tree is
+    printed next to them (team condition, 2026-10-12).
+    """
+    config = tomllib.loads(path.read_text(encoding="utf-8"))
+    return config.get("totals", {})
 
 
 def measure(path: Path) -> dict[str, int]:
@@ -64,21 +83,25 @@ def lines_with_ends(text: str) -> list[str]:
     return [line + "\n" for line in text.splitlines()] + [""]
 
 
-def main(buckets: dict | None = None) -> int:
-    """Print the table; return 1 if any ceiling is breached. `buckets` is injectable for tests."""
-    buckets = load_buckets() if buckets is None else buckets
-    print(f"{'bucket':12} {'code':>6} {'cap':>6} {'ceil':>6} {'doc':>6} {'blank':>6} {'total':>6}")
+def main(buckets: dict | None = None, totals: dict | None = None) -> int:
+    """Print the table; return 1 if any ceiling is breached. Injectable for tests."""
+    if buckets is None:
+        buckets, totals = load_buckets(), load_totals() if totals is None else totals
+    totals = totals or {}
+    print(f"{'bucket':15} {'code':>6} {'cap':>6} {'ceil':>6} {'doc':>6} {'blank':>6} {'total':>6}")
     breached = []
+    measured: dict[str, tuple[int, int, int]] = {}
     for name, spec in buckets.items():
         excluded = {ROOT / p for p in spec.get("exclude", ())}
         files = sorted({f for p in spec["patterns"] for f in ROOT.glob(p)} - excluded)
-        totals = {
+        counts = {
             k: sum(measure(f)[k] for f in files)
             for k in ("code", "docstring", "comment", "blank", "total")
         }
-        code = totals["code"]
+        code = counts["code"]
         capped = spec.get("capped", True)
         cap, ceiling = (spec["cap"], spec["ceiling"]) if capped else (0, 0)
+        measured[name] = (code, cap, ceiling) if capped else (code, 0, 0)
         # A ceiling fails the build; the cap only warns. Between them is the band the gate report
         # has to justify -- a hard stop at the estimate would make every honest estimate a lie.
         flag = ""
@@ -88,10 +111,20 @@ def main(buckets: dict | None = None) -> int:
         elif capped and code > cap:
             flag = "  WARN over cap"
         print(
-            f"{spec.get('label', name):12} {code:>6} {cap if capped else '-':>6} "
-            f"{ceiling if capped else '-':>6} {totals['docstring']:>6} "
-            f"{totals['blank']:>6} {totals['total']:>6}{flag}"
+            f"{spec.get('label', name):15} {code:>6} {cap if capped else '-':>6} "
+            f"{ceiling if capped else '-':>6} {counts['docstring']:>6} "
+            f"{counts['blank']:>6} {counts['total']:>6}{flag}"
         )
+
+    # Reported sums. They cannot FAIL independently -- a sum can only exceed the sum of the
+    # ceilings if a member already exceeded its own -- so enforcing them would add nothing. They
+    # are printed because a bucket split for sound design reasons still has to show its whole
+    # cost: three small caps read as three small costs otherwise (team condition, 2026-10-12).
+    for label, members in totals.items():
+        rows = [measured[m] for m in members if m in measured]
+        code, cap, ceiling = (sum(column) for column in zip(*rows, strict=True))
+        print(f"{label:15} {code:>6} {cap:>6} {ceiling:>6} {'':>6} {'':>6} {'':>6}  (reported)")
+
     for message in breached:
         print(f"BUDGET EXCEEDED -- {message}", file=sys.stderr)
     return 1 if breached else 0

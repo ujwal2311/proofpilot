@@ -729,3 +729,55 @@ that is recorded rather than acted on: the frozen estimate for that bucket allow
 loading the policy and no line item for the loader itself, and the validator alone is larger than
 that. The projection is checked against the ceiling before the web layer is written, and crossing
 it stops for a decision rather than being absorbed.
+
+---
+
+**Date:** 2026-10-12
+**Phase:** Sprint block S2 — the tutoring policy module, and the split that paid for it
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/src/core/tutor.py`, `backend/src/core/session.py`,
+`backend/tests/test_tutor.py`
+**Files modified:** `backend/src/core/english.py`, `backend/tests/test_core_layout.py`,
+`backend/tests/test_loc.py`, `backend/tests/test_docs_version.py`, `tools/loc.py`,
+`budgets.toml`, `data/mutants.json`, `docs/HLD.md`, `docs/READING_GUIDE.md`, `CLAUDE.md`
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Build the module that decides what a student's action means, and resolve the budget
+overrun that writing it exposed.
+
+The module came in at more than twice its estimate, which took the core tree past the ceiling that
+fails the build, so the block stopped and the student decided. Measuring it function by function
+showed the estimate had been accurate about everything it covered; what broke the budget was that
+the mandatory pipeline ordering — a named correctness requirement with its own test — belonged to
+no module in the design document and to no line item in the budget file. That is the third
+omission of the same shape in two days, after the second milestone's modules and the data loader,
+and in every case the estimate had left something out rather than the code having grown.
+
+The student chose to split the module in two, for the design reason rather than the budget one.
+One half is policy: what an action means, what may happen next, what a hint may reveal, which
+exercise comes next — all pure functions over plain values, none of which need a session to be
+tested. The other half is mechanics: the reading pipeline, and every edit to the session. The
+consequence worth having is that the session is now written by exactly one module, where before
+the module deciding policy also edited the session and a change to either could reach the other
+with nothing to say so. That boundary is enforced by a test that parses every core module and
+fails if any but the one owner constructs or copies a session, with a companion test proving the
+check is not vacuous.
+
+The student attached conditions, all of which are in place. The measuring tool and every budget
+table now print a combined core total beside the three separate buckets, so a split made for sound
+reasons cannot present one cost as three small ones. No further bucket may be added: a later
+overrun stops for a decision, and the bucket list is asserted so adding one fails the build. The
+design document records the decision as a conscious, one-time choice to exceed the frozen core
+budget in order to keep the full scope for the progress review, with the measured numbers and with
+the admission that the tree now needs a fifth more than the frozen figure allowed. The new module
+was added to the design document, the reading guide, the per-module explanation list and the
+mutation targets.
+
+Two findings came out of the work itself. The conclusion had been parsed without going through the
+sentence splitter that normalises the paragraph, so its trailing full stop stayed attached and the
+worked example in the design review stopped following from its own premises — a wrong answer rather
+than a crash, and the kind that a suite of unit tests on separate modules cannot see. And the test
+that guards against a budget figure being restated in prose had to be narrowed: a two-digit figure
+cannot be told apart from an ordinary number, and the new bucket's figure collided with three
+unrelated numbers in the design document. Rather than exempt whole sections, measurement records
+are now fenced explicitly and dated, the guard covers only figures of three digits or more, and
+the gap this leaves is stated in the test rather than left to be discovered.

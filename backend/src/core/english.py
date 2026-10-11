@@ -56,6 +56,26 @@ class Iff:
 Node = Atom | Not | And | Or | Implies | Iff
 
 
+def phrases_of(node: Node) -> tuple[str, ...]:
+    """Every fact phrase in the tree, deduplicated, in first-appearance order.
+
+    First-appearance order, not sorted: `facts.extract` assigns phrase ids `p1, p2, …` in the
+    order the student wrote them, and a merge instruction addresses those ids. Sorting here would
+    renumber a student's phrases whenever they edited an earlier sentence.
+    """
+    match node:
+        case Atom(phrase=phrase):
+            return (phrase,)
+        case Not(item=only):
+            children: tuple[Node, ...] = (only,)
+        case And(items=items) | Or(items=items):
+            children = items
+        case Implies(antecedent=left, consequent=right) | Iff(left=left, right=right):
+            children = (left, right)
+    found = [phrase for child in children for phrase in phrases_of(child)]
+    return tuple(dict.fromkeys(found))
+
+
 # --------------------------------------------------------------------------------- the errors
 
 
