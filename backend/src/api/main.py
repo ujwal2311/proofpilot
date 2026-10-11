@@ -21,6 +21,7 @@ to map an error it did not know about.
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -62,6 +63,26 @@ api.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["*"], a
 app = api  # uvicorn target
 
 
+@api.middleware("http")
+async def limit_body_size(request: Request, call_on):
+    """Refuse an oversized body, by BOTH the declared length and the bytes that actually arrive.
+
+    Two checks, because either alone is defeated trivially. `Content-Length` is the cheap one and
+    it rejects the honest oversized request before a byte of body is read -- but a client can lie
+    about it, or omit it entirely with chunked encoding. So the body is also read and measured.
+
+    `request.body()` is cached by Starlette, so reading it here costs nothing downstream: the
+    endpoint gets the same bytes rather than a consumed stream.
+    """
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > schemas.MAX_BODY_BYTES:
+        return _problem(PayloadTooLarge, f"content-length {declared}")
+    body = await request.body()
+    if len(body) > schemas.MAX_BODY_BYTES:
+        return _problem(PayloadTooLarge, f"{len(body)} bytes")
+    return await call_on(request)
+
+
 def runtime() -> edge.Runtime:
     return RUNTIME["edge"]
 
@@ -73,6 +94,10 @@ def _check_version(sent: int) -> None:
 
 class StateVersionMismatch(ValueError):
     """The client's stored session predates a shape change; it must discard and restart."""
+
+
+class PayloadTooLarge(ValueError):
+    """A request body over the limit (-> 413)."""
 
 
 # -------------------------------------------------------------------------------- endpoints
@@ -120,13 +145,17 @@ def parse(body: ParseRequest) -> dict:
     never inferred (v2.6 A1).
     """
     _check_version(body.state_version)
-    found = edge.prepare(body.paragraph, body.conclusion, tuple(body.merges))
+    # Strictly validated into core dataclasses here. The envelope carries `list[dict]` because a
+    # STRICT envelope would demand actual `MergeChoice` instances and a JSON body only ever has
+    # objects -- so the conversion has to happen in the one place that knows how.
+    merges = schemas.load_merges(body.merges)
+    found = edge.prepare(body.paragraph, body.conclusion, merges)
     fresh = session.state_of(
         found,
         paragraph=body.paragraph,
         conclusion=body.conclusion,
         mode="own_question",
-        merges=tuple(body.merges),
+        merges=merges,
     )
     say = runtime().render
     return {
@@ -262,9 +291,12 @@ class NotImplementedUntilM2(ValueError):
 # the exception, because every one of these carries the offending value and the client log needs
 # it. These are NOT student-facing feedback, so they are not in messages.yaml.
 STATUS = {
-    ParseError: (422, "UNPROCESSABLE"),
-    ValidationError: (422, "UNPROCESSABLE"),
+    ParseError: (422, "SCHEMA_INVALID"),
+    ValidationError: (422, "SCHEMA_INVALID"),
+    RequestValidationError: (422, "SCHEMA_INVALID"),
     schemas.UnknownField: (422, "UNKNOWN_FIELD"),
+    PayloadTooLarge: (413, "PAYLOAD_TOO_LARGE"),
+    Exception: (500, "INTERNAL_ERROR"),
     UnknownClause: (400, "UNKNOWN_CLAUSE"),
     Tampered: (400, "TAMPERED_STATE"),
     TransitionError: (400, "WRONG_STAGE"),
@@ -276,12 +308,34 @@ STATUS = {
 }
 
 
-def _problem(kind: type, detail: str) -> JSONResponse:
+def _problem(kind: type, details: str | None) -> JSONResponse:
+    """The one error envelope: `{code, message, details?}`.
+
+    `message` comes from `messages.yaml`, so every sentence a person may read lives in one
+    reviewable file. `details` is the machine specifics and is omitted when there are none -- a
+    500 carries no details at all, deliberately.
+
+    **The message lookup catches everything.** `runtime()` can itself be the thing that failed --
+    a data-file error at startup is reported through this very function -- and a first draft
+    caught only `KeyError`/`LookupError`. Injecting a `RuntimeError` into `runtime()` produced a
+    500 with an EMPTY BODY: the handler raised while handling, and the client got something it
+    could not parse. An error path that can fail is not an error path, so the fallback is total.
+    """
     status, code = STATUS[kind]
-    return JSONResponse(status_code=status, content={"code": code, "message": detail})
+    try:
+        message = runtime().render.text["api"][code]
+    except Exception:  # noqa: BLE001 -- deliberate: a bare code beats an unparseable 500
+        message = code
+    body: dict[str, object] = {"code": code, "message": message}
+    if details is not None:
+        body["details"] = details
+    return JSONResponse(status_code=status, content=body)
 
 
-for _kind in STATUS:
+# The two handled explicitly below are skipped here: FastAPI dispatches `RequestValidationError`
+# and `Exception` specially, and registering them twice would make which handler wins depend on
+# registration order.
+for _kind in (k for k in STATUS if k not in (RequestValidationError, ValidationError, Exception)):
 
     @api.exception_handler(_kind)
     async def _handle(_request: Request, problem: Exception, kind: type = _kind) -> JSONResponse:
@@ -289,3 +343,52 @@ for _kind in STATUS:
         # value and report one code for all nine. The classic late-binding bug, and ruff's B023
         # rule is enabled to catch it if this is ever rewritten as a closure.
         return _problem(kind, str(problem))
+
+
+# ------------------------------------------------- one envelope for EVERY error (S4.1 item 3)
+#
+# Including the two that are easy to leave out, and which are the ones a client actually trips:
+# FastAPI's own `RequestValidationError` (a malformed body, raised before any endpoint runs) and
+# an unhandled exception. Without these two, a client would meet three different error shapes and
+# have to branch on all three.
+#
+# The message comes from `messages.yaml` via `app.render`, so there is one reviewable place where
+# every sentence a person might read is written -- transport errors included.
+
+
+def _fields_at_fault(problem: ValidationError | RequestValidationError) -> str:
+    """Which field was wrong, as a dotted path. One line, not pydantic's multi-line dump.
+
+    A client needs to know WHERE; it does not need the library's full report, and a details
+    string with embedded newlines is awkward to show in a browser. The leading element of `loc`
+    is dropped because it is the request part ("body"), which is never news.
+    """
+    # FastAPI prefixes `loc` with the request part ("body"), which is never news; a
+    # `ValidationError` raised inside an endpoint has no such prefix. Dropping the first element
+    # unconditionally reported "body" for every bad session field, naming nothing.
+    skip = 1 if isinstance(problem, RequestValidationError) else 0
+    where = {".".join(str(part) for part in error["loc"][skip:]) for error in problem.errors()}
+    return ", ".join(sorted(p for p in where if p)) or "body"
+
+
+@api.exception_handler(RequestValidationError)
+async def _schema_invalid(_request: Request, problem: RequestValidationError) -> JSONResponse:
+    """A body FastAPI itself rejected, before any endpoint ran."""
+    return _problem(RequestValidationError, _fields_at_fault(problem))
+
+
+@api.exception_handler(ValidationError)
+async def _state_invalid(_request: Request, problem: ValidationError) -> JSONResponse:
+    """A session that parsed as JSON but is not a valid one. Same envelope, same shape."""
+    return _problem(ValidationError, _fields_at_fault(problem))
+
+
+@api.exception_handler(Exception)
+async def _internal(_request: Request, problem: Exception) -> JSONResponse:
+    """The last resort: 500, with NO details.
+
+    A stack trace in a response body is an information leak and tells a student nothing. The
+    exception still propagates to the server log, where it belongs -- this only controls what
+    crosses the wire.
+    """
+    return _problem(Exception, None)

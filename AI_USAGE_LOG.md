@@ -979,3 +979,57 @@ list of files the sprint has not yet built still named one that now exists. And 
 gate switched on earlier in the day caught the new validation function at eleven branches before
 it was ever committed, which is the first time one of these gates has prevented rather than
 reported a problem.
+
+---
+
+**Date:** 2026-10-12
+**Phase:** Sprint block S4.1 — API hardening
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/tests/test_api_hardening.py`
+**Files modified:** `backend/src/api/schemas.py`, `backend/src/api/main.py`,
+`backend/src/app/data.py`, `data/messages.yaml`, `backend/tests/test_api.py`,
+`backend/tests/test_adapters.py`, `README.md`
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Four hardening items the student set after accepting the web layer: strict
+validation, request size limits, a single error shape, and an honest limitation in the readme.
+
+Validation is now strict, so a string containing a digit is no longer quietly accepted where a
+number belongs, nor a word where a true-or-false value belongs. Getting there required one
+discovery worth recording: the strict mode of the validation library refuses a plain mapping for a
+dataclass outright, demanding an actual instance, so the only route that both refuses coercion and
+accepts a request body is to validate the body as text. The parsed body is therefore re-serialised
+for one hop. That costs a little work per request and buys the guarantee, and the alternative
+would have put the validation library inside the pure logic layer, which a test forbids.
+
+Request bodies are limited two ways, because either alone is trivially defeated. The declared
+length is checked first and refuses the honest oversized request before any of the body is read;
+the bytes that actually arrive are then measured, because a client can understate that header or
+omit it entirely. A test sends a body as a stream with no length header at all and confirms the
+second check is the one that catches it. The paragraph and the conclusion also have their own
+length limits, well above anything the grammar would accept.
+
+Every error now returns the same three fields, including the two that were easy to leave out and
+are the two a client actually trips: the framework's own rejection of a malformed body, which
+happens before any endpoint runs, and an unhandled exception. The wording comes from the single
+message file, so every sentence a person may read is in one reviewable place; a server error
+carries no detail at all, since a stack trace in a response body tells a student nothing and leaks
+paths.
+
+Writing that handler found a real defect in it. The function that builds an error response looks
+its wording up through the loaded runtime, and the runtime can be the very thing that failed —
+a bad data file at startup is reported through this path. The first version caught only lookup
+failures, so injecting a different kind of error produced a server error with an empty body: the
+handler failed while handling, and the client received something it could not parse. The fallback
+is now total, because an error path that can fail is not an error path.
+
+Two of the test fixtures were wrong in the same instructive way, and both were corrected rather
+than worked around: a paragraph built to be large tripped the sentence limit, and the second
+attempt tripped the distinct-fact limit. The point they make is that the size limits can never be
+what refuses an honest paragraph — the grammar's own limits bite first by a wide margin — and the
+test now says so.
+
+The readme records the limitation plainly. The session lives on the client and the client can edit
+it; the server validates structure and range but not integrity, so a determined student can change
+their own mastery scores. That is acceptable for a practice tool that grades nothing — the only
+person they can mislead is themselves — and it would have to change before any use where the
+record matters. Signing the session is named as the future work.

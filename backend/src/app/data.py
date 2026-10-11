@@ -59,6 +59,25 @@ _NON_EVIDENCE = frozenset({"parse_failure", "merge", "hint"})
 _VALID_SPLITS = ("productive", "unproductive", "unknown")
 _TRANSLATE_OUTCOMES = ("CORRECT", "CORRECT_CONTRAPOSITIVE", "ERROR")
 _CLAIM_OUTCOMES = ("CLAIM_ACCEPTED", "CLAIM_REJECTED")
+# Every transport-error code the API can return. Declared HERE rather than imported from
+# `api.main`, because `app/` must not depend on an adapter -- and a test asserts the two agree,
+# which is a better guarantee than an import: it fails if either side adds a code alone.
+API_CODES = frozenset(
+    {
+        "SCHEMA_INVALID",
+        "UNKNOWN_FIELD",
+        "STATE_VERSION_MISMATCH",
+        "TAMPERED_STATE",
+        "UNKNOWN_CLAUSE",
+        "WRONG_STAGE",
+        "ALREADY_FINISHED",
+        "RESET_REQUIRED",
+        "PAYLOAD_TOO_LARGE",
+        "BAD_DATA_FILE",
+        "INTERNAL_ERROR",
+        "NOT_IMPLEMENTED",
+    }
+)
 
 # Which `{placeholders}` `render.py` supplies, per message group. The CONTRACT between
 # `messages.yaml` and the renderer, checked both ways: a template using an unknown name is a crash
@@ -72,6 +91,11 @@ SUPPLIED = {
     "entailment": {"row"},
     "warning": {"phrase"},
     "cli": {"exercise", "topic", "band", "commands", "sentence"},
+    # No placeholders. A transport error returns `{code, message, details?}`: the message is the
+    # human sentence and `details` carries the machine specifics as its own field, so there is
+    # nothing to interpolate. The startup check caught the first draft, which declared a
+    # `{detail}` nobody used.
+    "api": set(),
 }
 
 
@@ -223,6 +247,10 @@ def required_messages() -> dict[str, set[str]]:
         "error": {code.value for code in ErrorCode},
         "entailment": {verdict.name for verdict in Verdict} | {"counterexample"},
         # The adapter's own chrome. Listed so `cli.py` cannot acquire a sentence of its own.
+        # Transport errors (section 8's HTTP rows). Derived from the API's own status table
+        # rather than listed here, so a new status cannot be added without wording -- the same
+        # rule the diagnosis codes follow against `logic.Code`.
+        "api": API_CODES,
         "cli": {
             "banner",
             "help",

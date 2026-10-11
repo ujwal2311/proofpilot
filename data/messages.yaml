@@ -113,3 +113,25 @@ cli:
   bad_step: "a step is `<clause> <clause> = <literals>`, for example `c1 c2 = B`"
   unknown_clause: "no clause called {sentence}"
   own_topic: "your own question"
+
+# ----------------------------------------------- transport errors (HLD section 8's HTTP rows)
+# NOT feedback. Section 8's rule is "would this be true regardless of the student's answer?" ->
+# an HTTP status; "is this itself the teaching content?" -> 200 with a code. Everything here is
+# the first kind: a request that could not have come from a working client.
+#
+# They live in this file anyway, because the browser shows some of them to a person -- a stale
+# saved session, or a paragraph that is too long -- and a sentence a person reads belongs in one
+# reviewable place whether or not it is teaching content. {detail} carries the machine specifics.
+api:
+  SCHEMA_INVALID: "That request did not match what the server expects. This is a bug in the client, not in your answer."
+  UNKNOWN_FIELD: "Your saved session carries a field this version does not know. It was saved by a different build; start a fresh exercise."
+  STATE_VERSION_MISMATCH: "Your saved session is from an older version of ProofPilot. Starting a fresh one."
+  TAMPERED_STATE: "That session could not have come from this system, so it was refused. If you edited it by hand, start a fresh exercise."
+  UNKNOWN_CLAUSE: "There is no clause with that name on the board."
+  WRONG_STAGE: "That action is not available at this stage of the exercise."
+  ALREADY_FINISHED: "This exercise is already finished. Move on to the next one."
+  RESET_REQUIRED: "Changing a merge discards the proof built on the old symbols. Confirm first."
+  PAYLOAD_TOO_LARGE: "That request is too large. Shorten the paragraph and try again."
+  BAD_DATA_FILE: "The server's own data files are invalid, so it refused to answer. This needs fixing by the team."
+  INTERNAL_ERROR: "Something went wrong on the server. Nothing you did caused it, and nothing was saved."
+  NOT_IMPLEMENTED: "That part of ProofPilot is not built yet."

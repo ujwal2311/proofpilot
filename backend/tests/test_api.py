@@ -239,12 +239,16 @@ def test_no_search_runs_for_a_non_entailing_session(client, monkeypatch) -> None
 # ====================================================== the error model (section 8), row by row
 
 
-def test_every_mapped_error_has_a_distinct_status_and_code() -> None:
-    # A mapping with two rows claiming the same code would make a client's branch ambiguous.
+def test_the_status_table_is_coherent() -> None:
+    """A code may be shared, but only by exceptions that mean the same thing to a client.
+
+    `SCHEMA_INVALID` is shared by three: core's `ParseError`, pydantic's `ValidationError` and
+    FastAPI's `RequestValidationError`. All three mean "the body is not something I can work
+    with", so a client branching on the code is not misled. Everything else is unique.
+    """
     codes = [code for _, code in main.STATUS.values()]
-    assert len(set(codes)) == len(codes) - 1, (
-        "only UNPROCESSABLE is shared, by ParseError/Validation"
-    )
+    shared = {code for code in codes if codes.count(code) > 1}
+    assert shared == {"SCHEMA_INVALID"}, f"unexpectedly shared codes: {sorted(shared)}"
     assert all(400 <= status < 600 for status, _ in main.STATUS.values())
 
 
@@ -265,7 +269,9 @@ def test_an_unknown_clause_id_is_refused(client, board) -> None:
         },
     )
     assert body.status_code == 400
-    assert body.json() == {"code": "UNKNOWN_CLAUSE", "message": "c9"}
+    # One envelope for every error (S4.1): a sentence from messages.yaml plus the machine detail.
+    assert body.json()["code"] == "UNKNOWN_CLAUSE"
+    assert body.json()["details"] == "c9"
 
 
 @pytest.mark.parametrize(
@@ -349,7 +355,7 @@ def test_an_unparseable_conclusion_is_a_422_not_a_guess(client) -> None:
         "/api/parse", json={"paragraph": "It rains.", "conclusion": "We get wet. We go home."}
     )
     assert body.status_code == 422
-    assert body.json()["code"] == "UNPROCESSABLE"
+    assert body.json()["code"] == "SCHEMA_INVALID"
 
 
 def test_the_m2_action_is_reachable_and_honest_about_not_being_built(client, board) -> None:

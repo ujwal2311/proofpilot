@@ -48,15 +48,18 @@ ADAPTERS = [
 ]
 
 
-def sentences_in(source: str) -> list[tuple[int, str]]:
-    """String constants of >= WORD_LIMIT words that are not docstrings.
+def docstring_ids(tree: ast.AST) -> set[int]:
+    """The exact string nodes that are docstrings.
 
-    Docstrings are found by walking the nodes that can HAVE one and remembering the exact string
-    object, rather than by guessing from position: a module whose first statement is an assignment
-    has no docstring, and a bare string used as a pseudo-comment is not one either.
+    Found by walking the nodes that can HAVE one, rather than guessing from position: a module
+    whose first statement is an assignment has no docstring, and a bare string used as a
+    pseudo-comment is not one either.
+
+    Shared by both checks below, because both have to ignore prose. The data-file check without
+    it reported `cli.py` for the phrase "`data/messages.yaml`" in its own module docstring --
+    which is the module EXPLAINING that it does not load the file.
     """
-    tree = ast.parse(source)
-    docstrings = set()
+    found = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
             first = node.body[0] if node.body else None
@@ -65,7 +68,19 @@ def sentences_in(source: str) -> list[tuple[int, str]]:
                 and isinstance(first.value, ast.Constant)
                 and isinstance(first.value.value, str)
             ):
-                docstrings.add(id(first.value))
+                found.add(id(first.value))
+    return found
+
+
+def sentences_in(source: str) -> list[tuple[int, str]]:
+    """String constants of >= WORD_LIMIT words that are not docstrings.
+
+    Docstrings are found by walking the nodes that can HAVE one and remembering the exact string
+    object, rather than by guessing from position: a module whose first statement is an assignment
+    has no docstring, and a bare string used as a pseudo-comment is not one either.
+    """
+    tree = ast.parse(source)
+    docstrings = docstring_ids(tree)
 
     found = []
     for node in ast.walk(tree):
@@ -138,9 +153,24 @@ def test_no_adapter_reads_a_data_file_itself() -> None:
             if isinstance(node, ast.Import)
             for alias in node.names
         }
-        assert "yaml" not in modules and "json" not in modules, (
-            f"{path.name} reads a data file itself; app/data.py is the only loader"
-        )
+        # Loading a data file requires NAMING one, so that is what the check looks for: the
+        # `yaml` module, or a string that points into `data/`.
+        #
+        # The first version matched any `open()` or `.load()` call and flagged two innocents in
+        # `cli.py`: `open()` on the `--script` path, which is a replay file for tests, and
+        # `Runtime.load()`, which is the shared loader being called correctly -- the very thing
+        # the rule wants. A guard that fires on correct use gets switched off.
+        assert "yaml" not in modules, f"{path.name} imports yaml; app/data.py is the only loader"
+        prose = docstring_ids(tree)
+        named = [
+            node.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in prose
+            and ("data/" in node.value or node.value.endswith((".yaml", ".json")))
+        ]
+        assert not named, f"{path.name} names a data file {named}; app/data.py is the loader"
 
 
 def test_the_drivers_import_the_shared_edge_rather_than_reimplementing_it() -> None:

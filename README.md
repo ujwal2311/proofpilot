@@ -74,6 +74,31 @@ the floor and the next release. Node 18+ is needed from Phase 7.
 whole point of pinning is that the toolchain does not move underneath a build, and a nag about a
 newer pip is not a reason to change it mid-project.
 
+## Honest limitations of the API
+
+**The session lives on the client, and the client can edit it.** ProofPilot is stateless by
+design: the whole session travels in every request body and the browser keeps it in
+`localStorage`. That makes the server simple and a reload harmless, and it means a determined
+student can open the developer console and change their own mastery scores.
+
+The server validates **structure and range**, not **integrity**. A request is refused if it is
+not a well-formed session, if it names a clause that is not on the board, if it uses a symbol
+belonging to no fact in the exercise, if it carries more clauses or literals than the limits
+allow, or if a mastery value falls outside the interval the model is defined on. None of that
+proves the session is one the server previously issued — only that it is one the server *could*
+have issued.
+
+**This is acceptable here, and it is a deliberate choice rather than an oversight.** ProofPilot is
+a practice tool: nothing it records is graded, and the only person a student can mislead by
+editing their own mastery is themselves. Making the session tamper-*proof* needs the server to
+sign what it issues and verify the signature on the way back, which means a key to manage and a
+second failure mode to handle — cost with no benefit for a tool that awards nothing.
+
+**It would have to change before any use where the record matters.** Signing the session, or
+holding it server-side behind a session id, is the future work; the design note is in
+`docs/HLD.md` §8, and the range and structure checks are tested one request each in
+`backend/tests/test_api.py`.
+
 ## Repository layout
 
 | Path | Contents |

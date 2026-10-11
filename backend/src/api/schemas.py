@@ -19,6 +19,7 @@ to the same bytes. That is what makes the round-trip property test assert someth
 without "canonical" would pass on output that differed between runs.
 """
 
+import json
 from dataclasses import fields
 from typing import Annotated, Literal
 
@@ -69,13 +70,24 @@ def dump_state(state: State) -> dict:
 
 
 def load_state(raw: object) -> State:
-    """Validate a client's session back into the core dataclass.
+    """Validate a client's session back into the core dataclass, in STRICT mode.
 
     Raises `UnknownField` for a field this version does not define, or `ValidationError` for a
     missing one, a wrong type or a malformed nested record.
+
+    **Strict, and via `validate_json`, and both of those are forced rather than chosen.** Measured
+    on 2026-10-12: pydantic's default lax mode turns `"3"` into `3`, `"yes"` into `True` and `3.0`
+    into `3`. On a session that arrives from a browser that means a corrupt or tampered field
+    becomes a plausible value and the student is scored against it.
+
+    `validate_python(raw, strict=True)` cannot be used: strict mode demands an actual `State`
+    instance for a dataclass and refuses a mapping outright. `validate_json` in strict mode accepts
+    a JSON object and still refuses every coercion -- so the dict FastAPI parsed is re-serialised
+    for one hop. That costs a `dumps` per request and buys the guarantee; the alternative was a
+    config flag on the dataclass, which would put pydantic inside core.
     """
     _refuse_unknown_fields(raw)
-    return STATE.validate_python(raw)
+    return STATE.validate_json(json.dumps(raw), strict=True)
 
 
 def _sorted(value: object) -> object:
@@ -95,10 +107,27 @@ def _sorted(value: object) -> object:
 # ----------------------------------------------------------------------------- the actions
 
 
-class _Body(BaseModel):
-    """Every envelope: strict, so a misspelled field is refused rather than silently ignored."""
+# Input ceilings. Section 3.4 already caps a sentence at 30 words and a paragraph at 12 sentences,
+# so an honest paragraph is far under these -- they exist to refuse a body built to waste work
+# rather than to constrain a student. The 64 KB whole-body limit is enforced by middleware,
+# because a `max_length` cannot see a body that never finishes arriving.
+MAX_PARAGRAPH = 3_000
+MAX_CONCLUSION = 300
+MAX_BODY_BYTES = 64 * 1024
 
-    model_config = ConfigDict(extra="forbid")
+Paragraph = Annotated[str, Field(max_length=MAX_PARAGRAPH)]
+Conclusion = Annotated[str, Field(max_length=MAX_CONCLUSION)]
+
+
+class _Body(BaseModel):
+    """Every envelope: STRICT, and extra fields refused.
+
+    `extra="forbid"` so a misspelled field is reported rather than silently ignored, and
+    `strict=True` so `"3"` is not quietly accepted where an integer belongs -- the same
+    measured-coercion problem `load_state` documents.
+    """
+
+    model_config = ConfigDict(extra="forbid", strict=True)
 
 
 class StepAction(_Body):
@@ -145,9 +174,12 @@ class NextRequest(_Body):
 
 class ParseRequest(_Body):
     state_version: int = STATE_VERSION
-    paragraph: str
-    conclusion: str
-    merges: list[MergeChoice] = []
+    paragraph: Paragraph
+    conclusion: Conclusion
+    # `list[dict]`, not `list[MergeChoice]`: a STRICT envelope would demand actual `MergeChoice`
+    # instances, and a JSON body only ever carries objects. They are validated into dataclasses by
+    # `load_merges` below, strictly, in the one place that knows how.
+    merges: list[dict] = []
 
 
 class ActRequest(_Body):
@@ -176,8 +208,20 @@ class ActResponse(_Body):
     extras: dict = {}
 
 
+def load_merges(raw: list[dict]) -> tuple[MergeChoice, ...]:
+    """A client's merge decisions, strictly validated into core dataclasses."""
+    return MERGES.validate_json(json.dumps(raw), strict=True)
+
+
 class Problem(_Body):
-    """The body of every 4xx. One shape, so a client has one thing to read."""
+    """The body of EVERY error, 4xx and 5xx alike. One shape, so a client has one thing to read.
+
+    `code` is what a client branches on, `message` is the sentence from `messages.yaml` that a
+    person may be shown, and `details` carries the machine specifics -- which field, which value.
+    A 500 carries no `details` at all: a stack trace in a response body is an information leak and
+    tells a student nothing.
+    """
 
     code: str
     message: str
+    details: str | None = None
