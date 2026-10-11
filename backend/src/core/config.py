@@ -87,3 +87,15 @@ MASTERY_SLACK = 1e-3
 # DESIGN DECISION, deliberately high: at 0.95 a student cannot finish on a lucky streak, and the
 # BKT update reaches it in about eight consecutive correct answers per skill.
 MASTERY_THRESHOLD = 0.95
+
+# Seed for every generator in the tests and the experiment scripts (rule 4: seed every random
+# generator from here). One value, so a failing property case is reproducible by anyone who runs
+# the suite -- an unseeded generator can expose a bug but cannot reproduce it.
+RANDOM_SEED = 20261012
+
+# Board limits a REQUEST is held to (HLD section 8's tamper list). DESIGN DECISIONS, and they
+# bound a hostile or corrupt payload rather than a student's honest work: the relevance bound
+# keeps a bank exercise at 7 clauses, so 20 is generous for a long own question while still
+# refusing a body built to make the server do unbounded work.
+MAX_BOARD_CLAUSES = 20
+MAX_CLAUSE_LITERALS = 6

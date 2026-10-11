@@ -116,11 +116,15 @@ def test_every_adapter_is_actually_checked() -> None:
     assert (SRC / "cli.py") in ADAPTERS
 
 
-def test_the_adapters_import_the_shared_edge_rather_than_reimplementing_it() -> None:
-    """Each adapter must go through `app`, not around it.
+# A module that DRIVES the system -- a command loop or an HTTP route table. `api/schemas.py` is
+# not one: it is the API's data contract, it makes no decisions, and requiring it to import the
+# shared edge would be requiring an import it has no use for.
+DRIVERS = [path for path in ADAPTERS if path.name in ("cli.py", "main.py")]
 
-    An adapter that loaded `messages.yaml` itself, or built its own clause ids, would pass the
-    wording check above while still duplicating the thing `app/` exists to hold once.
+
+def test_no_adapter_reads_a_data_file_itself() -> None:
+    """`app/data.py` is the only loader. An adapter with its own `yaml.safe_load` would mean two
+    copies of the validation, and the one a student hit would depend on which client they used.
     """
     for path in ADAPTERS:
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -134,9 +138,30 @@ def test_the_adapters_import_the_shared_edge_rather_than_reimplementing_it() -> 
             if isinstance(node, ast.Import)
             for alias in node.names
         }
-        assert any(m == "src" or m.startswith("src.app") for m in modules), (
-            f"{path.name} does not import the shared edge"
-        )
         assert "yaml" not in modules and "json" not in modules, (
             f"{path.name} reads a data file itself; app/data.py is the only loader"
+        )
+
+
+def test_the_drivers_import_the_shared_edge_rather_than_reimplementing_it() -> None:
+    """A driver must go through `app`, not around it.
+
+    One that loaded `messages.yaml` itself, or built its own clause ids, would pass the wording
+    check above while still duplicating the thing `app/` exists to hold once.
+    """
+    assert DRIVERS, "no driver modules found; the check would be vacuous"
+    for path in DRIVERS:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        modules = {
+            node.module
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.module
+        } | {
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+            for alias in node.names
+        }
+        assert any(m == "src" or m.startswith("src.app") for m in modules), (
+            f"{path.name} does not import the shared edge"
         )

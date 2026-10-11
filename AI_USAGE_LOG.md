@@ -928,3 +928,54 @@ cent, because it priced the idea of a function rather than the lines the languag
 session object has sixteen fields, so its constructor is sixteen lines, the keyword-only signature
 is eight parameters, and the loop that names the clauses is thirteen — thirty-seven mechanical
 lines before any logic at all.
+
+---
+
+**Date:** 2026-10-12
+**Phase:** Sprint block S4 — the web layer
+**Tool:** Claude Code (Opus 5)
+**Files created:** `backend/src/api/main.py`, `backend/src/api/schemas.py`,
+`backend/src/app/audit.py`, `backend/tests/test_api.py`, `backend/tests/test_state_roundtrip.py`
+**Files modified:** `backend/src/core/config.py`, `backend/src/core/models.py`,
+`backend/src/core/session.py`, `backend/src/app/view.py`, `backend/src/cli.py`,
+`backend/tests/test_adapters.py`, `backend/tests/test_dead_references.py`,
+`backend/tests/test_models.py`, `backend/tests/test_tutor.py`
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** The four endpoints, their schemas, their error model, and the property test that the
+session survives a trip through the browser unchanged.
+
+The session object is declared in one place and one place only. The web layer validates and
+serialises the logic layer's own dataclasses rather than keeping a parallel declaration of the
+same sixteen fields, which is what the earlier decision to keep the session in the pure layer
+would otherwise have cost. Only the envelopes are written by hand, because what a client sends and
+receives genuinely is the web layer's own business.
+
+The round-trip test is a property over two hundred randomly shaped sessions rather than a handful
+of examples, and it asserts two things. Lossless: a session that goes out and comes back is the
+same session. Canonical: the same session always produces the same bytes, which matters because
+lossless on its own would pass on output that varied between runs, and a client comparing two
+responses would see changes that were not there. The generator is seeded so a failure can be
+reproduced, and a companion test asserts that it actually varies the shape — that the empty
+clause appears, that a refused sentence appears, that an undecided verdict appears — because a
+property test over two hundred near-identical cases is one case run two hundred times.
+
+Writing that test is what surfaced the real gap. A claim in a docstring about the validation
+refusing to coerce types turned out to be false when measured: the library's default mode happily
+turns the string three into the number three. Checking that led to noticing that the design
+document's list of conditions a tampered session must be refused for had not been implemented at
+all — an unknown clause name, a symbol belonging to no fact in the exercise, too many clauses,
+too many literals, a mastery value outside the open interval the model is defined on. All of them
+are now refused with a named code, each by its own request in the tests, and the two limits the
+document names were added as constants. The point of the distinction is that none of these is a
+wrong answer, so none of them is teaching content: they are transport errors rather than feedback.
+
+Four defects in tests and tooling were found and fixed within the block, as the autonomy rule
+allows. The guard that keeps wording out of the client adapters flagged three diagnostic messages
+the moment they were written inside the web layer, which is exactly its job; the validation they
+belong to moved into the shared edge, where it reads better anyway. The same guard's companion
+check wrongly required the schema module to import the shared edge, though it makes no decisions
+and has no use for it; that check is now scoped to the modules that actually drive the system. The
+list of files the sprint has not yet built still named one that now exists. And the complexity
+gate switched on earlier in the day caught the new validation function at eleven branches before
+it was ever committed, which is the first time one of these gates has prevented rather than
+reported a problem.
