@@ -1,3 +1,4 @@
+import { PILOT_MODE, setPilotId } from "./api.js";
 import { Explanation } from "./Explanation.jsx";
 import { Feedback } from "./Feedback.jsx";
 import { MasteryBars } from "./MasteryBars.jsx";
@@ -85,6 +86,16 @@ function Header() {
     <header>
       <h1>{UI.title}</h1>
       <p>{UI.subtitle}</p>
+      {PILOT_MODE ? (
+        <p>
+          <label htmlFor="pilot-id">{UI.pilotIdLabel}</label>{" "}
+          <input
+            id="pilot-id"
+            placeholder={UI.pilotIdPlaceholder}
+            onChange={(event) => setPilotId(event.target.value.trim())}
+          />
+        </p>
+      ) : null}
     </header>
   );
 }

@@ -26,4 +26,7 @@ dist/
 Thumbs.db
 
 # Experiment outputs are committed deliberately (they are evidence for the report),
-# so nothing under docs/ is ignored.
+# so nothing under docs/ is ignored -- EXCEPT the pilot's raw per-action event log, which is
+# per-session machine output, not report evidence. The aggregate analyze_pilot.py produces
+# (counts and medians only) is what gets committed instead.
+docs/pilot/logs/

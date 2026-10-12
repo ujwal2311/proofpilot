@@ -9,8 +9,33 @@ tutor. One facilitator per participant is enough; this is a walk-through, not a 
 |---|---|---|
 | 1. Consent | 1 min | Participant reads and signs `consent.md`. Assign the next unused ID (`P01`, `P02`, …) from `template.csv`. |
 | 2. Pre-test | 2 min | Hand over `pre_test.md`. No tool, no hints, no discussion — work alone. Score it yourself against the answer key at the bottom while they move to step 3. |
-| 3. Use the tool | 5 min | Open the app (`npm run dev` + the backend running). Let them work through 2–3 practice exercises unassisted. Only intervene if the app itself is broken, never to explain a logic step. |
+| 3. Use the tool | 5 min | Open the app (`npm run dev` + the backend running). If the event log is on for this pilot, type the participant's ID into the app's "Pilot ID" field first — it only appears in pilot mode and otherwise stays hidden. Let them work through 2–3 practice exercises unassisted. Only intervene if the app itself is broken, never to explain a logic step. |
 | 4. Post-test + ratings | 2 min | Hand over `post_test.md`. Same rules as the pre-test. Then ask the three 1–5 ratings verbally and record them. |
+
+## The event log (optional, opt-in)
+
+The server can write one line per action to `docs/pilot/logs/pilot.jsonl` — pilot_id, timestamp,
+action, result code, hint level, stage, nothing else — but it is OFF unless the facilitator starts
+the backend with `PROOFPILOT_PILOT_LOG=1` set. It is a convenience for cross-checking
+`codes_seen`, never a replacement for the row in `template.csv`: `analyze_pilot.py` still needs
+that row for the test scores and ratings, which the server never sees.
+
+**If this is not set up correctly — or the backend crashes, or there is no time to debug it — skip
+it and use the paper tally below instead.** The pilot does not depend on the log working.
+
+## Paper tally sheet (fallback — use if the event log is not running)
+
+One row per participant. Tick a box each time that feedback code appears on screen during step 3.
+
+| Participant | VALID | NO_CLASH | WRONG_RESOLVENT | TAUTOLOGY | DUPLICATE | HINT_1 | HINT_2 | HINT_3 | CLAIM_ACCEPTED | CLAIM_REJECTED |
+|---|---|---|---|---|---|---|---|---|---|---|
+| P01 | | | | | | | | | | |
+| P02 | | | | | | | | | | |
+| P03 | | | | | | | | | | |
+
+Transcribe the tallies into `codes_seen` on the matching `template.csv` row (e.g. three `VALID`
+ticks and one `HINT_1` tick becomes `VALID;VALID;VALID;HINT_1`) — same column, same script, same
+analysis either way.
 
 ## What to record, in `template.csv`
 

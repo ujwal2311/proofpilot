@@ -18,7 +18,11 @@ exception type keeps that decision in one readable place, and means a new endpoi
 to map an error it did not know about.
 """
 
+import json
+import os
+import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -43,6 +47,37 @@ from src.core.tutor import FactsNotConfirmed, TransitionError
 ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 RUNTIME: dict[str, edge.Runtime] = {}
+
+# Pilot event log (opt-in, HLD section 11's E5). Off by default: a line is written only when
+# PROOFPILOT_PILOT_LOG is set AND the request carries an X-Pilot-Id header, so a normal dev or
+# CI run never touches disk here. Edge-only by construction -- core.session is never told this
+# happened, and the log never carries a paragraph, a conclusion, or anything a student typed.
+PILOT_LOG_ENABLED = bool(os.environ.get("PROOFPILOT_PILOT_LOG"))
+PILOT_LOG_DIR = Path(__file__).resolve().parents[3] / "docs" / "pilot" / "logs"
+
+
+def _pilot_log(request: Request, action: str, code: str, state: dict | None) -> None:
+    """One JSONL line: pilot_id, timestamp, action, result code, hint level, stage. Nothing else.
+
+    `pilot_id` is the participant code from the protocol (P1..P10, typed once per session), never
+    a name -- and `docs/pilot/logs/` is gitignored, so even an anonymous line never reaches git.
+    """
+    if not PILOT_LOG_ENABLED:
+        return
+    pilot_id = request.headers.get("x-pilot-id")
+    if not pilot_id:
+        return
+    PILOT_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    line = {
+        "pilot_id": pilot_id,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "action": action,
+        "code": code,
+        "hint_level": (state or {}).get("hint_level"),
+        "stage": (state or {}).get("stage"),
+    }
+    with (PILOT_LOG_DIR / "pilot.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(line, sort_keys=True) + "\n")
 
 
 @asynccontextmanager
@@ -138,7 +173,7 @@ def next_exercise(body: NextRequest) -> dict:
 
 
 @api.post("/api/parse")
-def parse(body: ParseRequest) -> dict:
+def parse(body: ParseRequest, request: Request) -> dict:
     """Run the section 7 ordering once and return the session it produces.
 
     Serves both modes, and is called a second time with `merges` after a manual merge. Merges are
@@ -158,15 +193,18 @@ def parse(body: ParseRequest) -> dict:
         merges=merges,
     )
     say = runtime().render
+    dumped = schemas.dump_state(fresh)
+    code = fresh.entailment.verdict.name if fresh.entailment else "UNPLAYABLE"
+    _pilot_log(request, "parse", code, dumped)
     return {
-        "state": schemas.dump_state(fresh),
+        "state": dumped,
         "warnings": [say.warning(raw) for raw in found.warnings],
         "error": None,
     }
 
 
 @api.post("/api/act")
-def act(body: ActRequest) -> dict:
+def act(body: ActRequest, request: Request) -> dict:
     """One student action against a stored session. The discriminated union routes it."""
     _check_version(body.state_version)
     state = schemas.load_state(body.state)
@@ -175,7 +213,9 @@ def act(body: ActRequest) -> dict:
         raise AlreadyFinished(state.exercise_id or "own")
     kind = body.action.type
     tutor.advance(state.stage, kind)  # raises TransitionError -> 400
-    return _ACTIONS[kind](state, body.action)
+    result = _ACTIONS[kind](state, body.action)
+    _pilot_log(request, kind, result.get("code", ""), result.get("state"))
+    return result
 
 
 def _verdict_of(state) -> Verdict:

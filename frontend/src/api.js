@@ -6,6 +6,16 @@
 // `data/messages.yaml`, never from here.
 const BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
+// Pilot mode (HLD section 11, E5): off unless the env var is set, and even then the backend's
+// own event log stays off unless PROOFPILOT_PILOT_LOG=1 is set server-side too -- this header is
+// inert against a normal dev or CI backend. `pilotId` lives only in memory; it is a participant
+// code (P1..P10), never anything that needs to survive a refresh.
+export const PILOT_MODE = import.meta.env.VITE_PILOT_MODE === "1";
+let pilotId = "";
+export const setPilotId = (id) => {
+  pilotId = id;
+};
+
 // Thrown for every failure, so a caller has one thing to catch. `code` is what the UI branches
 // on -- STATE_VERSION_MISMATCH triggers a reset -- and `message` is what it shows.
 export class ApiError extends Error {
@@ -18,11 +28,13 @@ export class ApiError extends Error {
 }
 
 async function post(path, body) {
+  const headers = { "Content-Type": "application/json" };
+  if (PILOT_MODE && pilotId) headers["X-Pilot-Id"] = pilotId;
   let answer;
   try {
     answer = await fetch(`${BASE}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
     });
   } catch (cause) {

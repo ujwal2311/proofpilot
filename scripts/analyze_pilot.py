@@ -3,11 +3,18 @@
 No significance test at N<=10 -- a frozen design decision, not something this script works
 around. Read-only: it never writes a row, only a report over whatever the facilitator recorded.
 
+If the opt-in event log (`docs/pilot/logs/pilot.jsonl`, see `api/main.py`'s `_pilot_log`) exists,
+its result codes are MERGED into the same feedback-code frequency table as `codes_seen` -- one
+count per code either way, so a pilot that used the log, the paper tally, or both reports
+identically. The log itself is gitignored machine output, never committed or fabricated; if it is
+absent (the normal case when the log was off), this script runs exactly as before.
+
     python scripts/analyze_pilot.py           # print the report
     python scripts/analyze_pilot.py --write   # also write docs/pilot/results.md
 """
 
 import csv
+import json
 import statistics
 import sys
 from pathlib import Path
@@ -17,6 +24,7 @@ from report import markdown_table, stamp_line  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "docs" / "pilot" / "template.csv"
+LOG = ROOT / "docs" / "pilot" / "logs" / "pilot.jsonl"
 OUT = ROOT / "docs" / "pilot" / "results.md"
 
 NUMERIC = (
@@ -55,9 +63,28 @@ def code_counts(rows: list[dict[str, str]]) -> dict[str, int]:
     return counts
 
 
+def load_log() -> list[dict]:
+    """The opt-in event log, if it exists -- empty when the pilot ran on the paper tally alone."""
+    if not LOG.is_file():
+        return []
+    lines = LOG.read_text(encoding="utf-8").splitlines()
+    return [json.loads(line) for line in lines if line.strip()]
+
+
+def merge_log_codes(counts: dict[str, int], entries: list[dict]) -> dict[str, int]:
+    """Fold the log's result codes into the same table `codes_seen` already built, in place."""
+    merged = dict(counts)
+    for entry in entries:
+        code = entry.get("code")
+        if code:
+            merged[code] = merged.get(code, 0) + 1
+    return merged
+
+
 def render(rows: list[dict[str, str]]) -> str:
     stats = medians(rows)
-    counts = code_counts(rows)
+    log_entries = load_log()
+    counts = merge_log_codes(code_counts(rows), log_entries)
     ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
     lines = [
         "# ProofPilot pilot results (E5)",
@@ -72,6 +99,9 @@ def render(rows: list[dict[str, str]]) -> str:
         markdown_table(["metric", "median"], [[column, stats[column]] for column in NUMERIC]),
         "",
         "## Feedback codes seen, by frequency",
+        "",
+        f"From `codes_seen` in template.csv, merged with {len(log_entries)} event-log line(s)"
+        f" ({'found' if log_entries else 'none found — paper tally only, or log was off'}).",
         "",
     ]
     if ranked:

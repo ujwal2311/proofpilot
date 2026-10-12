@@ -51,6 +51,10 @@ export const UI = {
   derived: "you derived",
   nextExercise: "Next exercise",
 
+  // pilot mode only
+  pilotIdLabel: "Pilot ID",
+  pilotIdPlaceholder: "P1",
+
   // chrome
   mastery: "Mastery",
   loading: "Working…",
