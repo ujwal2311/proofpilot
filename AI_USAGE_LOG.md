@@ -1081,3 +1081,42 @@ action table and error-model table) and §17.9's scenario table were updated to 
 `confirm_facts`/`FACTS_NOT_CONFIRMED` as new scenario (r) — a wording and contract update, not a
 design change, since the Facts stage and its confirmation step already existed in the frozen v2.11
 design; this fix makes `state_of` and the API/CLI honor what section 14 already specified.
+
+---
+
+**Date:** 2026-10-12
+**Phase:** Sprint block S5 — the React frontend (M1), plus one core bug found verifying it
+**Tool:** Claude Code (Sonnet 5)
+**Files created:** `frontend/src/App.jsx`, `Explanation.jsx`, `Feedback.jsx`, `MasteryBars.jsx`,
+`ProveBoard.jsx`, `ReadFacts.jsx`, `api.js`, `index.css`, `labels.js`, `main.jsx`, `storage.js`,
+`useSession.js`
+**Files modified:** `backend/src/core/session.py`, `backend/tests/test_tutor.py`
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Build the M1 frontend (Read & Facts, Prove, Explanation) against the already-shipped
+API, and verify it end to end in a real browser rather than by test suite alone.
+
+Most of `frontend/src/` already existed in the working tree from earlier in the sprint; this block
+picked it up, found it would not build (`main.jsx` imported a `./index.css` that was never
+written), and wrote the missing stylesheet — plain CSS, no framework, large type and high contrast
+throughout, because a pilot student reads this off a projector, not a personal screen.
+
+Driving the built app in an actual Chrome tab (not just `npm run build`) found two real defects
+that no test had caught, because no test exercises the browser:
+
+1. `ReadFacts`'s confirm button was wired to send a `hint` action instead of `confirm_facts` — a
+   stale placeholder from before the backend grew that action. Sending it would have hit the new
+   `FACTS_NOT_CONFIRMED` refusal from this session's earlier fix, on literally the first click.
+   Caught only because the fix was tested in a browser rather than trusted from the API test suite.
+2. A clause the student derives during the proof never appeared in `state.relevant_ids`, because
+   `session.record_clause` only ever appended to `clauses`. The CLI never showed this because
+   `cli.py`'s own step handler separately patches its local `Board.relevant` set on every valid
+   step — a client-side workaround the API never had. The browser showed every derived clause
+   marked "not needed for this conclusion", including the one that closes the proof. Fixed in core
+   (`record_clause` now appends to `relevant_ids` too) so the CLI's patch and the API's behaviour
+   stop silently disagreeing, with a regression test (`test_a_derived_clause_is_added_to_relevant_ids`)
+   added since nothing had pinned the old behaviour either way.
+
+Both fixes were confirmed live: a full rain-paragraph proof through to the Explanation trace with
+no stale "not needed" labels, and a Same-fact merge on an 8-fact paragraph correctly regrouping two
+phrases and re-lettering the rest. `npm run build` is green; `pytest`, `ruff check`/`format`, the
+C901 and function-length gates are green on the modified core files.
