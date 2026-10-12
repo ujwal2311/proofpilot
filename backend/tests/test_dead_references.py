@@ -68,7 +68,6 @@ PLANNED = {
     "backend/src/core/translation.py": "S6",
     "backend/src/core/narrate.py": "S6",
     "backend/src/core/formula.py": "S6",
-    "scripts/heldout_eval.py": "S8",
     "data/heldout_paragraphs.json": "S8 -- written by the team, never by Claude",
     "docs/misconceptions.md": "S10",
     "docs/report/CONTRIBUTION_TEMPLATE.md": "S10",
