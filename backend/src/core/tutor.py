@@ -33,21 +33,50 @@ class TransitionError(ValueError):
     """Raised when an action is not available in the current stage (HLD section 8 -> HTTP 400)."""
 
 
+class FactsNotConfirmed(TransitionError):
+    """A proving action was attempted before the Facts screen was confirmed (HLD section 8).
+
+    Distinct from a plain `TransitionError` because this one case is pedagogically different from
+    an ordinary wrong-stage mistake: the Facts screen is section 14's explicit safety net for a
+    connective mis-splitting a fact phrase silently, and a student who never saw it is proving
+    something they have not agreed is correct. The message has to say THAT, not "wrong stage".
+    """
+
+
 # ----------------------------------------------------------------- 2. transitions (code, not data)
 
 STAGES = ("read", "facts", "translate", "prove", "explain")
-ACTIONS = ("parse", "merge", "confirm", "translate", "step", "hint", "claim_not_provable")
+ACTIONS = (
+    "parse",
+    "merge",
+    "confirm_facts",
+    "confirm",
+    "translate",
+    "step",
+    "hint",
+    "claim_not_provable",
+)
+
+# Actions that only make sense once the board exists -- i.e. once the Facts screen has been
+# confirmed. Checked by NAME here, ahead of the transition table, so that attempting one of these
+# in "facts" gets the specific FactsNotConfirmed error rather than the generic one every other
+# invalid (stage, action) pair gets.
+_PROVING_ACTIONS = frozenset({"step", "hint", "claim_not_provable", "translate"})
 
 # (stage, action) -> the stage afterwards. Total by construction: a pair that is absent is a
 # TransitionError, never a silent pass, so a client that posts the wrong action in the wrong stage
 # gets a named refusal instead of a half-applied state.
+#
+# ("facts", "confirm_facts") goes straight to "prove" for M1. Once M2 lands, an exercise with a
+# translation step routes through "translate" instead -- that wiring is S6's, deliberately not
+# added here ahead of the module that would use it.
 #
 # ("prove", "merge") rewinds to "facts" on purpose -- that IS the v2.7 A4 reset, and routing it
 # through the same table is what stops it being a special case somebody forgets.
 TRANSITIONS: dict[tuple[str, str], str] = {
     ("read", "parse"): "facts",
     ("facts", "merge"): "facts",
-    ("facts", "confirm"): "prove",
+    ("facts", "confirm_facts"): "prove",
     ("translate", "translate"): "translate",
     ("translate", "confirm"): "prove",
     ("prove", "step"): "prove",
@@ -64,7 +93,9 @@ def allowed(stage: str) -> tuple[str, ...]:
 
 
 def advance(stage: str, action: str) -> str:
-    """The stage after `action`, or raise `TransitionError` naming both."""
+    """The stage after `action`, or raise `TransitionError` (or `FactsNotConfirmed`) naming both."""
+    if stage == "facts" and action in _PROVING_ACTIONS:
+        raise FactsNotConfirmed(f"{action!r} needs the facts confirmed first")
     if (stage, action) not in TRANSITIONS:
         raise TransitionError(f"{action!r} is not available in stage {stage!r}")
     return TRANSITIONS[stage, action]

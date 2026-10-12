@@ -31,7 +31,11 @@ def client():
 
 @pytest.fixture
 def board(client) -> dict:
-    return client.post("/api/next", json={}).json()["state"]
+    """A session with the facts confirmed, so `hint` is legal in its stage."""
+    opened = client.post("/api/next", json={}).json()["state"]
+    return client.post(ACT, json={"state": opened, "action": {"type": "confirm_facts"}}).json()[
+        "state"
+    ]
 
 
 def hint(client, state: dict, level: int = 1):

@@ -36,7 +36,7 @@ from src.core.bkt import is_done
 from src.core.english import ParseError
 from src.core.entail import Verdict
 from src.core.logic import diagnose, normalize_literal
-from src.core.tutor import TransitionError
+from src.core.tutor import FactsNotConfirmed, TransitionError
 
 # Both spellings of the dev server: a browser may resolve `localhost` to either, and a CORS list
 # naming only one fails for half the team with a message that does not mention CORS.
@@ -248,7 +248,30 @@ def _translate(state, _action) -> dict:
     raise NotImplementedUntilM2("translate")
 
 
-_ACTIONS = {"step": _step, "hint": _hint, "claim_not_provable": _claim, "translate": _translate}
+def _confirm_facts(state, _action) -> dict:
+    """Leave the Facts stage. Not scored: agreeing with the extracted facts is not an answer.
+
+    The destination comes from `tutor.advance`, which `act` has already called to check the
+    action is legal -- so the stage this moves to is the transition table's, never this file's.
+    `act` also means a proving action in "facts" never reaches here: `tutor.advance` raises
+    `FactsNotConfirmed` for those before this handler is ever looked up.
+    """
+    moved = session.enter_stage(state, tutor.advance(state.stage, "confirm_facts"))
+    return {
+        "code": "FACTS_CONFIRMED",
+        "message": runtime().render.text["confirm"]["FACTS_CONFIRMED"],
+        "state": schemas.dump_state(moved),
+        "extras": {"stage": moved.stage},
+    }
+
+
+_ACTIONS = {
+    "step": _step,
+    "hint": _hint,
+    "claim_not_provable": _claim,
+    "confirm_facts": _confirm_facts,
+    "translate": _translate,
+}
 
 
 def _board(state):
@@ -299,7 +322,11 @@ STATUS = {
     Exception: (500, "INTERNAL_ERROR"),
     UnknownClause: (400, "UNKNOWN_CLAUSE"),
     Tampered: (400, "TAMPERED_STATE"),
+    # FactsNotConfirmed is checked FIRST by Starlette's MRO-based handler lookup because it is a
+    # subclass of TransitionError registered under its own exact type -- so this row's position
+    # in the dict does not matter, but it is listed right after TransitionError for a reader.
     TransitionError: (400, "WRONG_STAGE"),
+    FactsNotConfirmed: (400, "FACTS_NOT_CONFIRMED"),
     session.ResetRequired: (409, "RESET_REQUIRED"),
     AlreadyFinished: (409, "ALREADY_FINISHED"),
     StateVersionMismatch: (409, "STATE_VERSION_MISMATCH"),

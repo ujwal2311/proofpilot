@@ -28,15 +28,20 @@ PARAMS = BktParams.from_config()
 TEXT = load_messages()
 
 
-def run(commands: str, *flags: str, tmp_path: Path, capsys) -> str:
+def run(commands: str, *flags: str, tmp_path: Path, capsys, confirmed: bool = True) -> str:
     """Drive the real command loop and return everything it printed.
+
+    `confirmed=True` by default prepends `yes\\n`: a session now opens on the FACTS stage
+    (section 14's safety net), and most of these tests are about the PROVE phase, not about
+    confirming facts -- which has its own tests below. Passing `confirmed=False` drives the raw
+    script, for the tests that exercise the Facts stage itself.
 
     `capsys` is threaded through explicitly rather than read in an autouse fixture: a fixture
     only sees the output AFTER the test body, so the first version returned the PREVIOUS test's
     text and nineteen assertions failed on output they never produced.
     """
     script = tmp_path / "script.txt"
-    script.write_text(commands, encoding="utf-8")
+    script.write_text(("yes\n" if confirmed else "") + commands, encoding="utf-8")
     assert cli.main(["--script", str(script), *flags]) == 0
     return capsys.readouterr().out
 
@@ -193,12 +198,15 @@ def test_no_search_runs_on_a_does_not_follow_exercise(tmp_path: Path, monkeypatc
 
 
 def test_own_question_mode_runs_the_same_pipeline(tmp_path: Path, capsys) -> None:
+    # confirmed=False: --own reads paragraph then conclusion BEFORE the Facts stage even opens,
+    # so `yes` has to come after them in the script, not before it.
     out = run(
         "If the bell rings then the class ends. The bell rings.\n"
-        "The class ends.\nc1 c2 = B\nc3 c4 =\n",
+        "The class ends.\nyes\nc1 c2 = B\nc3 c4 =\n",
         "--own",
         tmp_path=tmp_path,
         capsys=capsys,
+        confirmed=False,
     )
     assert "EMPTY CLAUSE" in out
 
@@ -210,17 +218,19 @@ def test_own_question_mode_normalizes_exactly_like_the_bank(tmp_path: Path, caps
     strings from a human who may or may not type a full stop.
     """
     tidy = run(
-        "If the bell rings then the class ends. The bell rings.\nThe class ends.\nfacts\n",
+        "If the bell rings then the class ends. The bell rings.\nThe class ends.\nyes\nfacts\n",
         "--own",
         tmp_path=tmp_path,
         capsys=capsys,
+        confirmed=False,
     )
     messy = run(
         "\n  IF the bell rings THEN the class ends.  The bell rings!  \n\n"
-        "the class ends. ! ?  \nfacts\n",
+        "the class ends. ! ?  \nyes\nfacts\n",
         "--own",
         tmp_path=tmp_path,
         capsys=capsys,
+        confirmed=False,
     )
     assert _board(tidy) == _board(messy), "the CLI normalized its two inputs differently"
     assert _facts(tidy) == _facts(messy)
@@ -241,7 +251,14 @@ def _facts(text: str) -> list[str]:
 
 
 def test_an_unparseable_own_question_is_refused_not_guessed(tmp_path: Path, capsys) -> None:
-    out = run("Every student passes.\nThe class ends.\n", "--own", tmp_path=tmp_path, capsys=capsys)
+    # Refused before the Facts screen ever opens, so there is nothing to confirm.
+    out = run(
+        "Every student passes.\nThe class ends.\n",
+        "--own",
+        tmp_path=tmp_path,
+        capsys=capsys,
+        confirmed=False,
+    )
     assert TEXT["error"]["QUANTIFIER_UNSUPPORTED"] in out, "the refusal must carry its hint"
     assert TEXT["cli"]["unplayable"] in out
     assert TEXT["cli"]["board"] not in out, "a refused exercise must not lay out a board"
@@ -301,11 +318,14 @@ def test_the_cli_imports_no_web_framework() -> None:
     )
 
 
-def test_the_cli_is_runnable_as_a_module() -> None:
+def test_the_cli_is_runnable_as_a_module(tmp_path: Path) -> None:
     # `python -m src.cli` is the documented command, and `__main__` guards are exactly the kind
-    # of thing that works until someone moves a file.
+    # of thing that works until someone moves a file. README.md is reused as a stream of
+    # nonsense commands; a leading `yes` confirms the Facts screen so the board is still reached.
     import subprocess
 
+    script = tmp_path / "script.txt"
+    script.write_text("yes\n" + (ROOT / "README.md").read_text(encoding="utf-8"), encoding="utf-8")
     done = subprocess.run(
         [
             sys.executable,
@@ -314,7 +334,7 @@ def test_the_cli_is_runnable_as_a_module() -> None:
             "--exercise",
             "ex-01",
             "--script",
-            str(ROOT / "README.md"),
+            str(script),
         ],
         capture_output=True,
         cwd=ROOT / "backend",

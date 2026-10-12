@@ -166,7 +166,12 @@ def state_of(
     return State(
         mode=mode,
         exercise_id=exercise_id,
-        stage="read" if found.entailment is None else "prove",
+        # "facts", not "prove". The Facts confirmation screen is section 14's explicit safety
+        # net for the biggest known limitation -- a connective inside a fact phrase mis-splits
+        # silently, and seeing the extracted facts is the only thing that makes it visible. A
+        # session that opened straight onto the board would skip it, which is how a student would
+        # end up proving something about a fact they never agreed to.
+        stage="read" if found.entailment is None else "facts",
         paragraph=paragraph,
         conclusion=conclusion,
         facts=found.facts,

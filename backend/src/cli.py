@@ -25,11 +25,11 @@ from src.core import search, session, tutor
 from src.core.bkt import is_done
 from src.core.entail import Verdict
 from src.core.logic import diagnose, normalize_literal
-from src.core.models import Exercise
+from src.core.models import Exercise, MergeChoice
 
 
 class Play:
-    """One exercise in progress: the board, the hint level, and the student's mastery."""
+    """One exercise in progress: the facts stage, the board, the hint level, and mastery."""
 
     def __init__(self, runtime: app.Runtime, mastery: dict) -> None:
         self.runtime, self.mastery = runtime, mastery
@@ -37,10 +37,30 @@ class Play:
         self.hint_level = 0
         self.board = Board()
         self.verdict = Verdict.ENTAILED
+        self.exercise: Exercise | None = None
+        self.merges: tuple[MergeChoice, ...] = ()
+        self.found = None
+        self.confirmed = False
 
     def open(self, exercise: Exercise) -> bool:
-        """Analyse and lay out. False when the exercise cannot be played."""
-        found = app.prepare(exercise.paragraph, exercise.conclusion)
+        """Analyse the exercise and show the Facts screen. False when it cannot be played.
+
+        Opens on FACTS, not the board (section 14): the Facts screen is the explicit safety net
+        for a connective mis-splitting a fact phrase silently, and a session that built the board
+        straight away would skip it -- exactly the gap this fix closes.
+        """
+        self.exercise, self.merges, self.confirmed = exercise, (), False
+        return self._show_facts()
+
+    def _show_facts(self) -> bool:
+        """(Re)run the pipeline with the current merges and print the Facts screen.
+
+        Re-run rather than patched: a merge re-assigns every symbol from scratch (v2.6 A1), so
+        there is no way to adjust the old facts in place.
+        """
+        found = self.found = app.prepare(
+            self.exercise.paragraph, self.exercise.conclusion, self.merges
+        )
         print("\n" + "=" * 78)
         for record in found.sentences:
             print(f"{'  ' if record.status == 'ok' else '!!'} {record.text}")
@@ -63,10 +83,28 @@ class Play:
             return False
         if self.verdict is Verdict.NOT_ENTAILED:
             print("  " + self.say.cli("say_no"))
+        print("\n" + self.say.cli("confirm_prompt"))
+        return True
+
+    def merge(self, command: str) -> None:
+        """`merge <a> <b> same|opposite|different` -- fix a fact grouping, then re-show it."""
+        parts = command.split()
+        if len(parts) != 3 or parts[2] not in ("same", "opposite", "different"):
+            print("  " + self.say.cli("bad_merge"))
+            return
+        self.merges = (*self.merges, MergeChoice(parts[0], parts[1], parts[2]))
+        self._show_facts()
+
+    def confirm(self) -> bool:
+        """Leave the Facts stage and lay out the board. Not scored (section 9)."""
+        self.confirmed = True
         # The ids come from the session, which is the only thing allowed to mint them.
         self.board = Board.from_state(
-            session.state_of(found, paragraph=exercise.paragraph, conclusion=exercise.conclusion)
+            session.state_of(
+                self.found, paragraph=self.exercise.paragraph, conclusion=self.exercise.conclusion
+            )
         )
+        print("\n" + self.say.text["confirm"]["FACTS_CONFIRMED"])
         self.show_board()
         return True
 
@@ -159,10 +197,33 @@ COMMANDS: dict[str, tuple[Callable[[Play, str], bool], str | None]] = {
 LEAVING = {"quit": "quit", "": "quit", "skip": "skipped"}
 
 
+def facts_loop(play: Play, script: list[str] | None) -> str | None:
+    """Show the facts, allow merge/split, until confirmed. Returns a LEAVING outcome, or None.
+
+    A separate loop rather than one more branch in the main one: the set of legal commands is
+    different in the two stages -- `step`/`hint`/`no` make no sense before the board exists -- and
+    section 14's safety net is exactly this: the student must see the facts before the main loop
+    is ever entered.
+    """
+    while not play.confirmed:
+        command = read(play.say.cli("prompt"), script).strip()
+        if command in LEAVING:
+            return LEAVING[command]
+        if command in ("yes", "confirm"):
+            play.confirm()
+        elif command.startswith("merge "):
+            play.merge(command[len("merge ") :])
+        else:
+            print(play.say.cli("help", commands=play.say.cli("commands")))
+    return None
+
+
 def loop(exercise: Exercise, play: Play, script: list[str] | None) -> str:
     """One exercise until it is solved, skipped or abandoned."""
     if not play.open(exercise):
         return "unplayable"
+    if (left := facts_loop(play, script)) is not None:
+        return left
     while True:
         command = read(play.say.cli("prompt"), script).strip()
         if command in LEAVING:

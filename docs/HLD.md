@@ -658,13 +658,24 @@ second time with `merges` after the user manually merges facts; merges are **nev
 
 | `type` | Fields | `extras` | Valid in stage | M |
 |---|---|---|---|---|
+| `confirm_facts` | – | `{stage}` | `facts` | M1 |
 | `step` | `clause_a, clause_b, resolvent: list[str]` | `{valid, productive}` | `prove` | M1 |
 | `hint` | `level: 1\|2\|3` | `{available, reason?, text}` | `prove` | M1 |
 | `claim_not_provable` | – | `{accepted, counterexample?}` | `prove` | M1 |
 | `translate` | `sentence_id, formula: str` | `{diagnosis_code, counterexample}` | `translate` | M2 |
+| `confirm` | – | `{stage}` | `translate` | M2 |
 
 **`hint` is valid only in `stage="prove"`** (400 otherwise). This is why TRANSLATE evidence is
 never hint-affected (§9) — there is no hint in the Translate stage, by design and by schema.
+
+**`confirm_facts` leaves the Facts stage (§14's safety net) and is never scored (§9) — agreeing
+with the facts on screen is not an answer.** A session opens on `stage="facts"`; `step`, `hint`,
+`claim_not_provable` and `translate` sent before confirmation raise `FACTS_NOT_CONFIRMED`, a named
+error distinct from the generic wrong-stage one, because the pedagogical reason (facts not yet
+agreed) is different from any other wrong-stage call. `confirm_facts` is named separately from
+Translate's `confirm` (same shape, different stage) so the two exits are never conflated in logs or
+tests. A merge or split after confirmation still rewinds to `facts` and re-requires confirmation
+(the existing reset-with-confirmation rule, unchanged by this).
 
 ### Error model — every condition maps to exactly one place
 
@@ -672,6 +683,7 @@ never hint-affected (§9) — there is no hint in the Translate stage, by design
 |---|---|
 | Malformed JSON, bad type, literal failing `^~?[A-Z]$` | **HTTP 422** |
 | Unknown clause ID; symbol not in this exercise; >20 clauses; >6 literals; action sent in the wrong `stage`; mastery outside (0,1) | **HTTP 400** |
+| `step`, `hint`, `claim_not_provable` or `translate` sent while `stage="facts"` (not yet confirmed) | **HTTP 400**, `FACTS_NOT_CONFIRMED` — distinct code from the generic `WRONG_STAGE` above |
 | Unknown `exercise_id` | **HTTP 404** |
 | Any action when `solved` or session `done` is already true | **HTTP 409** |
 | `TOO_MANY_SENTENCES`, `TOO_MANY_FACTS` | 200, `/api/parse` top-level `error`, halts |
@@ -1851,7 +1863,7 @@ HTTP/in-band split follows one stated rule. ✔
 **Limits in one place:** `core/config.py`, imported by api/cli/scripts. Not test-enforced (row 26,
 accepted). ✔
 
-### 17.9 Scenario traces — all 14 defined
+### 17.9 Scenario traces — all 15 defined
 
 | # | Scenario | Expected outcome |
 |---|---|---|
@@ -1872,9 +1884,11 @@ accepted). ✔
 | m | Browser refresh mid-proof | localStorage restore; `schema_version` mismatch or parse failure ⇒ discard and restart cleanly |
 | n | Tampered state | 400 — unknown clause ID, foreign symbol, >20 clauses, >6 literals, wrong stage for the action, or mastery outside (0,1) |
 | **o** | **Hint on a non-entailing exercise (v2.2)** | No search call at all (§6.6 short-circuit); `HINT_NOT_FOLLOW_1/2/3` ladder; `productive=null`; a subsequent `claim_not_provable` is **accepted but scored STRATEGY wrong** because a hint was used |
+| **r** | **A proving action sent while `stage="facts"`, before `confirm_facts` (2026-10-12)** | `FACTS_NOT_CONFIRMED`, not the generic `WRONG_STAGE` — §14's safety net must be explicit even over the API, so a client that skips the Facts screen is refused by name, not silently advanced |
 
-**No undefined outcome remains.** Scenarios (d), (i), (l) and (m) were the ones v2.0 left vague
-and (o) was undefined until v2.2; all are now pinned by a named test or an explicit error mapping.
+**No undefined outcome remains.** Scenarios (d), (i), (l) and (m) were the ones v2.0 left vague,
+(o) was undefined until v2.2, and (r) was undefined until the Facts-stage-skip fix; all are now
+pinned by a named test or an explicit error mapping.
 
 ### 17.10 Determinism audit
 

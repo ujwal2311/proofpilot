@@ -34,9 +34,22 @@ def client():
 
 
 @pytest.fixture
-def board(client) -> dict:
-    """A fresh practice session, parsed and ready to prove."""
+def facts(client) -> dict:
+    """A fresh practice session, which opens on the FACTS stage."""
     return client.post("/api/next", json={}).json()["state"]
+
+
+@pytest.fixture
+def board(client, facts) -> dict:
+    """The same session with the facts confirmed, so it is ready to prove.
+
+    A session now opens on Facts, not Prove (S5): the Facts confirmation screen is section 14's
+    safety net for a connective inside a fact phrase, and a session that opened on the board would
+    skip it. So the fixture does what a student does -- it confirms first.
+    """
+    answer = client.post(ACT, json={"state": facts, "action": {"type": "confirm_facts"}})
+    assert answer.status_code == 200, answer.json()
+    return answer.json()["state"]
 
 
 def hint(client, state: dict, level: int = 1):
@@ -54,7 +67,7 @@ def test_next_offers_the_first_unseen_short_exercise(client) -> None:
     body = client.post("/api/next", json={}).json()
     assert body["done"] is False
     assert body["state"]["exercise_id"] == "ex-01"
-    assert body["state"]["stage"] == "prove"
+    assert body["state"]["stage"] == "facts", "a session opens on the facts screen, not the board"
     assert body["state"]["done_ids"] == ["ex-01"], "the offered exercise is recorded as seen"
 
 
@@ -214,7 +227,9 @@ def test_no_search_runs_for_a_non_entailing_session(client, monkeypatch) -> None
             "conclusion": "The hall is booked.",
         },
     ).json()
-    state = body["state"]
+    state = client.post(
+        ACT, json={"state": body["state"], "action": {"type": "confirm_facts"}}
+    ).json()["state"]
     assert state["entailment"]["verdict"] == "NOT_ENTAILED"
 
     calls: list[str] = []
@@ -255,9 +270,32 @@ def test_the_status_table_is_coherent() -> None:
 def test_a_wrong_stage_is_refused(client, board) -> None:
     # `hint` is valid only in `prove` (section 8). This is why TRANSLATE evidence is never
     # hint-affected: there is no hint in the Translate stage, by schema and by table.
-    body = hint(client, {**board, "stage": "facts"})
+    #
+    # "explain", not "facts": a proving action attempted in "facts" gets the MORE SPECIFIC
+    # FACTS_NOT_CONFIRMED (tested below), because that case has its own wording. "explain" has no
+    # such special case, so it is the generic wrong-stage refusal.
+    body = hint(client, {**board, "stage": "explain"})
     assert body.status_code == 400
     assert body.json()["code"] == "WRONG_STAGE"
+
+
+def test_a_proving_action_before_confirming_facts_is_the_specific_error(client, facts) -> None:
+    # The gap this fix closes: a session used to open straight onto the board, skipping section
+    # 14's explicit safety net for a connective mis-splitting a fact phrase silently.
+    body = hint(client, facts)
+    assert body.status_code == 400
+    assert body.json()["code"] == "FACTS_NOT_CONFIRMED"
+    assert body.json()["message"] != ""  # a sentence from messages.yaml, not a bare code
+
+
+def test_confirming_facts_is_not_scored(client, facts) -> None:
+    before = facts["mastery"]
+    answer = client.post(
+        "/api/act", json={"state": facts, "action": {"type": "confirm_facts"}}
+    ).json()
+    assert answer["code"] == "FACTS_CONFIRMED"
+    assert answer["state"]["stage"] == "prove"
+    assert answer["state"]["mastery"] == before, "agreeing with the facts is not an answer"
 
 
 def test_an_unknown_clause_id_is_refused(client, board) -> None:

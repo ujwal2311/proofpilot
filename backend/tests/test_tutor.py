@@ -211,7 +211,7 @@ def test_every_stage_action_pair_resolves_or_raises_with_a_name() -> None:
     assert resolved + refused == len(tutor.STAGES) * len(tutor.ACTIONS)
     assert resolved == len(tutor.TRANSITIONS)
     # Spelled out, because a product nobody has counted by hand cannot catch a missing row.
-    assert (len(tutor.STAGES), len(tutor.ACTIONS)) == (5, 7)
+    assert (len(tutor.STAGES), len(tutor.ACTIONS)) == (5, 8)
 
 
 def test_every_transition_lands_where_the_design_says() -> None:
@@ -228,7 +228,7 @@ def test_every_transition_lands_where_the_design_says() -> None:
     assert tutor.TRANSITIONS == {
         ("read", "parse"): "facts",
         ("facts", "merge"): "facts",
-        ("facts", "confirm"): "prove",
+        ("facts", "confirm_facts"): "prove",
         ("translate", "translate"): "translate",
         ("translate", "confirm"): "prove",
         ("prove", "step"): "prove",
@@ -246,6 +246,34 @@ def test_a_merge_in_the_prove_stage_rewinds_to_facts() -> None:
     # that LOSES the student's work, and it should fail loudly rather than as part of a dict.
     assert tutor.advance("prove", "merge") == "facts"
     assert tutor.advance("facts", "merge") == "facts"
+
+
+@pytest.mark.parametrize("action", ["step", "hint", "claim_not_provable", "translate"])
+def test_a_proving_action_before_confirming_facts_is_a_named_error(action: str) -> None:
+    """The gap this fix closes: a session used to open straight onto the board.
+
+    The Facts screen is section 14's explicit safety net for a connective mis-splitting a fact
+    phrase silently -- a student who never saw it would be proving something they never agreed
+    was correct. So every proving action is refused in "facts" with a SPECIFIC error, not the
+    generic wrong-stage one: `FactsNotConfirmed` is a `TransitionError`, so existing callers that
+    catch the base class still work, but a caller that wants to say "confirm the facts first"
+    rather than "wrong stage" can catch the subtype.
+    """
+    with pytest.raises(tutor.FactsNotConfirmed, match=action):
+        tutor.advance("facts", action)
+
+
+def test_confirming_facts_leaves_for_prove_in_m1() -> None:
+    # M2 routes a translating exercise through "translate" instead -- that wiring is S6's.
+    assert tutor.advance("facts", "confirm_facts") == "prove"
+
+
+def test_confirm_facts_is_distinct_from_confirm() -> None:
+    # Two different transitions, deliberately not sharing a name: "confirm" leaves the Translate
+    # stage (M2), "confirm_facts" leaves the Facts stage. A shared name would read as one action
+    # with two meanings.
+    assert ("facts", "confirm") not in tutor.TRANSITIONS
+    assert tutor.advance("translate", "confirm") == "prove"
 
 
 def test_allowed_agrees_with_the_table() -> None:

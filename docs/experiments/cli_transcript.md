@@ -7,11 +7,15 @@ be a thin transport.
 
 ```powershell
 cd backend
-"c2 c3 = A`nhint`nhint`nhint`nc1 c2 = B`nc3 c4 =" | Set-Content -Encoding utf8 t1.txt
-"hint`nhint`nhint`nno"                            | Set-Content -Encoding utf8 t2.txt
+"yes`nc2 c3 = A`nhint`nhint`nhint`nc1 c2 = B`nc3 c4 =" | Set-Content -Encoding utf8 t1.txt
+"yes`nhint`nhint`nhint`nno"                            | Set-Content -Encoding utf8 t2.txt
 python -m src.cli --exercise ex-01 --script t1.txt
 python -m src.cli --exercise ex-11 --script t2.txt
 ```
+
+The leading `yes` confirms the Facts screen (section 14) before the board is laid out — the
+explicit safety net against a connective mis-splitting a fact phrase silently. No session may
+reach the board without it.
 
 `--script` replays newline-separated commands through the *same* loop an interactive session uses,
 so what follows is what a student at a terminal sees. `--exercise` pins one exercise rather than
@@ -53,6 +57,11 @@ ProofPilot. Type `help` for commands, `quit` to leave.
 facts:
   A = "it rains"
   B = "the match is cancelled"
+
+type `yes` to confirm these facts, `merge <a> <b> <relation>` to fix one, or `quit`.
+> yes
+
+facts confirmed. Now prove the conclusion.
 
 board:
   c1: B v ~A
@@ -118,6 +127,11 @@ facts:
 
   a situation where every premise holds and the conclusion fails: A=F, B=T
   say `no` when you are sure.
+
+type `yes` to confirm these facts, `merge <a> <b> <relation>` to fix one, or `quit`.
+> yes
+
+facts confirmed. Now prove the conclusion.
 
 board:
   c1: B v ~A

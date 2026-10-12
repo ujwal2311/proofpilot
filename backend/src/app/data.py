@@ -70,6 +70,7 @@ API_CODES = frozenset(
         "TAMPERED_STATE",
         "UNKNOWN_CLAUSE",
         "WRONG_STAGE",
+        "FACTS_NOT_CONFIRMED",
         "ALREADY_FINISHED",
         "RESET_REQUIRED",
         "PAYLOAD_TOO_LARGE",
@@ -87,6 +88,9 @@ SUPPLIED = {
     "productivity": set(),
     "hint": {"clauses", "resolvent"},
     "claim": set(),
+    # Not scored (section 9: a merge confirmation has no ground truth, and leaving the Facts
+    # screen is agreement, not an answer), so one trigger with no placeholders.
+    "confirm": set(),
     "error": {"sentence"},
     "entailment": {"row"},
     "warning": {"phrase"},
@@ -244,6 +248,7 @@ def required_messages() -> dict[str, set[str]]:
         | {f"HINT_NOT_FOLLOW_{n}" for n in (1, 2, 3)}
         | {"HINT_FALLBACK", "HINT_UNAVAILABLE"},
         "claim": set(_CLAIM_OUTCOMES),
+        "confirm": {"FACTS_CONFIRMED"},
         "error": {code.value for code in ErrorCode},
         "entailment": {verdict.name for verdict in Verdict} | {"counterexample"},
         # The adapter's own chrome. Listed so `cli.py` cannot acquire a sentence of its own.
@@ -270,6 +275,8 @@ def required_messages() -> dict[str, set[str]]:
             "bad_step",
             "unknown_clause",
             "own_topic",
+            "confirm_prompt",
+            "bad_merge",
         },
     }
 

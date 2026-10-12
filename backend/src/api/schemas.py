@@ -148,6 +148,18 @@ class ClaimAction(_Body):
     type: Literal["claim_not_provable"]
 
 
+class ConfirmFactsAction(_Body):
+    """ "These facts are right" -- leaves the Facts stage (`tutor.TRANSITIONS`).
+
+    Named `confirm_facts` rather than the bare `confirm` that leaves the Translate stage in M2:
+    they are different transitions in different stages, and a shared name would read as one
+    action with two meanings. It carries nothing -- the student is agreeing with what is on
+    screen, and any payload would be a second opinion about a session the server already holds.
+    """
+
+    type: Literal["confirm_facts"]
+
+
 class TranslateAction(_Body):
     """M2. Valid only in the Translate stage, which `tutor.advance` enforces."""
 
@@ -159,7 +171,7 @@ class TranslateAction(_Body):
 # Discriminated on `type`, so a bad action names the field that is wrong instead of reporting four
 # parallel failures (HLD section 8: one `/act` surface, not one endpoint per action).
 Action = Annotated[
-    StepAction | HintAction | ClaimAction | TranslateAction,
+    StepAction | HintAction | ClaimAction | ConfirmFactsAction | TranslateAction,
     Field(discriminator="type"),
 ]
 

@@ -52,6 +52,11 @@ claim:
   CLAIM_ACCEPTED: "correct -- it does not follow."
   CLAIM_REJECTED: "it does follow; keep going."
 
+# -------------------------------------------------------- leaving the Facts screen (section 14)
+# Not scored (section 9): the student is agreeing with what is on screen, which is not an answer.
+confirm:
+  FACTS_CONFIRMED: "facts confirmed. Now prove the conclusion."
+
 # ------------------------------------------------------- refusals (section 3.4, never a guess)
 # Every one carries a rephrasing hint. A refusal without one tells the student they are wrong
 # without telling them what to do, which is the failure mode "never guess" is meant to avoid.
@@ -92,6 +97,8 @@ cli:
   banner: "ProofPilot. Type `help` for commands, `quit` to leave."
   help: "{commands}"
   commands: |
+    yes | confirm           confirm the facts shown above and start proving
+    merge <a> <b> <rel>     same | opposite | different, e.g. `merge p1 p2 same`
     <a> <b> = <literals>   resolve a with b, e.g. `c1 c2 = B`; `=` alone derives []
     hint                   ask for a hint; repeating escalates 1 -> 2 -> 3
     no                     claim the conclusion does not follow
@@ -113,6 +120,8 @@ cli:
   bad_step: "a step is `<clause> <clause> = <literals>`, for example `c1 c2 = B`"
   unknown_clause: "no clause called {sentence}"
   own_topic: "your own question"
+  confirm_prompt: "type `yes` to confirm these facts, `merge <a> <b> <relation>` to fix one, or `quit`."
+  bad_merge: "a merge is `merge <phrase id> <phrase id> same|opposite|different`."
 
 # ----------------------------------------------- transport errors (HLD section 8's HTTP rows)
 # NOT feedback. Section 8's rule is "would this be true regardless of the student's answer?" ->
@@ -129,6 +138,7 @@ api:
   TAMPERED_STATE: "That session could not have come from this system, so it was refused. If you edited it by hand, start a fresh exercise."
   UNKNOWN_CLAUSE: "There is no clause with that name on the board."
   WRONG_STAGE: "That action is not available at this stage of the exercise."
+  FACTS_NOT_CONFIRMED: "Check the facts and confirm them before you start proving."
   ALREADY_FINISHED: "This exercise is already finished. Move on to the next one."
   RESET_REQUIRED: "Changing a merge discards the proof built on the old symbols. Confirm first."
   PAYLOAD_TOO_LARGE: "That request is too large. Shorten the paragraph and try again."
