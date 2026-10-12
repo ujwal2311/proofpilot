@@ -1120,3 +1120,41 @@ Both fixes were confirmed live: a full rain-paragraph proof through to the Expla
 no stale "not needed" labels, and a Same-fact merge on an 8-fact paragraph correctly regrouping two
 phrases and re-lettering the rest. `npm run build` is green; `pytest`, `ruff check`/`format`, the
 C901 and function-length gates are green on the modified core files.
+
+---
+
+**Date:** 2026-10-12
+**Phase:** Sprint block S8 — pilot E5 tooling, `run_experiments.py`, `heldout_eval.py`
+**Tool:** Claude Code (Sonnet 5)
+**Files created:** `docs/pilot/template.csv`, `consent.md`, `protocol.md`, `pre_test.md`,
+`post_test.md`; `scripts/report.py`, `analyze_pilot.py`, `run_experiments.py`, `heldout_eval.py`;
+`docs/results.png`, `docs/results_simulation.csv`, `docs/experiments/run_experiments.md`
+**Files modified:** `backend/tests/test_dead_references.py` (PLANNED entries removed as each file
+landed)
+**What the student changed by hand:** none yet — to confirm.
+**Purpose:** Pilot tooling first, since the classmate pilot runs today and needs the session
+materials ready; then the two remaining evaluation scripts named in HLD section 11.
+
+The pilot pre-test and post-test are deliberately PARALLEL forms — same five question types, same
+point value, different letters and topics — so the post-test is not simply a memory check of the
+pre-test's exact items.
+
+`run_experiments.py`'s simulation graph needed one design decision the HLD text left open: what
+the three bars measure. The resolution, confirmed with the student, is the premature-release rate
+(% of simulated learners released while truly unmastered) rather than mean exercises (equal by
+construction once the baseline's N is matched to the adaptive arm's mean) or final mastery at a
+fixed budget (which averages away exactly the slow-learner cutoff the rule exists to catch). Mean
+exercises and mean over-practice are reported in the CSV and the figure caption only. Running the
+script twice and diffing the output caught a real bug before it shipped: seeding a per-walk RNG
+from `hash((exercise_id, walk))` is not reproducible, because Python randomises string hashing per
+process by default — fixed to a plain integer offset from `config.RANDOM_SEED`.
+
+`heldout_eval.py` is ready but has nothing to evaluate yet: `data/heldout_paragraphs.json` is
+written by the student and classmates after the parser is frozen, never by Claude (CLAUDE.md rule
+6). It was verified two ways without that file — run with none present (reports "not yet run"
+rather than fabricating a number) and against an uncommitted scratch fixture exercising the real
+parse-and-aggregate path and the malformed-schema error case.
+
+Every number in `docs/results.png`, `docs/results_simulation.csv` and
+`docs/experiments/run_experiments.md` came from an actual run of the script, stamped with the
+commit it was measured against (CLAUDE.md rule 10) — none were written by hand.
