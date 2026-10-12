@@ -1,4 +1,6 @@
-import { PILOT_MODE, setPilotId } from "./api.js";
+import { useState } from "react";
+
+import { PILOT_MODE, getPilotId, setPilotId } from "./api.js";
 import { Explanation } from "./Explanation.jsx";
 import { Feedback } from "./Feedback.jsx";
 import { MasteryBars } from "./MasteryBars.jsx";
@@ -16,11 +18,18 @@ const STAGES = ["read", "facts", "translate", "prove", "explain"];
 export default function App() {
   const { state, feedback, problem, pending, done, nextExercise, parse, act, restart } =
     useSession();
+  const [pilotId, setPilotIdState] = useState(() => getPilotId());
+  const [editingFacts, setEditingFacts] = useState(false);
+
+  const updatePilotId = (value) => {
+    setPilotIdState(value);
+    setPilotId(value);
+  };
 
   if (done) {
     return (
       <main>
-        <Header />
+        <Header pilotId={pilotId} onPilotId={updatePilotId} />
         <p className="done">{UI.allDone}</p>
       </main>
     );
@@ -28,7 +37,7 @@ export default function App() {
   if (!state) {
     return (
       <main>
-        <Header />
+        <Header pilotId={pilotId} onPilotId={updatePilotId} />
         {problem ? <Feedback problem={problem} /> : <p className="help">{UI.loading}</p>}
         {problem ? (
           <button type="button" onClick={restart}>
@@ -39,32 +48,55 @@ export default function App() {
     );
   }
 
+  // Pilot mode needs a participant code before any action reaches the server -- the server's own
+  // event log refuses a request with none (api/main.py's `_require_pilot_id`), so blocking here
+  // is a courtesy that turns a 400 into a plain on-screen ask instead.
+  if (PILOT_MODE && !pilotId.trim()) {
+    return (
+      <main>
+        <Header pilotId={pilotId} onPilotId={updatePilotId} />
+        <p className="help">{UI.pilotIdRequired}</p>
+      </main>
+    );
+  }
+
   const stage = state.stage === "read" ? "facts" : state.stage;
+  const showFacts = stage === "facts" || (stage === "prove" && editingFacts);
   return (
     <main aria-busy={pending}>
-      <Header />
+      <Header pilotId={pilotId} onPilotId={updatePilotId} />
       <Stepper current={stage} />
       <MasteryBars mastery={state.mastery} />
       <Feedback feedback={feedback} problem={problem} />
 
-      {stage === "facts" ? (
+      {showFacts ? (
         <ReadFacts
           state={state}
           pending={pending}
-          onMerge={(merge) =>
-            parse(state.paragraph, state.conclusion, [...state.merges_applied, merge])
+          onMerge={(merge) => {
+            const merges = [...state.merges_applied, merge];
+            if (stage === "prove") {
+              act({ type: "merge", merges }).then((result) => {
+                if (result) setEditingFacts(false);
+              });
+            } else {
+              parse(state.paragraph, state.conclusion, merges);
+            }
+          }}
+          onConfirm={() =>
+            stage === "prove" ? setEditingFacts(false) : act({ type: "confirm_facts" })
           }
-          onConfirm={() => act({ type: "confirm_facts" })}
         />
       ) : null}
 
-      {stage === "prove" ? (
+      {stage === "prove" && !editingFacts ? (
         <ProveBoard
           state={state}
           pending={pending}
           onStep={(step) => act({ type: "step", ...step })}
           onHint={(level) => act({ type: "hint", level })}
           onClaim={() => act({ type: "claim_not_provable" })}
+          onEditFacts={() => setEditingFacts(true)}
         />
       ) : null}
 
@@ -81,7 +113,7 @@ export default function App() {
   );
 }
 
-function Header() {
+function Header({ pilotId, onPilotId }) {
   return (
     <header>
       <h1>{UI.title}</h1>
@@ -91,8 +123,9 @@ function Header() {
           <label htmlFor="pilot-id">{UI.pilotIdLabel}</label>{" "}
           <input
             id="pilot-id"
+            value={pilotId}
             placeholder={UI.pilotIdPlaceholder}
-            onChange={(event) => setPilotId(event.target.value.trim())}
+            onChange={(event) => onPilotId(event.target.value.trim())}
           />
         </p>
       ) : null}

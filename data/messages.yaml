@@ -56,6 +56,7 @@ claim:
 # Not scored (section 9): the student is agreeing with what is on screen, which is not an answer.
 confirm:
   FACTS_CONFIRMED: "facts confirmed. Now prove the conclusion."
+  MERGE_RESET: "facts changed. Your proof on the old symbols was discarded -- check the facts again."
 
 # ------------------------------------------------------- refusals (section 3.4, never a guess)
 # Every one carries a rephrasing hint. A refusal without one tells the student they are wrong
@@ -139,6 +140,7 @@ api:
   UNKNOWN_CLAUSE: "There is no clause with that name on the board."
   WRONG_STAGE: "That action is not available at this stage of the exercise."
   FACTS_NOT_CONFIRMED: "Check the facts and confirm them before you start proving."
+  PILOT_ID_REQUIRED: "Pilot logging is on for this session. Enter a Pilot ID and try again."
   ALREADY_FINISHED: "This exercise is already finished. Move on to the next one."
   RESET_REQUIRED: "Changing a merge discards the proof built on the old symbols. Confirm first."
   PAYLOAD_TOO_LARGE: "That request is too large. Shorten the paragraph and try again."

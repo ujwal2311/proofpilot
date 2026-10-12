@@ -66,13 +66,37 @@ def test_a_second_action_appends_a_second_line(client, board, monkeypatch, tmp_p
     assert len(lines) == 2
 
 
-def test_no_pilot_id_header_means_no_log_even_when_enabled(
+def test_no_pilot_id_header_is_refused_when_logging_is_on(
     client, board, monkeypatch, tmp_path
 ) -> None:
+    """The server never writes a line with no participant attached -- it refuses instead."""
     monkeypatch.setattr(main, "PILOT_LOG_ENABLED", True)
     monkeypatch.setattr(main, "PILOT_LOG_DIR", tmp_path)
-    client.post(ACT, json={"state": board, "action": {"type": "hint", "level": 1}})
+    answer = client.post(ACT, json={"state": board, "action": {"type": "hint", "level": 1}})
+    assert answer.status_code == 400
+    assert answer.json()["code"] == "PILOT_ID_REQUIRED"
     assert not (tmp_path / "pilot.jsonl").exists()
+
+
+def test_no_pilot_id_header_is_fine_when_logging_is_off(client, board) -> None:
+    # The guard is a no-op off the sprint-flag path: a normal dev or CI request never sends the
+    # header and must never be refused for it.
+    answer = client.post(ACT, json={"state": board, "action": {"type": "hint", "level": 1}})
+    assert answer.status_code == 200
+
+
+def test_parse_also_requires_the_header_when_logging_is_on(client, monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(main, "PILOT_LOG_ENABLED", True)
+    monkeypatch.setattr(main, "PILOT_LOG_DIR", tmp_path)
+    answer = client.post(
+        PARSE,
+        json={
+            "paragraph": "If it rains then the match is cancelled. It rains.",
+            "conclusion": "The match is cancelled.",
+        },
+    )
+    assert answer.status_code == 400
+    assert answer.json()["code"] == "PILOT_ID_REQUIRED"
 
 
 def test_no_free_text_is_ever_recorded(client, board, monkeypatch, tmp_path) -> None:

@@ -41,6 +41,7 @@ export const UI = {
   hint: "Hint",
   hintLevel: (n) => `Hint ${n} of 3`,
   claimNotProvable: "Does not follow",
+  editFacts: "Edit facts",
   selectTwo: "Select two clauses to resolve.",
 
   // Explanation
@@ -54,6 +55,7 @@ export const UI = {
   // pilot mode only
   pilotIdLabel: "Pilot ID",
   pilotIdPlaceholder: "P1",
+  pilotIdRequired: "Enter your Pilot ID above to start.",
 
   // chrome
   mastery: "Mastery",

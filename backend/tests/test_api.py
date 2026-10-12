@@ -158,6 +158,44 @@ def test_act_routes_each_action_type(client, board) -> None:
     assert claim["code"] == "CLAIM_REJECTED"  # ex-01 does follow
 
 
+def test_merge_from_prove_resets_to_facts(client, board) -> None:
+    # The v2.7 A4 reset, now reachable from the API as well as core: a merge changed mid-proof
+    # discards the derived work, because symbols are re-assigned from scratch.
+    answer = client.post(
+        ACT,
+        json={
+            "state": board,
+            "action": {"type": "merge", "merges": [{"a": "p1", "b": "p2", "relation": "same"}]},
+        },
+    )
+    assert answer.status_code == 200
+    body = answer.json()
+    assert body["code"] == "MERGE_RESET"
+    assert body["state"]["stage"] == "facts"
+    assert not any(c["origin"] == "derived" for c in body["state"]["clauses"]), (
+        "the proof's derived clauses must not survive a merge change"
+    )
+    assert body["state"]["merges_applied"] == [{"a": "p1", "b": "p2", "relation": "same"}]
+
+
+def test_merge_regroups_the_facts(client, board) -> None:
+    body = client.post(
+        ACT,
+        json={
+            "state": board,
+            "action": {"type": "merge", "merges": [{"a": "p1", "b": "p2", "relation": "same"}]},
+        },
+    ).json()
+    assert len(body["state"]["facts"]) == 1, (
+        "p1 (it rains) and p2 (match cancelled) are now one fact"
+    )
+
+
+def test_merge_is_not_scored(client, board) -> None:
+    body = client.post(ACT, json={"state": board, "action": {"type": "merge", "merges": []}}).json()
+    assert body["state"]["mastery"] == board["mastery"]
+
+
 def test_act_names_the_mistake_rather_than_reporting_wrong(client, board) -> None:
     body = client.post(
         ACT,

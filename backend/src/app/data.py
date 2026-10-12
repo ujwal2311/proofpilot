@@ -71,6 +71,7 @@ API_CODES = frozenset(
         "UNKNOWN_CLAUSE",
         "WRONG_STAGE",
         "FACTS_NOT_CONFIRMED",
+        "PILOT_ID_REQUIRED",
         "ALREADY_FINISHED",
         "RESET_REQUIRED",
         "PAYLOAD_TOO_LARGE",
@@ -248,7 +249,7 @@ def required_messages() -> dict[str, set[str]]:
         | {f"HINT_NOT_FOLLOW_{n}" for n in (1, 2, 3)}
         | {"HINT_FALLBACK", "HINT_UNAVAILABLE"},
         "claim": set(_CLAIM_OUTCOMES),
-        "confirm": {"FACTS_CONFIRMED"},
+        "confirm": {"FACTS_CONFIRMED", "MERGE_RESET"},
         "error": {code.value for code in ErrorCode},
         "entailment": {verdict.name for verdict in Verdict} | {"counterexample"},
         # The adapter's own chrome. Listed so `cli.py` cannot acquire a sentence of its own.

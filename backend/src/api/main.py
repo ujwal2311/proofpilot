@@ -56,6 +56,25 @@ PILOT_LOG_ENABLED = bool(os.environ.get("PROOFPILOT_PILOT_LOG"))
 PILOT_LOG_DIR = Path(__file__).resolve().parents[3] / "docs" / "pilot" / "logs"
 
 
+class MissingPilotId(ValueError):
+    """Pilot logging is on, but this request carries no X-Pilot-Id header.
+
+    The log must never write a line with no participant attached (section 11, E5) -- so a request
+    missing the header is refused outright rather than silently logged thin or silently skipped.
+    """
+
+
+def _require_pilot_id(request: Request) -> str | None:
+    """The pilot id header, or raise if logging is on and the request did not send one.
+
+    A no-op when PROOFPILOT_PILOT_LOG is off: this must never affect a normal dev or CI request.
+    """
+    pilot_id = request.headers.get("x-pilot-id")
+    if PILOT_LOG_ENABLED and not pilot_id:
+        raise MissingPilotId("no X-Pilot-Id header")
+    return pilot_id
+
+
 def _pilot_log(request: Request, action: str, code: str, state: dict | None) -> None:
     """One JSONL line: pilot_id, timestamp, action, result code, hint level, stage. Nothing else.
 
@@ -180,6 +199,7 @@ def parse(body: ParseRequest, request: Request) -> dict:
     never inferred (v2.6 A1).
     """
     _check_version(body.state_version)
+    _require_pilot_id(request)
     # Strictly validated into core dataclasses here. The envelope carries `list[dict]` because a
     # STRICT envelope would demand actual `MergeChoice` instances and a JSON body only ever has
     # objects -- so the conversion has to happen in the one place that knows how.
@@ -207,6 +227,7 @@ def parse(body: ParseRequest, request: Request) -> dict:
 def act(body: ActRequest, request: Request) -> dict:
     """One student action against a stored session. The discriminated union routes it."""
     _check_version(body.state_version)
+    _require_pilot_id(request)
     state = schemas.load_state(body.state)
     audit(state)
     if state.solved:
@@ -305,12 +326,43 @@ def _confirm_facts(state, _action) -> dict:
     }
 
 
+def _merge(state, action) -> dict:
+    """Change the merge grouping -- the v2.7 A4 reset path, reachable from Prove as well as Facts.
+
+    `tutor.advance` has already checked `("prove"|"facts", "merge")` is legal before this handler
+    runs, and the client only sends this action after its OWN "this discards your proof" dialog
+    was confirmed -- so `change_merges` always applies here, never raises `ResetRequired`. It is
+    still called rather than skipped: it is the one place the v2.7 A4 reset is defined, and
+    skipping it would mean this handler re-deriving by hand what fields survive a merge change.
+    """
+    merges = schemas.load_merges(action.merges)
+    reset = session.change_merges(state, merges, confirmed=True)
+    found = edge.prepare(reset.paragraph, reset.conclusion, merges)
+    fresh = session.state_of(
+        found,
+        paragraph=reset.paragraph,
+        conclusion=reset.conclusion,
+        mode=reset.mode,
+        exercise_id=reset.exercise_id,
+        mastery=reset.mastery,
+        done_ids=reset.done_ids,
+        merges=merges,
+    )
+    return {
+        "code": "MERGE_RESET",
+        "message": runtime().render.text["confirm"]["MERGE_RESET"],
+        "state": schemas.dump_state(fresh),
+        "extras": {"stage": fresh.stage},
+    }
+
+
 _ACTIONS = {
     "step": _step,
     "hint": _hint,
     "claim_not_provable": _claim,
     "confirm_facts": _confirm_facts,
     "translate": _translate,
+    "merge": _merge,
 }
 
 
@@ -370,6 +422,7 @@ STATUS = {
     session.ResetRequired: (409, "RESET_REQUIRED"),
     AlreadyFinished: (409, "ALREADY_FINISHED"),
     StateVersionMismatch: (409, "STATE_VERSION_MISMATCH"),
+    MissingPilotId: (400, "PILOT_ID_REQUIRED"),
     DataError: (500, "BAD_DATA_FILE"),
     NotImplementedUntilM2: (501, "NOT_IMPLEMENTED"),
 }

@@ -13,7 +13,7 @@ import { UI } from "./labels.js";
 // Irrelevant clauses are MARKED, never hidden (section 6.5). The filter reports what the
 // conclusion cannot reach; the student may still use any clause, and noticing which premises are
 // not needed is part of what the long exercises teach.
-export function ProveBoard({ state, pending, onStep, onHint, onClaim }) {
+export function ProveBoard({ state, pending, onStep, onHint, onClaim, onEditFacts }) {
   const [picked, setPicked] = useState([]);
   const [resolvent, setResolvent] = useState("");
 
@@ -108,6 +108,9 @@ export function ProveBoard({ state, pending, onStep, onHint, onClaim }) {
         ))}
         <button type="button" onClick={onClaim} disabled={pending}>
           {UI.claimNotProvable}
+        </button>
+        <button type="button" onClick={onEditFacts} disabled={pending}>
+          {UI.editFacts}
         </button>
       </div>
     </section>

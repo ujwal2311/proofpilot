@@ -8,12 +8,29 @@ const BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
 // Pilot mode (HLD section 11, E5): off unless the env var is set, and even then the backend's
 // own event log stays off unless PROOFPILOT_PILOT_LOG=1 is set server-side too -- this header is
-// inert against a normal dev or CI backend. `pilotId` lives only in memory; it is a participant
-// code (P1..P10), never anything that needs to survive a refresh.
+// inert against a normal dev or CI backend. `pilotId` is a participant code (P1..P10), kept in
+// sessionStorage (not localStorage: it should not outlive the browser tab) so a mid-session
+// refresh does not silently stop attributing event-log lines to the right participant.
 export const PILOT_MODE = import.meta.env.VITE_PILOT_MODE === "1";
-let pilotId = "";
+const PILOT_ID_KEY = "proofpilot.pilot_id";
+
+function loadPilotId() {
+  try {
+    return window.sessionStorage.getItem(PILOT_ID_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+let pilotId = PILOT_MODE ? loadPilotId() : "";
+export const getPilotId = () => pilotId;
 export const setPilotId = (id) => {
   pilotId = id;
+  try {
+    window.sessionStorage.setItem(PILOT_ID_KEY, id);
+  } catch {
+    // Best-effort only -- losing persistence is not worth failing the action over.
+  }
 };
 
 // Thrown for every failure, so a caller has one thing to catch. `code` is what the UI branches

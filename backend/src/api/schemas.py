@@ -168,10 +168,23 @@ class TranslateAction(_Body):
     formula: str
 
 
+class MergeAction(_Body):
+    """Change the merge grouping from the Prove (or Facts) stage -- the v2.7 A4 reset.
+
+    `merges` is the COMPLETE new list, not a delta, matching `ParseRequest.merges`: the caller has
+    already shown its own "this discards your proof" confirmation (`tutor.advance` routes
+    `("prove", "merge")` to `"facts"`), so this always applies with `confirmed=True` in
+    `session.change_merges` -- there is no unconfirmed form of this action over the wire.
+    """
+
+    type: Literal["merge"]
+    merges: list[dict] = []
+
+
 # Discriminated on `type`, so a bad action names the field that is wrong instead of reporting four
 # parallel failures (HLD section 8: one `/act` surface, not one endpoint per action).
 Action = Annotated[
-    StepAction | HintAction | ClaimAction | ConfirmFactsAction | TranslateAction,
+    StepAction | HintAction | ClaimAction | ConfirmFactsAction | TranslateAction | MergeAction,
     Field(discriminator="type"),
 ]
 
