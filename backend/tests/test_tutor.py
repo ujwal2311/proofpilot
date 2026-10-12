@@ -574,6 +574,15 @@ def test_adding_a_clause_resets_the_hint_level() -> None:
     assert advanced.clauses[-1].id == "c4"
 
 
+def test_a_derived_clause_is_added_to_relevant_ids() -> None:
+    # section 6.5's filter only ever ran over the ORIGINAL premises, so a clause the student just
+    # derived was never in it -- and "not needed for this conclusion" is a claim about premises,
+    # not about something built while working toward the goal. Leaving it out mislabels it.
+    state = _state(relevant_ids=("c1", "c2", "c3"))
+    advanced = session.record_clause(state, ClauseRec("c4", ("B",), "derived", None))
+    assert advanced.relevant_ids == ("c1", "c2", "c3", "c4")
+
+
 def test_changing_stage_resets_the_hint_level() -> None:
     state = session.record_hint(_state(stage="prove"))
     assert session.enter_stage(state, "explain").hint_level == 0

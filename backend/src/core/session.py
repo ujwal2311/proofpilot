@@ -205,11 +205,17 @@ def record_clause(state: State, clause: ClauseRec) -> State:
     Section 4: the level resets on a clause being added. The old hint was about a position that no
     longer exists, and charging the next step as hinted would punish the student for help they
     did not get. Deriving the empty clause solves the exercise.
+
+    `relevant_ids` gains the new clause too (section 6.5's filter only ever ran over the ORIGINAL
+    premises, so a clause the student just derived was never in it). "not needed for this
+    conclusion" is a claim about premises, not about something the student derived while working
+    toward the goal -- leaving a derived clause out of this set would mislabel it instead.
     """
     solved = not clause.literals
     return replace(
         state,
         clauses=(*state.clauses, clause),
+        relevant_ids=(*state.relevant_ids, clause.id),
         hint_level=0,
         solved=solved or state.solved,
         stage="explain" if solved else state.stage,
