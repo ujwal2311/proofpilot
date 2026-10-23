@@ -1183,3 +1183,15 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 **What the student changed by hand:** to confirm.
 
 **Purpose:** Corrected control characters in the preceding S10 log entry. Built the committed deck generator in an ignored verification environment and compared it to the committed deck: 10 slides, with matching shape counts, text, and table contents. The committed deck did not require regeneration.
+
+---
+
+## Sprint block S6 | 2026-10-24 | Codex (GPT-5)
+
+**Files created:** backend/src/core/formula.py, backend/src/core/translation.py, backend/src/core/narrate.py; backend/tests/test_formula.py, backend/tests/test_translation.py, backend/tests/test_narrate.py
+
+**Files modified:** backend/tests/test_dead_references.py, AI_USAGE_LOG.md
+
+**What the student changed by hand:** Nothing for this block (student instructed to continue in auto mode).
+
+**Purpose:** Implemented the M2 pure-core formula parser, exhaustive translation equivalence and fixed diagnosis checker, plus ordered proof narration. The new tests cover all six M2 test-plan behaviours named in the frozen HLD.

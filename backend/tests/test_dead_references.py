@@ -65,9 +65,6 @@ FENCES = (
 
 # Rule 2 -- shrinks as the sprint lands each block.
 PLANNED = {
-    "backend/src/core/translation.py": "S6",
-    "backend/src/core/narrate.py": "S6",
-    "backend/src/core/formula.py": "S6",
     "data/heldout_paragraphs.json": "S8 -- written by the team, never by Claude",
     "docs/misconceptions.md": "S10",
 }
