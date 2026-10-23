@@ -70,11 +70,6 @@ PLANNED = {
     "backend/src/core/formula.py": "S6",
     "data/heldout_paragraphs.json": "S8 -- written by the team, never by Claude",
     "docs/misconceptions.md": "S10",
-    "docs/report/CONTRIBUTION_TEMPLATE.md": "S10",
-    "docs/report/REPORT_OUTLINE.md": "S10",
-    "docs/report/literature_matrix.csv": "S10",
-    "docs/report/references.md": "S10",
-    "docs/report/PROGRESS.md": "S10",
 }
 
 # Docs write a module path relative to the package as often as to the repo root --
