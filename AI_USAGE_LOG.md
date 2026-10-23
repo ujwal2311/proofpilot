@@ -1163,11 +1163,23 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 ## S10 deck add-on | 2026-10-23 | Antigravity (Claude) | commit 1bb38b2
 
-**Files modified:** ackend/tests/test_dead_references.py, docs/report/build_deck.py, docs/report/ProofPilot_Progress_Report.pptx`r
+**Files modified:** backend/tests/test_dead_references.py, docs/report/build_deck.py, docs/report/ProofPilot_Progress_Report.pptx
 
 **What the agent did:**
-- Removed 5 docs/report/*.md keys from PLANNED in 	est_dead_references.py that now exist (committed in eed9ecf). Sprint-autonomy defect fix.
-- Fixed 9 ruff findings in uild_deck.py: I001 (import order), F401 (unused Emu), B008 (Pt() in default arg -> module-level _DEFAULT_LINE_WIDTH), 6x E501 (section comment lines shortened). uff check and uff format --check both clean.
+- Removed 5 docs/report/*.md keys from PLANNED in test_dead_references.py that now exist (committed in eed9ecf). Sprint-autonomy defect fix.
+- Fixed 9 ruff findings in build_deck.py: I001 (import order), F401 (unused Emu), B008 (Pt() in default arg -> module-level _DEFAULT_LINE_WIDTH), 6x E501 (section comment lines shortened). ruff check and ruff format --check both clean.
 - Committed ProofPilot_Progress_Report.pptx (built from the eed9ecf report kit). Commit count updated to live value: 71 commits / 58 Co-Authored-By (kit had 70/58 at 9d5b0bf).
 
 **What the student changed by hand:** Nothing for this block (student confirmed skipping pptx regeneration).
+
+---
+
+## S10 maintenance verification | 2026-10-24 | Codex (GPT-5)
+
+**Files modified:** AI_USAGE_LOG.md
+
+**Ignored verification files created:** venv/verify_deck.py, venv/docs/report/ProofPilot_Progress_Report.pptx
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Corrected control characters in the preceding S10 log entry. Built the committed deck generator in an ignored verification environment and compared it to the committed deck: 10 slides, with matching shape counts, text, and table contents. The committed deck did not require regeneration.
