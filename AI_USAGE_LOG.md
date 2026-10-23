@@ -1158,3 +1158,16 @@ parse-and-aggregate path and the malformed-schema error case.
 Every number in `docs/results.png`, `docs/results_simulation.csv` and
 `docs/experiments/run_experiments.md` came from an actual run of the script, stamped with the
 commit it was measured against (CLAUDE.md rule 10) — none were written by hand.
+
+---
+
+## S10 deck add-on | 2026-10-23 | Antigravity (Claude) | commit 1bb38b2
+
+**Files modified:** ackend/tests/test_dead_references.py, docs/report/build_deck.py, docs/report/ProofPilot_Progress_Report.pptx`r
+
+**What the agent did:**
+- Removed 5 docs/report/*.md keys from PLANNED in 	est_dead_references.py that now exist (committed in eed9ecf). Sprint-autonomy defect fix.
+- Fixed 9 ruff findings in uild_deck.py: I001 (import order), F401 (unused Emu), B008 (Pt() in default arg -> module-level _DEFAULT_LINE_WIDTH), 6x E501 (section comment lines shortened). uff check and uff format --check both clean.
+- Committed ProofPilot_Progress_Report.pptx (built from the eed9ecf report kit). Commit count updated to live value: 71 commits / 58 Co-Authored-By (kit had 70/58 at 9d5b0bf).
+
+**What the student changed by hand:** Nothing for this block (student confirmed skipping pptx regeneration).
