@@ -38,3 +38,12 @@ def test_translation_counterexample_differs_in_truth_value() -> None:
     row = dict(result.counterexample)
     assert row["it rains"] is True
     assert row["we get wet"] is False
+
+
+def test_not_equivalent_fallback_still_carries_a_counterexample() -> None:
+    # Neither CORRECT, the contrapositive, nor any of the three fixed mistakes -- the final
+    # NOT_EQUIVALENT fallback has its own counterexample to drop, distinct from the three above.
+    result = check("A & B", "A -> B", LABELS)
+
+    assert result.code == "NOT_EQUIVALENT"
+    assert result.counterexample is not None
