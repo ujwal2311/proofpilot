@@ -1221,3 +1221,15 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 **Purpose:** Built the two REMAINING `core`/`core_session` items `budgets.toml` had already priced for M2 wiring: `tutor.translate_trigger` maps a `translation.check` diagnosis to its section-9 policy row (`data/policy.yaml` already has the `translate.*` rows; `app/data.py` already builds `_TRANSLATE_OUTCOMES`), and `session.record_translation` stores one Translate-stage attempt on `State.translations` (the `Translation` dataclass already existed, unused until now).
 
 **Deliberately NOT done, and why:** the actual entry into the Translate stage -- changing `("facts", "confirm_facts")`'s destination away from `"prove"` -- was left alone. `Exercise` is explicitly "exactly the four fields" with no per-exercise translation flag, and `test_tutor.py` has an exhaustive dict-equality test asserting `TRANSITIONS[("facts", "confirm_facts")] == "prove"` today. Nothing in the frozen HLD says whether M2 makes every exercise route through Translate (a one-line table change) or only some (needs a new `Exercise` field, i.e. a schema change). Either answer changes a frozen, exhaustively-tested behaviour, so this is a design decision for the student, not something to guess at mid-sprint.
+
+---
+
+## Sprint block S11 (Block 4) | 2026-10-25 | Claude Code (Sonnet 5)
+
+**Files created:** scripts/ai_eval_tfl.py, docs/experiments/ai_eval_tfl.md
+
+**Files modified:** none
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Wired the two AI-generated evaluation sets in `data/eval/` into a real check: does ProofPilot's own entailment pipeline agree with each item's `expected_follows`? Result: 15/15 agree on the simple tier. Deliberately a NEW, separately-named script rather than reusing `scripts/heldout_eval.py` -- that script is T1, dedicated to the human-only `data/heldout_paragraphs.json` (CLAUDE.md rule 6), and its docstring and schema are built around that file alone; routing AI-generated data through the same tool and the same output file was the exact blur the task asked to avoid. The stress-tier file has a different schema (per-sentence translation drills, no `conclusion` or `expected_follows` field at all), so it has nothing to agree or disagree about; the script reports its item count honestly instead of inventing a comparison. Note: there are two files in `data/eval/`, not three.
