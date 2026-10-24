@@ -1233,3 +1233,15 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 **What the student changed by hand:** to confirm.
 
 **Purpose:** Wired the two AI-generated evaluation sets in `data/eval/` into a real check: does ProofPilot's own entailment pipeline agree with each item's `expected_follows`? Result: 15/15 agree on the simple tier. Deliberately a NEW, separately-named script rather than reusing `scripts/heldout_eval.py` -- that script is T1, dedicated to the human-only `data/heldout_paragraphs.json` (CLAUDE.md rule 6), and its docstring and schema are built around that file alone; routing AI-generated data through the same tool and the same output file was the exact blur the task asked to avoid. The stress-tier file has a different schema (per-sentence translation drills, no `conclusion` or `expected_follows` field at all), so it has nothing to agree or disagree about; the script reports its item count honestly instead of inventing a comparison. Note: there are two files in `data/eval/`, not three.
+
+---
+
+## Sprint block S11 (Block 2, continued) | 2026-10-25 | Claude Code (Sonnet 5)
+
+**Files created:** none
+
+**Files modified:** backend/tests/test_translation.py, backend/tests/test_narrate.py, docs/experiments/mutation_log.md (the two earlier commits this block made to data/mutants.json are logged above, under "Block 2")
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Completed the mutation refresh: ran the full set for all six modules with no score on record (session.py, tutor.py, config.py, formula.py, translation.py, narrate.py) against the real test suite. 41/43 caught on the first pass; two genuine survivors (translation.py's TR6, narrate.py's N1+N2) were fixed by adding a missing test each, never by excusing the gap or weakening a mutant. Final: 43/43 caught, logged in docs/experiments/mutation_log.md with the exact commit and fingerprint.

@@ -557,3 +557,49 @@ Commit `f1eaf28`, suite of 416 tests:
 | **Total** | **82** | **82** |
 
 `source fingerprint unchanged: 95d111fa90d7`.
+
+---
+
+## `session.py`, `tutor.py`, `config.py`, and S6's M2 modules — S11 (2026-10-24/25)
+
+No module built since Phase 6a had a score on record: `session.py` and `tutor.py` had mutants
+defined but never run and logged; `config.py` had mutants defined but never logged either;
+`formula.py`, `translation.py` and `narrate.py` (S6, 2026-10-24) had none at all. This block wrote
+the three missing mutant sets, re-anchored one retired mutant, ran the full set, and fixed every
+genuine survivor rather than excusing it.
+
+**`session.py`'s SE8 was retired, not caught or survived**: its anchor text no longer matched
+after a later refactor inserted a `relevant_ids=` line between the two lines SE8's find/replace
+spanned. Re-anchored to the current 3-line block (`data/mutants.json`); re-run below is the result
+after the fix.
+
+**Two genuine survivors, both fixed by adding a test, not by excusing the gap:**
+
+- **`translation.py` TR6** — dropping the counterexample on the final `NOT_EQUIVALENT` fallback
+  survived because no existing test exercised that fallback path at all (every other test hits
+  `CORRECT`, the contrapositive, or one of the three named mistakes). Added
+  `test_not_equivalent_fallback_still_carries_a_counterexample` (`"A & B"` vs `"A -> B"`, neither
+  CORRECT nor any fixed mistake).
+- **`narrate.py` N1 and N2** — narrating a `"given"` clause or a `"goal"` clause with `"derived"`
+  wording both survived, because the only test checked that every clause id and literal appear
+  *somewhere* in the explanation, never that the three origins are narrated *differently* — which
+  is the entire reason the module exists ("so the Explanation panel can say where a clause on the
+  board came from"). The old fixture also never included a `"goal"`-origin clause at all. Added
+  `test_narrate_distinguishes_given_goal_and_derived`, which pins all three phrasings.
+
+### Full set on committed code, 2026-10-25
+
+Commit `8978814`, suite of 842 tests:
+
+| Module | Mutants | Caught |
+|---|---|---|
+| `session.py` | 12 | 12 |
+| `tutor.py` | 14 | 14 |
+| `config.py` | 2 | 2 |
+| `formula.py` | 6 | 6 |
+| `translation.py` | 6 | 6 |
+| `narrate.py` | 3 | 3 |
+| **Total** | **43** | **43** |
+
+`source fingerprint unchanged: e199cd278f9a`. Zero survivors on record after fixes; zero entries
+in `budgets.toml`'s `[long_functions]` allowlist caused by this block.
