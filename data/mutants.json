@@ -575,8 +575,8 @@
     {
       "id": "SE8",
       "desc": "adding a clause does not reset the hint level, so the next step is charged as hinted",
-      "find": "        clauses=(*state.clauses, clause),\n        hint_level=0,",
-      "replace": "        clauses=(*state.clauses, clause),\n        hint_level=state.hint_level,"
+      "find": "        clauses=(*state.clauses, clause),\n        relevant_ids=(*state.relevant_ids, clause.id),\n        hint_level=0,",
+      "replace": "        clauses=(*state.clauses, clause),\n        relevant_ids=(*state.relevant_ids, clause.id),\n        hint_level=state.hint_level,"
     },
     {
       "id": "SE9",
@@ -687,6 +687,102 @@
       "desc": "band distance ignores the tie-break toward the easier band",
       "find": "        distance = abs(BANDS.index(band) - target) if band in BANDS else 0",
       "replace": "        distance = -abs(BANDS.index(band) - target) if band in BANDS else 0"
+    }
+  ],
+  "formula": [
+    {
+      "id": "F1",
+      "desc": "NOT is a no-op, the negation sign is dropped",
+      "find": "        case Not(item):\n            return not evaluate(item, row)",
+      "replace": "        case Not(item):\n            return evaluate(item, row)"
+    },
+    {
+      "id": "F2",
+      "desc": "AND becomes OR",
+      "find": "        case Binary(left, \"&\", right):\n            return evaluate(left, row) and evaluate(right, row)",
+      "replace": "        case Binary(left, \"&\", right):\n            return evaluate(left, row) or evaluate(right, row)"
+    },
+    {
+      "id": "F3",
+      "desc": "OR becomes AND",
+      "find": "        case Binary(left, \"|\", right):\n            return evaluate(left, row) or evaluate(right, row)",
+      "replace": "        case Binary(left, \"|\", right):\n            return evaluate(left, row) and evaluate(right, row)"
+    },
+    {
+      "id": "F4",
+      "desc": "IMPLIES drops its negation, so a true antecedent with a false consequent is accepted",
+      "find": "        case Binary(left, \"->\", right):\n            return not evaluate(left, row) or evaluate(right, row)",
+      "replace": "        case Binary(left, \"->\", right):\n            return evaluate(left, row) or evaluate(right, row)"
+    },
+    {
+      "id": "F5",
+      "desc": "IFF becomes XOR",
+      "find": "        case Binary(left, \"<->\", right):\n            return evaluate(left, row) == evaluate(right, row)",
+      "replace": "        case Binary(left, \"<->\", right):\n            return evaluate(left, row) != evaluate(right, row)"
+    },
+    {
+      "id": "F6",
+      "desc": "an unsupported character is silently dropped instead of refused",
+      "find": "        if match is None:\n            raise FormulaError(f\"unsupported token at character {index + 1}\")",
+      "replace": "        if match is None:\n            break"
+    }
+  ],
+  "translation": [
+    {
+      "id": "TR1",
+      "desc": "the contrapositive check is inverted, so an actual contrapositive is scored as a fresh equivalent instead of being named",
+      "find": "    if contraposition is not None and student == contraposition:",
+      "replace": "    if contraposition is not None and student != contraposition:"
+    },
+    {
+      "id": "TR2",
+      "desc": "the CONVERSE candidate becomes a biconditional, so the real converse mistake is never recognised",
+      "find": "        candidates.append((\"CONVERSE\", Binary(reference.right, \"->\", reference.left)))",
+      "replace": "        candidates.append((\"CONVERSE\", Binary(reference.right, \"<->\", reference.left)))"
+    },
+    {
+      "id": "TR3",
+      "desc": "MISSING_NEGATION can never fire because dropping a Not returns nothing",
+      "find": "    if isinstance(formula, Not):\n        return formula.item",
+      "replace": "    if isinstance(formula, Not):\n        return None"
+    },
+    {
+      "id": "TR4",
+      "desc": "the AND/OR swap candidate swaps nothing, so it is never distinct from the reference",
+      "find": "        operator = \"|\" if reference.op == \"&\" else \"&\"",
+      "replace": "        operator = reference.op"
+    },
+    {
+      "id": "TR5",
+      "desc": "truth-table equivalence is inverted, so every correct translation is scored as wrong",
+      "find": "        if evaluate(left, row) != evaluate(right, row):",
+      "replace": "        if evaluate(left, row) == evaluate(right, row):"
+    },
+    {
+      "id": "TR6",
+      "desc": "the final NOT_EQUIVALENT diagnosis drops its counterexample",
+      "find": "    return TranslationResult(\"NOT_EQUIVALENT\", _english_row(witness or {}, labels))",
+      "replace": "    return TranslationResult(\"NOT_EQUIVALENT\")"
+    }
+  ],
+  "narrate": [
+    {
+      "id": "N1",
+      "desc": "a given premise is narrated with the same wording as a derived clause, so its source is lost",
+      "find": "            lines.append(f\"{clause.id} is the given clause{source}: {text}.\")",
+      "replace": "            lines.append(f\"{clause.id} is derived: {text}.\")"
+    },
+    {
+      "id": "N2",
+      "desc": "the negated goal is narrated as an ordinary derived clause",
+      "find": "            lines.append(f\"{clause.id} is the negated conclusion: {text}.\")",
+      "replace": "            lines.append(f\"{clause.id} is derived: {text}.\")"
+    },
+    {
+      "id": "N3",
+      "desc": "the emptiness check is inverted, so the empty clause is never named",
+      "find": "    if not clause.literals:\n        return \"the empty clause\"",
+      "replace": "    if clause.literals:\n        return \"the empty clause\""
     }
   ]
 }
