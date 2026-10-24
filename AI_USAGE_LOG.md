@@ -1207,3 +1207,17 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 **What the student changed by hand:** to confirm.
 
 **Purpose:** `docs/report/CONTRIBUTION_TEMPLATE.md` and `FACTS.md` already documented and referenced these two AI-generated evaluation sets (`"source": "AI-generated (Claude)"` on every item, 15 items each), but the files themselves were never committed, so CI's dead-reference check failed on every fresh checkout for the last 3 pushes (`test_no_doc_or_workflow_points_at_a_file_that_does_not_exist`). Committed the two files as-is, no content changes. These remain distinct from `data/heldout_paragraphs.json`, which stays unwritten and human-only.
+
+---
+
+## Sprint block S11 (Block 3) | 2026-10-24 | Claude Code (Sonnet 5)
+
+**Files created:** none
+
+**Files modified:** backend/src/core/tutor.py (`translate_trigger`), backend/src/core/session.py (`record_translation`), backend/tests/test_tutor.py (tests for both, written first)
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Built the two REMAINING `core`/`core_session` items `budgets.toml` had already priced for M2 wiring: `tutor.translate_trigger` maps a `translation.check` diagnosis to its section-9 policy row (`data/policy.yaml` already has the `translate.*` rows; `app/data.py` already builds `_TRANSLATE_OUTCOMES`), and `session.record_translation` stores one Translate-stage attempt on `State.translations` (the `Translation` dataclass already existed, unused until now).
+
+**Deliberately NOT done, and why:** the actual entry into the Translate stage -- changing `("facts", "confirm_facts")`'s destination away from `"prove"` -- was left alone. `Exercise` is explicitly "exactly the four fields" with no per-exercise translation flag, and `test_tutor.py` has an exhaustive dict-equality test asserting `TRANSITIONS[("facts", "confirm_facts")] == "prove"` today. Nothing in the frozen HLD says whether M2 makes every exercise route through Translate (a one-line table change) or only some (needs a new `Exercise` field, i.e. a schema change). Either answer changes a frozen, exhaustively-tested behaviour, so this is a design decision for the student, not something to guess at mid-sprint.

@@ -116,6 +116,19 @@ def step_trigger(code: Code, productive: bool | None) -> str:
     return f"step.VALID.{split}"
 
 
+_TRANSLATE_RIGHT = frozenset({"CORRECT", "CORRECT_CONTRAPOSITIVE"})
+
+
+def translate_trigger(code: str) -> str:
+    """The policy row a `translation.check` diagnosis maps to (section 9).
+
+    Only CORRECT and its contrapositive are RIGHT; the other four diagnoses all collapse to one
+    ERROR row. There is no hint split here the way `step_trigger` has one -- a hinted TRANSLATE
+    is structurally impossible (V-5), since the Translate stage never offers a hint action.
+    """
+    return f"translate.{code}" if code in _TRANSLATE_RIGHT else "translate.ERROR"
+
+
 def observe(trigger: str, hinted: bool, policy: Policy) -> dict[Skill, bool]:
     """Which skills this action observed, and whether each was right. `null` rows are omitted.
 

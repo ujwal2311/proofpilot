@@ -338,6 +338,39 @@ def test_step_trigger_output_is_always_a_real_policy_row() -> None:
         assert tutor.step_trigger(code, productive) in POLICY
 
 
+_TRANSLATION_CODES = (
+    "CORRECT",
+    "CORRECT_CONTRAPOSITIVE",
+    "CONVERSE",
+    "MISSING_NEGATION",
+    "AND_OR_SWAP",
+    "NOT_EQUIVALENT",
+)
+
+
+@pytest.mark.parametrize(
+    ("code", "trigger"),
+    [
+        ("CORRECT", "translate.CORRECT"),
+        ("CORRECT_CONTRAPOSITIVE", "translate.CORRECT_CONTRAPOSITIVE"),
+        ("CONVERSE", "translate.ERROR"),
+        ("MISSING_NEGATION", "translate.ERROR"),
+        ("AND_OR_SWAP", "translate.ERROR"),
+        ("NOT_EQUIVALENT", "translate.ERROR"),
+    ],
+)
+def test_translate_trigger_covers_every_diagnosis_code(code, trigger) -> None:
+    # Section 9: only CORRECT and its contrapositive are RIGHT; the other four translation.py
+    # diagnoses all collapse to the one ERROR row -- a hinted TRANSLATE is structurally impossible
+    # (V-5), so there is no hint split here the way `step_trigger` has one.
+    assert tutor.translate_trigger(code) == trigger
+
+
+def test_translate_trigger_output_is_always_a_real_policy_row() -> None:
+    for code in _TRANSLATION_CODES:
+        assert tutor.translate_trigger(code) in POLICY
+
+
 def test_observe_reads_the_row_and_returns_only_the_skills_it_names() -> None:
     # `null` means NO UPDATE. It is not "wrong", and it must not appear in the result at all --
     # a skill present with any value would be a skill the caller then moves.
@@ -600,6 +633,19 @@ def test_deriving_the_empty_clause_solves_the_exercise_and_moves_to_explain() ->
     assert state.solved is True
     assert state.stage == "explain"
     assert state.hint_level == 0
+
+
+def test_record_translation_stores_the_attempt() -> None:
+    state = session.record_translation(_state(), "s1", "A -> B", "CORRECT")
+    assert state.translations == (Translation("s1", "A -> B", "done", "CORRECT"),)
+
+
+def test_record_translation_replaces_an_earlier_attempt_at_the_same_sentence() -> None:
+    # A retry is a correction, not a second data point -- section 9 scores the attempt the
+    # student leaves on screen, so an earlier wrong guess at the same sentence must not survive.
+    state = session.record_translation(_state(), "s1", "A -> B", "CONVERSE")
+    retried = session.record_translation(state, "s1", "B -> A", "CORRECT")
+    assert retried.translations == (Translation("s1", "B -> A", "done", "CORRECT"),)
 
 
 # ========================================================== 6. the downstream reset (v2.7 A4)

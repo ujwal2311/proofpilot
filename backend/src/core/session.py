@@ -24,7 +24,7 @@ from src.core.english import ErrorCode, ParseError, parse_sentence, phrases_of, 
 from src.core.entail import Entailment, Verdict, check
 from src.core.facts import extract
 from src.core.logic import Clause, canonical
-from src.core.models import ClauseRec, Fact, MergeChoice, SentenceRec, Skill, State
+from src.core.models import ClauseRec, Fact, MergeChoice, SentenceRec, Skill, State, Translation
 from src.core.relevance import Relevance, filter_clauses
 
 
@@ -219,6 +219,18 @@ def record_clause(state: State, clause: ClauseRec) -> State:
         hint_level=0,
         solved=solved or state.solved,
         stage="explain" if solved else state.stage,
+    )
+
+
+def record_translation(state: State, sentence_id: str, formula: str, diagnosis_code: str) -> State:
+    """Record one Translate-stage attempt (M2, section 9).
+
+    A retry replaces the earlier attempt at the same sentence rather than appending a second one
+    -- section 9 scores the attempt the student leaves on screen, not every guess along the way.
+    """
+    kept = tuple(t for t in state.translations if t.sentence_id != sentence_id)
+    return replace(
+        state, translations=(*kept, Translation(sentence_id, formula, "done", diagnosis_code))
     )
 
 
