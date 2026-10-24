@@ -67,16 +67,21 @@ _PROVING_ACTIONS = frozenset({"step", "hint", "claim_not_provable", "translate"}
 # TransitionError, never a silent pass, so a client that posts the wrong action in the wrong stage
 # gets a named refusal instead of a half-applied state.
 #
-# ("facts", "confirm_facts") goes straight to "prove" for M1. Once M2 lands, an exercise with a
-# translation step routes through "translate" instead -- that wiring is S6's, deliberately not
-# added here ahead of the module that would use it.
+# ("facts", "confirm_facts") goes to "translate" for EVERY exercise, M1 or M2 alike -- not
+# conditionally, by design (HLD v2.12, change request). `Exercise` carries no per-exercise
+# translation flag and never will: "every exercise is data through one general pipeline" (the
+# no-hardcoding rule) rules out a flag that special-cases some exercises as M2 and others as M1.
+# Once in "translate", "confirm" (below) is what reaches "prove" -- there is no path that skips
+# Translate.
 #
 # ("prove", "merge") rewinds to "facts" on purpose -- that IS the v2.7 A4 reset, and routing it
-# through the same table is what stops it being a special case somebody forgets.
+# through the same table is what stops it being a special case somebody forgets. A merge reset
+# re-enters Facts, so the student translates again on the next confirm_facts -- consistent with
+# `session.change_merges` already clearing `translations` on that path.
 TRANSITIONS: dict[tuple[str, str], str] = {
     ("read", "parse"): "facts",
     ("facts", "merge"): "facts",
-    ("facts", "confirm_facts"): "prove",
+    ("facts", "confirm_facts"): "translate",
     ("translate", "translate"): "translate",
     ("translate", "confirm"): "prove",
     ("prove", "step"): "prove",

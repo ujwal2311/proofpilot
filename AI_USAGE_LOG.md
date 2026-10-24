@@ -1245,3 +1245,15 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 **What the student changed by hand:** to confirm.
 
 **Purpose:** Completed the mutation refresh: ran the full set for all six modules with no score on record (session.py, tutor.py, config.py, formula.py, translation.py, narrate.py) against the real test suite. 41/43 caught on the first pass; two genuine survivors (translation.py's TR6, narrate.py's N1+N2) were fixed by adding a missing test each, never by excusing the gap or weakening a mutant. Final: 43/43 caught, logged in docs/experiments/mutation_log.md with the exact commit and fingerprint.
+
+---
+
+## Gate (post-progress-v1), part 1 of 2 | 2026-10-25 | Claude Code (Sonnet 5)
+
+**Files created:** none
+
+**Files modified:** backend/src/core/tutor.py (`TRANSITIONS[("facts","confirm_facts")]` value only), backend/tests/test_tutor.py (two assertions updated to match, one renamed)
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Student's explicit design-change request: `confirm_facts` now routes to `"translate"` for every exercise, universally, not conditionally -- no `Exercise` schema change, since there is no per-exercise flag and none was added. Cost: zero net code lines (one dict value changed; `tools/loc.py --strict` confirms `core` unchanged at 876). `test_every_transition_lands_where_the_design_says`: value changed (`"prove"` -> `"translate"`), scope/intent unchanged -- still the full destinations table, asserted verbatim. `test_confirming_facts_leaves_for_prove_in_m1`: value changed AND renamed to `test_confirming_facts_always_leaves_for_translate` -- the old name asserted an "in M1" conditionality that no longer exists. This surfaced that `api/main.py`'s `_translate` stub and the `board` test fixture (used by ~17 tests across test_api.py/test_api_hardening.py/test_pilot_log.py) now need a real Translate implementation to reach "prove" at all -- reported to the student rather than built further; see the gate report for the full cost/design analysis and the exact bucket numbers.

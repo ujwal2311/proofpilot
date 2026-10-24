@@ -228,7 +228,7 @@ def test_every_transition_lands_where_the_design_says() -> None:
     assert tutor.TRANSITIONS == {
         ("read", "parse"): "facts",
         ("facts", "merge"): "facts",
-        ("facts", "confirm_facts"): "prove",
+        ("facts", "confirm_facts"): "translate",
         ("translate", "translate"): "translate",
         ("translate", "confirm"): "prove",
         ("prove", "step"): "prove",
@@ -263,9 +263,11 @@ def test_a_proving_action_before_confirming_facts_is_a_named_error(action: str) 
         tutor.advance("facts", action)
 
 
-def test_confirming_facts_leaves_for_prove_in_m1() -> None:
-    # M2 routes a translating exercise through "translate" instead -- that wiring is S6's.
-    assert tutor.advance("facts", "confirm_facts") == "prove"
+def test_confirming_facts_always_leaves_for_translate() -> None:
+    # HLD v2.12 change request: every exercise routes through Translate now, M1 or M2 alike --
+    # no per-exercise flag, since `Exercise` is exactly four fields and the no-hardcoding rule
+    # rules out special-casing some exercises as M2 and others as M1.
+    assert tutor.advance("facts", "confirm_facts") == "translate"
 
 
 def test_confirm_facts_is_distinct_from_confirm() -> None:
