@@ -1,8 +1,8 @@
-# ProofPilot — High-Level Design v2.11
+# ProofPilot — High-Level Design v2.12
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
-Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests). v2.9 applies the Phase-5-gate change request; v2.10 the budget decision and the cache bound; v2.11 the sprint scope decision and the M2 budget bucket (§16).
+Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests). v2.9 applies the Phase-5-gate change request; v2.10 the budget decision and the cache bound; v2.11 the sprint scope decision and the M2 budget bucket; v2.12 the student's post-progress-review change request making Translate universal (§16).
 This document is the source of truth. Any later
 design change requires an explicit change request from the student; Claude must not alter the
 design unilaterally.
@@ -269,7 +269,7 @@ with every other such phrase.
 ```mermaid
 flowchart LR
     subgraph Browser
-        A[React App<br/>3-stage stepper]
+        A[React App<br/>5-stage stepper]
     end
     subgraph Server
         B[FastAPI<br/>4 endpoints]
@@ -388,7 +388,7 @@ State:
   schema_version:  int,                    # bumped on any shape change; localStorage guard
   mode:            "practice" | "own_question",
   exercise_id:     str | null,
-  stage:           "read" | "facts" | "prove" | "explain",      # M2 inserts "translate" before "prove"
+  stage:           "read" | "facts" | "translate" | "prove" | "explain",  # v2.12: universal, not just M2
   paragraph, conclusion: str,
   facts:           list[Fact],
   sentences:       list[SentenceRec],      # paragraph sentences in order, conclusion last
@@ -1039,6 +1039,35 @@ a new version with a Change Log entry.
      Rewriting those names would falsify the record, so this whole section is exempt from
      the dead-reference guard (test_docs_version.py states the rule). -->
 
+
+### From v2.11 → v2.12 — Translate is universal, not conditional, 2026-10-25
+
+Explicit change request from the student, raised at the post-`progress-v1` gate: `("facts",
+"confirm_facts")` now routes to `"translate"` for **every** exercise, M1 or M2 alike, rather than
+conditionally. `Exercise` carries no per-exercise translation flag and none was added -- a flag
+would special-case some exercises as M2 and others as M1, which is exactly what "every exercise
+is data through one general pipeline" (the no-hardcoding rule, §2) rules out. The simpler,
+uniform rule was always available; it had just never been made explicit.
+
+**What changed:** `tutor.TRANSITIONS[("facts", "confirm_facts")]` from `"prove"` to `"translate"`
+-- one dict value, zero net `core` lines. §4's `State.stage` enum and architecture diagram
+updated to show all five stages directly (`read → facts → translate → prove → explain`) rather
+than carrying the old "M2 inserts translate before prove" hedge, since it is no longer
+conditional. `test_tutor.py`'s two assertions pinning the old destination were updated to match.
+
+**What this exposed, not yet resolved:** the `board` fixture used across ~17 tests in
+`test_api.py` / `test_api_hardening.py` / `test_pilot_log.py` could previously reach `"prove"`
+with nothing but `confirm_facts`, because `api/main.py`'s `_translate` handler was still the
+Block-3 stub (`NotImplementedUntilM2`). Finishing it for real turns out to need a new
+reference-formula renderer -- `SentenceRec.formula` is never populated, and the system is
+stateless across requests, so there is no existing way to recover a sentence's reference formula
+on a later `/api/act` call. See the gate report (not this document) for the cost/design options;
+no core/api code for `_translate` has been written yet, pending the student's decision.
+
+No change to `core/translation.py`, `core/narrate.py`, `core/formula.py`, the evidence mapping
+(§9), or the error model (§8) -- those were already correct for a universal Translate stage.
+
+---
 
 ### From v2.10 → v2.11 — sprint scope decision + the M2 budget bucket, 2026-10-12
 

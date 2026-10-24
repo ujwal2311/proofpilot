@@ -138,7 +138,7 @@ class State:
 
     mode: str  # "practice" | "own_question"
     exercise_id: str | None
-    stage: str  # "read" | "facts" | "prove" | "explain"; M2 inserts "translate" before "prove"
+    stage: str  # "read" | "facts" | "translate" | "prove" | "explain" (v2.12: universal)
     paragraph: str
     conclusion: str
     facts: tuple[Fact, ...]
