@@ -1,0 +1,533 @@
+[
+ {
+  "id": 1,
+  "theme": "Greenhouse",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "If the vent is open, then the heater is on. The plants are watered only if the heater is on. The vent is open or the plants are watered.",
+  "key": {
+   "A": "The vent is open",
+   "B": "The heater is on",
+   "C": "The plants are watered"
+  },
+  "premises": [
+   {
+    "english": "If the vent is open, then the heater is on.",
+    "tfl": "(A→B)",
+    "construct": "IF",
+    "common_mistake": "(B→A)"
+   },
+   {
+    "english": "The plants are watered only if the heater is on.",
+    "tfl": "(C→B)",
+    "construct": "ONLY_IF",
+    "common_mistake": "(B→C)"
+   },
+   {
+    "english": "The vent is open or the plants are watered.",
+    "tfl": "(A∨C)",
+    "construct": "OR",
+    "common_mistake": "(A∧C)"
+   }
+  ],
+  "conclusion": {
+   "english": "The heater is on.",
+   "tfl": "B"
+  },
+  "expected_follows": true
+ },
+ {
+  "id": 2,
+  "theme": "Tram line",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "The tram runs unless the road is closed. If the tram runs, then the market is busy. The road is not closed.",
+  "key": {
+   "A": "The tram runs",
+   "B": "The road is closed",
+   "C": "The market is busy"
+  },
+  "premises": [
+   {
+    "english": "The tram runs unless the road is closed.",
+    "tfl": "(¬B→A)",
+    "construct": "UNLESS",
+    "common_mistake": "(B→¬A)"
+   },
+   {
+    "english": "If the tram runs, then the market is busy.",
+    "tfl": "(A→C)",
+    "construct": "IF",
+    "common_mistake": "(C→A)"
+   },
+   {
+    "english": "The road is not closed.",
+    "tfl": "¬B",
+    "construct": "NOT",
+    "common_mistake": null
+   }
+  ],
+  "conclusion": {
+   "english": "The market is busy.",
+   "tfl": "C"
+  },
+  "expected_follows": true
+ },
+ {
+  "id": 3,
+  "theme": "Choir",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "The choir sings only if the organ is tuned. The hall is booked if the choir sings. The organ is tuned.",
+  "key": {
+   "A": "The choir sings",
+   "B": "The organ is tuned",
+   "C": "The hall is booked"
+  },
+  "premises": [
+   {
+    "english": "The choir sings only if the organ is tuned.",
+    "tfl": "(A→B)",
+    "construct": "ONLY_IF",
+    "common_mistake": "(B→A)"
+   },
+   {
+    "english": "The hall is booked if the choir sings.",
+    "tfl": "(A→C)",
+    "construct": "IF",
+    "common_mistake": "(C→A)"
+   },
+   {
+    "english": "The organ is tuned.",
+    "tfl": "B",
+    "construct": "ATOM",
+    "common_mistake": null
+   }
+  ],
+  "conclusion": {
+   "english": "The choir sings.",
+   "tfl": "A"
+  },
+  "expected_follows": false
+ },
+ {
+  "id": 4,
+  "theme": "Ferry",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "The ferry sails if the fog lifts. The ferry does not sail. The captain is ready or the fog lifts.",
+  "key": {
+   "A": "The ferry sails",
+   "B": "The fog lifts",
+   "C": "The captain is ready"
+  },
+  "premises": [
+   {
+    "english": "The ferry sails if the fog lifts.",
+    "tfl": "(B→A)",
+    "construct": "IF",
+    "common_mistake": "(A→B)"
+   },
+   {
+    "english": "The ferry does not sail.",
+    "tfl": "¬A",
+    "construct": "NOT",
+    "common_mistake": null
+   },
+   {
+    "english": "The captain is ready or the fog lifts.",
+    "tfl": "(C∨B)",
+    "construct": "OR",
+    "common_mistake": "(C∧B)"
+   }
+  ],
+  "conclusion": {
+   "english": "The captain is ready.",
+   "tfl": "C"
+  },
+  "expected_follows": true
+ },
+ {
+  "id": 5,
+  "theme": "Bakery stall",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "The stall opens if and only if the generator works. Rain falls only if the generator works. Rain falls.",
+  "key": {
+   "A": "The stall opens",
+   "B": "The generator works",
+   "C": "Rain falls"
+  },
+  "premises": [
+   {
+    "english": "The stall opens if and only if the generator works.",
+    "tfl": "(A↔B)",
+    "construct": "IFF",
+    "common_mistake": "(A→B)"
+   },
+   {
+    "english": "Rain falls only if the generator works.",
+    "tfl": "(C→B)",
+    "construct": "ONLY_IF",
+    "common_mistake": "(B→C)"
+   },
+   {
+    "english": "Rain falls.",
+    "tfl": "C",
+    "construct": "ATOM",
+    "common_mistake": null
+   }
+  ],
+  "conclusion": {
+   "english": "The stall opens.",
+   "tfl": "A"
+  },
+  "expected_follows": true
+ },
+ {
+  "id": 6,
+  "theme": "Library desk",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "If the reader has a card, then the reader borrows a book. The reader borrows a book only if the desk is staffed. The reader has a card or the desk is staffed.",
+  "key": {
+   "A": "The reader borrows a book",
+   "B": "The reader has a card",
+   "C": "The desk is staffed"
+  },
+  "premises": [
+   {
+    "english": "If the reader has a card, then the reader borrows a book.",
+    "tfl": "(B→A)",
+    "construct": "IF",
+    "common_mistake": "(A→B)"
+   },
+   {
+    "english": "The reader borrows a book only if the desk is staffed.",
+    "tfl": "(A→C)",
+    "construct": "ONLY_IF",
+    "common_mistake": "(C→A)"
+   },
+   {
+    "english": "The reader has a card or the desk is staffed.",
+    "tfl": "(B∨C)",
+    "construct": "OR",
+    "common_mistake": "(B∧C)"
+   }
+  ],
+  "conclusion": {
+   "english": "The reader borrows a book.",
+   "tfl": "A"
+  },
+  "expected_follows": false
+ },
+ {
+  "id": 7,
+  "theme": "Stadium",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "Neither is the pitch dry nor does the referee arrive. The match is played only if the pitch is dry.",
+  "key": {
+   "A": "The match is played",
+   "B": "The pitch is dry",
+   "C": "The referee arrives"
+  },
+  "premises": [
+   {
+    "english": "Neither is the pitch dry nor does the referee arrive.",
+    "tfl": "¬(B∨C)",
+    "construct": "NEITHER_NOR",
+    "common_mistake": "(¬B∨¬C)"
+   },
+   {
+    "english": "The match is played only if the pitch is dry.",
+    "tfl": "(A→B)",
+    "construct": "ONLY_IF",
+    "common_mistake": "(B→A)"
+   }
+  ],
+  "conclusion": {
+   "english": "The match is not played.",
+   "tfl": "¬A"
+  },
+  "expected_follows": true
+ },
+ {
+  "id": 8,
+  "theme": "Orchard",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "The apples ripen unless the frost comes. If the apples ripen, then the farmer harvests.",
+  "key": {
+   "A": "The apples ripen",
+   "B": "The frost comes",
+   "C": "The farmer harvests"
+  },
+  "premises": [
+   {
+    "english": "The apples ripen unless the frost comes.",
+    "tfl": "(¬B→A)",
+    "construct": "UNLESS",
+    "common_mistake": "(B→¬A)"
+   },
+   {
+    "english": "If the apples ripen, then the farmer harvests.",
+    "tfl": "(A→C)",
+    "construct": "IF",
+    "common_mistake": "(C→A)"
+   }
+  ],
+  "conclusion": {
+   "english": "The farmer harvests.",
+   "tfl": "C"
+  },
+  "expected_follows": false
+ },
+ {
+  "id": 9,
+  "theme": "Server room",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "The alarm sounds if the fan fails. The alarm sounds if the door is open. The fan fails or the door is open.",
+  "key": {
+   "A": "The alarm sounds",
+   "B": "The fan fails",
+   "C": "The door is open"
+  },
+  "premises": [
+   {
+    "english": "The alarm sounds if the fan fails.",
+    "tfl": "(B→A)",
+    "construct": "IF",
+    "common_mistake": "(A→B)"
+   },
+   {
+    "english": "The alarm sounds if the door is open.",
+    "tfl": "(C→A)",
+    "construct": "IF",
+    "common_mistake": "(A→C)"
+   },
+   {
+    "english": "The fan fails or the door is open.",
+    "tfl": "(B∨C)",
+    "construct": "OR",
+    "common_mistake": "(B∧C)"
+   }
+  ],
+  "conclusion": {
+   "english": "The alarm sounds.",
+   "tfl": "A"
+  },
+  "expected_follows": true
+ },
+ {
+  "id": 10,
+  "theme": "Camp site",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "The fire is lit only if the wind is calm. The tents are up if the fire is lit. The wind is not calm.",
+  "key": {
+   "A": "The fire is lit",
+   "B": "The wind is calm",
+   "C": "The tents are up"
+  },
+  "premises": [
+   {
+    "english": "The fire is lit only if the wind is calm.",
+    "tfl": "(A→B)",
+    "construct": "ONLY_IF",
+    "common_mistake": "(B→A)"
+   },
+   {
+    "english": "The tents are up if the fire is lit.",
+    "tfl": "(A→C)",
+    "construct": "IF",
+    "common_mistake": "(C→A)"
+   },
+   {
+    "english": "The wind is not calm.",
+    "tfl": "¬B",
+    "construct": "NOT",
+    "common_mistake": null
+   }
+  ],
+  "conclusion": {
+   "english": "The tents are not up.",
+   "tfl": "¬C"
+  },
+  "expected_follows": false
+ },
+ {
+  "id": 11,
+  "theme": "Quiz team",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "Dana plays or Elif plays. The team wins only if Dana plays. Dana does not play.",
+  "key": {
+   "A": "Dana plays",
+   "B": "Elif plays",
+   "C": "The team wins"
+  },
+  "premises": [
+   {
+    "english": "Dana plays or Elif plays.",
+    "tfl": "(A∨B)",
+    "construct": "OR",
+    "common_mistake": "(A∧B)"
+   },
+   {
+    "english": "The team wins only if Dana plays.",
+    "tfl": "(C→A)",
+    "construct": "ONLY_IF",
+    "common_mistake": "(A→C)"
+   },
+   {
+    "english": "Dana does not play.",
+    "tfl": "¬A",
+    "construct": "NOT",
+    "common_mistake": null
+   }
+  ],
+  "conclusion": {
+   "english": "The team does not win.",
+   "tfl": "¬C"
+  },
+  "expected_follows": true
+ },
+ {
+  "id": 12,
+  "theme": "Swimming pool",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "The pool is open if and only if the lifeguard is present. The water is clean unless the pool is open.",
+  "key": {
+   "A": "The pool is open",
+   "B": "The lifeguard is present",
+   "C": "The water is clean"
+  },
+  "premises": [
+   {
+    "english": "The pool is open if and only if the lifeguard is present.",
+    "tfl": "(A↔B)",
+    "construct": "IFF",
+    "common_mistake": "(B→A)"
+   },
+   {
+    "english": "The water is clean unless the pool is open.",
+    "tfl": "(¬A→C)",
+    "construct": "UNLESS",
+    "common_mistake": "(A→¬C)"
+   }
+  ],
+  "conclusion": {
+   "english": "The water is clean.",
+   "tfl": "C"
+  },
+  "expected_follows": false
+ },
+ {
+  "id": 13,
+  "theme": "Post office",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "Neither does the van break down nor is the sorter on strike. The parcel arrives unless the van breaks down.",
+  "key": {
+   "A": "The parcel arrives",
+   "B": "The van breaks down",
+   "C": "The sorter is on strike"
+  },
+  "premises": [
+   {
+    "english": "Neither does the van break down nor is the sorter on strike.",
+    "tfl": "¬(B∨C)",
+    "construct": "NEITHER_NOR",
+    "common_mistake": "(¬B∨¬C)"
+   },
+   {
+    "english": "The parcel arrives unless the van breaks down.",
+    "tfl": "(¬B→A)",
+    "construct": "UNLESS",
+    "common_mistake": "(B→¬A)"
+   }
+  ],
+  "conclusion": {
+   "english": "The parcel arrives.",
+   "tfl": "A"
+  },
+  "expected_follows": true
+ },
+ {
+  "id": 14,
+  "theme": "Workshop",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "If the saw runs, then the power is on. The saw runs only if the guard is fitted. The power is on.",
+  "key": {
+   "A": "The saw runs",
+   "B": "The power is on",
+   "C": "The guard is fitted"
+  },
+  "premises": [
+   {
+    "english": "If the saw runs, then the power is on.",
+    "tfl": "(A→B)",
+    "construct": "IF",
+    "common_mistake": "(B→A)"
+   },
+   {
+    "english": "The saw runs only if the guard is fitted.",
+    "tfl": "(A→C)",
+    "construct": "ONLY_IF",
+    "common_mistake": "(C→A)"
+   },
+   {
+    "english": "The power is on.",
+    "tfl": "B",
+    "construct": "ATOM",
+    "common_mistake": null
+   }
+  ],
+  "conclusion": {
+   "english": "The guard is fitted.",
+   "tfl": "C"
+  },
+  "expected_follows": false
+ },
+ {
+  "id": 15,
+  "theme": "Cinema",
+  "source": "AI-generated (Claude)",
+  "tier": "simple",
+  "paragraph": "The film starts if and only if the projector works. The film starts only if the sound works. The projector works or the sound works.",
+  "key": {
+   "A": "The film starts",
+   "B": "The projector works",
+   "C": "The sound works"
+  },
+  "premises": [
+   {
+    "english": "The film starts if and only if the projector works.",
+    "tfl": "(A↔B)",
+    "construct": "IFF",
+    "common_mistake": "(A→B)"
+   },
+   {
+    "english": "The film starts only if the sound works.",
+    "tfl": "(A→C)",
+    "construct": "ONLY_IF",
+    "common_mistake": "(C→A)"
+   },
+   {
+    "english": "The projector works or the sound works.",
+    "tfl": "(B∨C)",
+    "construct": "OR",
+    "common_mistake": "(B∧C)"
+   }
+  ],
+  "conclusion": {
+   "english": "The sound works.",
+   "tfl": "C"
+  },
+  "expected_follows": true
+ }
+]

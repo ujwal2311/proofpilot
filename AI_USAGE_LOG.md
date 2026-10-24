@@ -1195,3 +1195,15 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 **What the student changed by hand:** Nothing for this block (student instructed to continue in auto mode).
 
 **Purpose:** Implemented the M2 pure-core formula parser, exhaustive translation equivalence and fixed diagnosis checker, plus ordered proof narration. The new tests cover all six M2 test-plan behaviours named in the frozen HLD.
+
+---
+
+## Sprint block S11 (Block 1) | 2026-10-24 | Claude Code (Sonnet 5)
+
+**Files created:** none (committed pre-existing untracked files)
+
+**Files modified:** data/eval/tfl_simple_tier_15.json, data/eval/tfl_stress_set_15.json (added to git), AI_USAGE_LOG.md
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** `docs/report/CONTRIBUTION_TEMPLATE.md` and `FACTS.md` already documented and referenced these two AI-generated evaluation sets (`"source": "AI-generated (Claude)"` on every item, 15 items each), but the files themselves were never committed, so CI's dead-reference check failed on every fresh checkout for the last 3 pushes (`test_no_doc_or_workflow_points_at_a_file_that_does_not_exist`). Committed the two files as-is, no content changes. These remain distinct from `data/heldout_paragraphs.json`, which stays unwritten and human-only.

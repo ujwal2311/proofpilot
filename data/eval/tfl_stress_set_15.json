@@ -1,0 +1,749 @@
+[
+ {
+  "id": 1,
+  "theme": "Library",
+  "paragraph": "If the librarian is on leave, then the reading room is staffed only if the archive is open. Unless visitors bring a pass, the archive is not open. Either the librarian is on leave or the reading room is staffed, but not both. The archive is open if and only if neither the librarian is on leave nor the reading room is unstaffed. Visitors bring a pass only if the archive is open, and the archive is open only if the reading room is staffed.",
+  "key": {
+   "A": "The archive is open",
+   "R": "The reading room is staffed",
+   "K": "Visitors bring a pass",
+   "L": "The librarian is on leave"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "If the librarian is on leave, then the reading room is staffed only if the archive is open.",
+    "tfl": "(L→(R→A))",
+    "common_mistake": "(L→(A→R))",
+    "ambiguity_flag": "nested only-if scope"
+   },
+   {
+    "english": "Unless visitors bring a pass, the archive is not open.",
+    "tfl": "(¬K→¬A)",
+    "common_mistake": "(K→¬A)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Either the librarian is on leave or the reading room is staffed, but not both.",
+    "tfl": "((L∨R)∧¬(L∧R))",
+    "common_mistake": "(L∨R)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The archive is open if and only if neither the librarian is on leave nor the reading room is unstaffed.",
+    "tfl": "(A↔¬(L∨¬R))",
+    "common_mistake": "(A↔(¬L∨R))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Visitors bring a pass only if the archive is open, and the archive is open only if the reading room is staffed.",
+    "tfl": "((K→A)∧(A→R))",
+    "common_mistake": "((A→K)∧(R→A))",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 2,
+  "theme": "Garden club",
+  "paragraph": "The plant sale goes ahead only if volunteers show up. If it rains this weekend, the club hires a tent. The plant sale goes ahead unless it rains and the club does not hire a tent. If volunteers fail to show up, then neither does the plant sale go ahead nor does the club hire a tent. If it rains this weekend and volunteers show up, then the plant sale goes ahead if and only if the club hires a tent. Either volunteers show up or it rains, and the club hires a tent only if it rains.",
+  "key": {
+   "R": "It rains this weekend",
+   "P": "The plant sale goes ahead",
+   "T": "The club hires a tent",
+   "V": "Volunteers show up"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "The plant sale goes ahead only if volunteers show up.",
+    "tfl": "(P→V)",
+    "common_mistake": "(V→P)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If it rains this weekend, the club hires a tent.",
+    "tfl": "(R→T)",
+    "common_mistake": "(T→R)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The plant sale goes ahead unless it rains and the club does not hire a tent.",
+    "tfl": "(¬(R∧¬T)→P)",
+    "common_mistake": "((R∧¬T)→P)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If volunteers fail to show up, then neither does the plant sale go ahead nor does the club hire a tent.",
+    "tfl": "(¬V→¬(P∨T))",
+    "common_mistake": "(¬V→(¬P∨¬T))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If it rains this weekend and volunteers show up, then the plant sale goes ahead if and only if the club hires a tent.",
+    "tfl": "((R∧V)→(P↔T))",
+    "common_mistake": "((R∧V)→(P→T))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Either volunteers show up or it rains, and the club hires a tent only if it rains.",
+    "tfl": "((V∨R)∧(T→R))",
+    "common_mistake": "((V∨R)∧(R→T))",
+    "ambiguity_flag": "comma-dependent scope"
+   }
+  ]
+ },
+ {
+  "id": 3,
+  "theme": "Courier",
+  "paragraph": "The parcel is delivered today only if someone signs for it, and someone signs for it only if the recipient is at home. If the courier is held up at customs, the parcel is not delivered today. Unless the recipient is at home, no one signs for the parcel. The courier is held up at customs if and only if the parcel is neither delivered today nor signed for. Unless the parcel is delivered today, it is not the case that both the courier is held up at customs and the recipient is at home. If the parcel is delivered today, then either someone signs for it or the recipient is not at home.",
+  "key": {
+   "D": "The parcel is delivered today",
+   "S": "Someone signs for the parcel",
+   "H": "The courier is held up at customs",
+   "N": "The recipient is at home"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "The parcel is delivered today only if someone signs for it, and someone signs for it only if the recipient is at home.",
+    "tfl": "((D→S)∧(S→N))",
+    "common_mistake": "((S→D)∧(N→S))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If the courier is held up at customs, the parcel is not delivered today.",
+    "tfl": "(H→¬D)",
+    "common_mistake": "(¬H→D)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Unless the recipient is at home, no one signs for the parcel.",
+    "tfl": "(¬N→¬S)",
+    "common_mistake": "(N→S)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The courier is held up at customs if and only if the parcel is neither delivered today nor signed for.",
+    "tfl": "(H↔¬(D∨S))",
+    "common_mistake": "(H↔(¬D∨¬S))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Unless the parcel is delivered today, it is not the case that both the courier is held up at customs and the recipient is at home.",
+    "tfl": "(¬D→¬(H∧N))",
+    "common_mistake": "(¬D→(¬H∧¬N))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If the parcel is delivered today, then either someone signs for it or the recipient is not at home.",
+    "tfl": "(D→(S∨¬N))",
+    "common_mistake": "(D→(S∧¬N))",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 4,
+  "theme": "Night shift",
+  "paragraph": "Either Dr Rao or Dr Mbeki covers the night shift, but not both. The ward is fully staffed only if one of the two doctors covers the night shift. If an emergency is declared, then both doctors cover the night shift and the ward is fully staffed. Unless an emergency is declared, neither doctor covers the night shift. Dr Rao covers the night shift if Dr Mbeki does not, and the ward is fully staffed if either of them does.",
+  "key": {
+   "C": "Dr Rao covers the night shift",
+   "M": "Dr Mbeki covers the night shift",
+   "F": "The ward is fully staffed",
+   "E": "An emergency is declared"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "Either Dr Rao or Dr Mbeki covers the night shift, but not both.",
+    "tfl": "((C∨M)∧¬(C∧M))",
+    "common_mistake": "(C∨M)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The ward is fully staffed only if one of the two doctors covers the night shift.",
+    "tfl": "(F→(C∨M))",
+    "common_mistake": "((C∨M)→F)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If an emergency is declared, then both doctors cover the night shift and the ward is fully staffed.",
+    "tfl": "(E→((C∧M)∧F))",
+    "common_mistake": "(E→((C∨M)∧F))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Unless an emergency is declared, neither doctor covers the night shift.",
+    "tfl": "(¬E→¬(C∨M))",
+    "common_mistake": "(¬E→(¬C∨¬M))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Dr Rao covers the night shift if Dr Mbeki does not, and the ward is fully staffed if either of them does.",
+    "tfl": "((¬M→C)∧((C∨M)→F))",
+    "common_mistake": "((M→C)∧((C∧M)→F))",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 5,
+  "theme": "Bakery",
+  "paragraph": "The bakery sells bread only if both the oven is working and the wholesaler delivers flour. The bakery is open on Sunday if both the wholesaler delivers flour and the oven is working. The bakery is not open on Sunday unless the oven is working. Either the bakery sells bread and is open on Sunday, or it does neither. If the wholesaler does not deliver flour, then the bakery neither sells bread nor is open on Sunday.",
+  "key": {
+   "O": "The oven is working",
+   "B": "The bakery sells bread",
+   "W": "The wholesaler delivers flour",
+   "Y": "The bakery is open on Sunday"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "The bakery sells bread only if both the oven is working and the wholesaler delivers flour.",
+    "tfl": "(B→(O∧W))",
+    "common_mistake": "((O∧W)→B)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The bakery is open on Sunday if both the wholesaler delivers flour and the oven is working.",
+    "tfl": "((W∧O)→Y)",
+    "common_mistake": "(Y→(W∧O))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The bakery is not open on Sunday unless the oven is working.",
+    "tfl": "(¬O→¬Y)",
+    "common_mistake": "(¬Y→¬O)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Either the bakery sells bread and is open on Sunday, or it does neither.",
+    "tfl": "((B∧Y)∨¬(B∨Y))",
+    "common_mistake": "(B∧Y)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If the wholesaler does not deliver flour, then the bakery neither sells bread nor is open on Sunday.",
+    "tfl": "(¬W→¬(B∨Y))",
+    "common_mistake": "(¬W→(¬B∨¬Y))",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 6,
+  "theme": "Hiking trip",
+  "paragraph": "The summit trail is open only if there is no fog on the ridge. The group reaches the hut by dusk if both the guide leads the group and there is no fog on the ridge. Unless the guide leads the group, the summit trail is not open. There is fog on the ridge, or the group reaches the hut by dusk. If there is fog on the ridge, then neither is the summit trail open nor does the guide lead the group. The guide leads the group if and only if the summit trail is open and there is no fog on the ridge.",
+  "key": {
+   "S": "The summit trail is open",
+   "F": "There is fog on the ridge",
+   "G": "The guide leads the group",
+   "X": "The group reaches the hut by dusk"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "The summit trail is open only if there is no fog on the ridge.",
+    "tfl": "(S→¬F)",
+    "common_mistake": "(F→S)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The group reaches the hut by dusk if both the guide leads the group and there is no fog on the ridge.",
+    "tfl": "((G∧¬F)→X)",
+    "common_mistake": "(X→(G∧¬F))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Unless the guide leads the group, the summit trail is not open.",
+    "tfl": "(¬G→¬S)",
+    "common_mistake": "(G→S)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "There is fog on the ridge, or the group reaches the hut by dusk.",
+    "tfl": "(F∨X)",
+    "common_mistake": "(F∧X)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If there is fog on the ridge, then neither is the summit trail open nor does the guide lead the group.",
+    "tfl": "(F→¬(S∨G))",
+    "common_mistake": "(F→(¬S∨¬G))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The guide leads the group if and only if the summit trail is open and there is no fog on the ridge.",
+    "tfl": "(G↔(S∧¬F))",
+    "common_mistake": "(G→(S∧¬F))",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 7,
+  "theme": "Tenancy",
+  "paragraph": "The tenant is evicted only if the tenant does not pay rent on time. The tenant gives notice if the landlord does not repair the heating. The tenant is evicted if and only if the tenant neither pays rent on time nor gives notice. Unless the landlord repairs the heating, the tenant does not pay rent on time. If the tenant pays rent on time, then the tenant gives notice only if the landlord does not repair the heating. Either the tenant gives notice or the tenant is evicted, but it is not the case that the tenant is evicted and pays rent on time.",
+  "key": {
+   "P": "The tenant pays rent on time",
+   "L": "The landlord repairs the heating",
+   "E": "The tenant is evicted",
+   "N": "The tenant gives notice"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "The tenant is evicted only if the tenant does not pay rent on time.",
+    "tfl": "(E→¬P)",
+    "common_mistake": "(¬P→E)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The tenant gives notice if the landlord does not repair the heating.",
+    "tfl": "(¬L→N)",
+    "common_mistake": "(N→¬L)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The tenant is evicted if and only if the tenant neither pays rent on time nor gives notice.",
+    "tfl": "(E↔¬(P∨N))",
+    "common_mistake": "(E↔(¬P∨¬N))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Unless the landlord repairs the heating, the tenant does not pay rent on time.",
+    "tfl": "(¬L→¬P)",
+    "common_mistake": "(¬P→¬L)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If the tenant pays rent on time, then the tenant gives notice only if the landlord does not repair the heating.",
+    "tfl": "(P→(N→¬L))",
+    "common_mistake": "((P→N)→¬L)",
+    "ambiguity_flag": "nested only-if scope"
+   },
+   {
+    "english": "Either the tenant gives notice or the tenant is evicted, but it is not the case that the tenant is evicted and pays rent on time.",
+    "tfl": "((N∨E)∧¬(E∧P))",
+    "common_mistake": "((N∨E)∧(¬E∧¬P))",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 8,
+  "theme": "Committee meeting",
+  "paragraph": "The motion is deferred if there is no quorum. There is a quorum only if Amira chairs the meeting or Bruno takes the minutes. Amira chairs the meeting only if Bruno takes the minutes, and Bruno takes the minutes only if there is a quorum. If neither Amira chairs the meeting nor Bruno takes the minutes, the motion is deferred. The motion is deferred unless both there is a quorum and Amira chairs the meeting. It is not the case that Amira chairs the meeting if and only if the motion is deferred.",
+  "key": {
+   "A": "Amira chairs the meeting",
+   "B": "Bruno takes the minutes",
+   "Q": "There is a quorum",
+   "D": "The motion is deferred"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "The motion is deferred if there is no quorum.",
+    "tfl": "(¬Q→D)",
+    "common_mistake": "(D→¬Q)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "There is a quorum only if Amira chairs the meeting or Bruno takes the minutes.",
+    "tfl": "(Q→(A∨B))",
+    "common_mistake": "((A∨B)→Q)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Amira chairs the meeting only if Bruno takes the minutes, and Bruno takes the minutes only if there is a quorum.",
+    "tfl": "((A→B)∧(B→Q))",
+    "common_mistake": "((B→A)∧(Q→B))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If neither Amira chairs the meeting nor Bruno takes the minutes, the motion is deferred.",
+    "tfl": "(¬(A∨B)→D)",
+    "common_mistake": "((¬A∨¬B)→D)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The motion is deferred unless both there is a quorum and Amira chairs the meeting.",
+    "tfl": "(¬(Q∧A)→D)",
+    "common_mistake": "(¬(Q∧A)→¬D)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "It is not the case that Amira chairs the meeting if and only if the motion is deferred.",
+    "tfl": "¬(A↔D)",
+    "common_mistake": "(¬A↔¬D)",
+    "ambiguity_flag": "ambiguous: not-(A iff D) vs (not A) iff D; EXCLUDE"
+   }
+  ]
+ },
+ {
+  "id": 9,
+  "theme": "Regatta",
+  "paragraph": "If the wind is strong, then the regatta is cancelled unless the safety boat is available. The harbour is closed only if the wind is strong. The regatta is cancelled if the harbour is closed or the safety boat is not available. Either the harbour is closed or the safety boat is available, and the regatta is not cancelled unless the wind is strong. If the regatta is not cancelled, then neither is the harbour closed nor is the wind strong. The safety boat is available if and only if the harbour is not closed.",
+  "key": {
+   "W": "The wind is strong",
+   "R": "The regatta is cancelled",
+   "S": "The safety boat is available",
+   "H": "The harbour is closed"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "If the wind is strong, then the regatta is cancelled unless the safety boat is available.",
+    "tfl": "(W→(¬S→R))",
+    "common_mistake": "(W→(S→R))",
+    "ambiguity_flag": "nested only-if/unless scope"
+   },
+   {
+    "english": "The harbour is closed only if the wind is strong.",
+    "tfl": "(H→W)",
+    "common_mistake": "(W→H)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The regatta is cancelled if the harbour is closed or the safety boat is not available.",
+    "tfl": "((H∨¬S)→R)",
+    "common_mistake": "((H∧¬S)→R)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Either the harbour is closed or the safety boat is available, and the regatta is not cancelled unless the wind is strong.",
+    "tfl": "((H∨S)∧(¬W→¬R))",
+    "common_mistake": "((H∨S)∧(¬R→¬W))",
+    "ambiguity_flag": "comma-dependent scope"
+   },
+   {
+    "english": "If the regatta is not cancelled, then neither is the harbour closed nor is the wind strong.",
+    "tfl": "(¬R→¬(H∨W))",
+    "common_mistake": "(¬R→(¬H∨¬W))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The safety boat is available if and only if the harbour is not closed.",
+    "tfl": "(S↔¬H)",
+    "common_mistake": "(S→¬H)",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 10,
+  "theme": "Software release",
+  "paragraph": "The release ships only if both all tests pass and the ops team approves. If all tests pass, then the build is tagged. Unless the build is tagged, the release does not ship. Unless all tests pass, neither does the ops team approve nor is the build tagged. The ops team approves if all tests pass or the build is tagged. Either the release ships or the ops team does not approve, but not both.",
+  "key": {
+   "T": "All tests pass",
+   "B": "The build is tagged",
+   "O": "The ops team approves",
+   "Z": "The release ships"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "The release ships only if both all tests pass and the ops team approves.",
+    "tfl": "(Z→(T∧O))",
+    "common_mistake": "((T∧O)→Z)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If all tests pass, then the build is tagged.",
+    "tfl": "(T→B)",
+    "common_mistake": "(B→T)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Unless the build is tagged, the release does not ship.",
+    "tfl": "(¬B→¬Z)",
+    "common_mistake": "(¬Z→¬B)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Unless all tests pass, neither does the ops team approve nor is the build tagged.",
+    "tfl": "(¬T→¬(O∨B))",
+    "common_mistake": "(¬T→(¬O∨¬B))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The ops team approves if all tests pass or the build is tagged.",
+    "tfl": "((T∨B)→O)",
+    "common_mistake": "((T∧B)→O)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Either the release ships or the ops team does not approve, but not both.",
+    "tfl": "((Z∨¬O)∧¬(Z∧¬O))",
+    "common_mistake": "(Z∨¬O)",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 11,
+  "theme": "Dinner party",
+  "paragraph": "There is enough food if Vera cooks. There is enough food only if Vera cooks or Imran brings dessert. If the guests arrive early, then Vera cooks only if Imran brings dessert. Imran brings dessert unless the guests arrive early. Either the guests arrive early and there is not enough food, or Vera cooks and Imran does not bring dessert. Unless there is enough food, it is not the case that both Vera cooks and Imran brings dessert.",
+  "key": {
+   "V": "Vera cooks",
+   "I": "Imran brings dessert",
+   "G": "The guests arrive early",
+   "M": "There is enough food"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "There is enough food if Vera cooks.",
+    "tfl": "(V→M)",
+    "common_mistake": "(M→V)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "There is enough food only if Vera cooks or Imran brings dessert.",
+    "tfl": "(M→(V∨I))",
+    "common_mistake": "((V∨I)→M)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If the guests arrive early, then Vera cooks only if Imran brings dessert.",
+    "tfl": "(G→(V→I))",
+    "common_mistake": "((G→V)→I)",
+    "ambiguity_flag": "nested only-if scope"
+   },
+   {
+    "english": "Imran brings dessert unless the guests arrive early.",
+    "tfl": "(¬G→I)",
+    "common_mistake": "(G→¬I)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Either the guests arrive early and there is not enough food, or Vera cooks and Imran does not bring dessert.",
+    "tfl": "((G∧¬M)∨(V∧¬I))",
+    "common_mistake": "((G∧¬M)∧(V∧¬I))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Unless there is enough food, it is not the case that both Vera cooks and Imran brings dessert.",
+    "tfl": "(¬M→¬(V∧I))",
+    "common_mistake": "(¬M→(¬V∧¬I))",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 12,
+  "theme": "Biology lab",
+  "paragraph": "The data are discarded if and only if the culture is contaminated. If the culture is contaminated, then the experiment is repeated only if the incubator is running. If the experiment is not repeated, then neither is the culture contaminated nor is the incubator off. Unless the data are discarded, the experiment is not repeated. The incubator is running, or both the culture is contaminated and the data are discarded. It is not the case that the experiment is repeated and the incubator is not running.",
+  "key": {
+   "C": "The culture is contaminated",
+   "I": "The incubator is running",
+   "D": "The data are discarded",
+   "R": "The experiment is repeated"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "The data are discarded if and only if the culture is contaminated.",
+    "tfl": "(D↔C)",
+    "common_mistake": "(D→C)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If the culture is contaminated, then the experiment is repeated only if the incubator is running.",
+    "tfl": "(C→(R→I))",
+    "common_mistake": "((C→R)→I)",
+    "ambiguity_flag": "nested only-if scope"
+   },
+   {
+    "english": "If the experiment is not repeated, then neither is the culture contaminated nor is the incubator off.",
+    "tfl": "(¬R→¬(C∨¬I))",
+    "common_mistake": "(¬R→(¬C∨I))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Unless the data are discarded, the experiment is not repeated.",
+    "tfl": "(¬D→¬R)",
+    "common_mistake": "(¬R→¬D)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The incubator is running, or both the culture is contaminated and the data are discarded.",
+    "tfl": "(I∨(C∧D))",
+    "common_mistake": "((I∨C)∧D)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "It is not the case that the experiment is repeated and the incubator is not running.",
+    "tfl": "¬(R∧¬I)",
+    "common_mistake": "(¬R∧I)",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 13,
+  "theme": "Delayed flight",
+  "paragraph": "If the flight is delayed, Tariq misses the connection. Tariq books a hotel only if he misses the connection. Tariq takes the train if he misses the connection and does not book a hotel. Tariq either takes the train or books a hotel, but not both. Unless the flight is delayed, Tariq neither misses the connection nor books a hotel. Tariq takes the train only if the flight is delayed, and if the flight is delayed, he either books a hotel or takes the train.",
+  "key": {
+   "F": "The flight is delayed",
+   "T": "Tariq misses the connection",
+   "H": "Tariq books a hotel",
+   "U": "Tariq takes the train"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "If the flight is delayed, Tariq misses the connection.",
+    "tfl": "(F→T)",
+    "common_mistake": "(T→F)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Tariq books a hotel only if he misses the connection.",
+    "tfl": "(H→T)",
+    "common_mistake": "(T→H)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Tariq takes the train if he misses the connection and does not book a hotel.",
+    "tfl": "((T∧¬H)→U)",
+    "common_mistake": "(U→(T∧¬H))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Tariq either takes the train or books a hotel, but not both.",
+    "tfl": "((U∨H)∧¬(U∧H))",
+    "common_mistake": "(U∨H)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Unless the flight is delayed, Tariq neither misses the connection nor books a hotel.",
+    "tfl": "(¬F→¬(T∨H))",
+    "common_mistake": "(¬F→(¬T∨¬H))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Tariq takes the train only if the flight is delayed, and if the flight is delayed, he either books a hotel or takes the train.",
+    "tfl": "((U→F)∧(F→(H∨U)))",
+    "common_mistake": "((F→U)∧((H∨U)→F))",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 14,
+  "theme": "Exam week",
+  "paragraph": "Most students pass if students study. If the exam is easy, then most students pass, but the teacher curves the grades only if the exam is not easy. Unless students study, the teacher curves the grades. Most students pass if and only if students study or the teacher curves the grades. Only if the teacher curves the grades is it the case that neither the exam is easy nor do students study. It is not the case that students study and most students fail.",
+  "key": {
+   "E": "The exam is easy",
+   "S": "Students study",
+   "P": "Most students pass",
+   "C": "The teacher curves the grades"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "Most students pass if students study.",
+    "tfl": "(S→P)",
+    "common_mistake": "(P→S)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If the exam is easy, then most students pass, but the teacher curves the grades only if the exam is not easy.",
+    "tfl": "((E→P)∧(C→¬E))",
+    "common_mistake": "((P→E)∧(¬E→C))",
+    "ambiguity_flag": "comma-dependent scope"
+   },
+   {
+    "english": "Unless students study, the teacher curves the grades.",
+    "tfl": "(¬S→C)",
+    "common_mistake": "(C→¬S)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Most students pass if and only if students study or the teacher curves the grades.",
+    "tfl": "(P↔(S∨C))",
+    "common_mistake": "(P→(S∨C))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Only if the teacher curves the grades is it the case that neither the exam is easy nor do students study.",
+    "tfl": "((¬E∧¬S)→C)",
+    "common_mistake": "(C→(¬E∧¬S))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "It is not the case that students study and most students fail.",
+    "tfl": "¬(S∧¬P)",
+    "common_mistake": "(¬S∧P)",
+    "ambiguity_flag": null
+   }
+  ]
+ },
+ {
+  "id": 15,
+  "theme": "Museum loan",
+  "paragraph": "The exhibition opens in March only if both the loan is approved and the insurer signs off. If the painting is not cleaned, then the loan is approved only if the insurer signs off. Unless the painting is cleaned, the insurer does not sign off. Either the loan is approved or the painting is cleaned, and the exhibition opens in March if the loan is approved. The exhibition opens in March if and only if neither the loan is unapproved nor the insurer withholds sign-off. It is not the case that the loan is approved, the insurer signs off, and the painting is not cleaned.",
+  "key": {
+   "L": "The loan is approved",
+   "K": "The painting is cleaned",
+   "X": "The exhibition opens in March",
+   "Y": "The insurer signs off"
+  },
+  "source": "AI-generated (Claude)",
+  "tier": "stress",
+  "sentences": [
+   {
+    "english": "The exhibition opens in March only if both the loan is approved and the insurer signs off.",
+    "tfl": "(X→(L∧Y))",
+    "common_mistake": "((L∧Y)→X)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "If the painting is not cleaned, then the loan is approved only if the insurer signs off.",
+    "tfl": "(¬K→(L→Y))",
+    "common_mistake": "((¬K→L)→Y)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Unless the painting is cleaned, the insurer does not sign off.",
+    "tfl": "(¬K→¬Y)",
+    "common_mistake": "(K→¬Y)",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "Either the loan is approved or the painting is cleaned, and the exhibition opens in March if the loan is approved.",
+    "tfl": "((L∨K)∧(L→X))",
+    "common_mistake": "((L∨K)∧(X→L))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "The exhibition opens in March if and only if neither the loan is unapproved nor the insurer withholds sign-off.",
+    "tfl": "(X↔¬(¬L∨¬Y))",
+    "common_mistake": "(X↔(L∨Y))",
+    "ambiguity_flag": null
+   },
+   {
+    "english": "It is not the case that the loan is approved, the insurer signs off, and the painting is not cleaned.",
+    "tfl": "¬((L∧Y)∧¬K)",
+    "common_mistake": "(¬(L∧Y)∧K)",
+    "ambiguity_flag": null
+   }
+  ]
+ }
+]
