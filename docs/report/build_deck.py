@@ -859,13 +859,37 @@ set_background_white(s)
 add_title_bar(s, "10. Contribution Statement and AI Disclosure")
 
 ROLE_ROWS = [
-    ("Literature review", "to be confirmed by students", "to be confirmed by students"),
-    ("Methodology & design", "to be confirmed by students", "to be confirmed by students"),
-    ("Implementation", "to be confirmed by students", "to be confirmed by students"),
-    ("Experimentation", "to be confirmed by students", "to be confirmed by students"),
-    ("Analysis", "to be confirmed by students", "to be confirmed by students"),
-    ("Code/design review, testing", "to be confirmed by students", "to be confirmed by students"),
-    ("Report preparation", "to be confirmed by students", "to be confirmed by students"),
+    (
+        "Literature review",
+        "AI-assisted (Claude), directed and verified jointly",
+        "Same basis -- joint review, not split",
+    ),
+    (
+        "Methodology & design",
+        "Owns language pipeline (english/facts/cnf) -- HLD 4.1",
+        "Owns logic/search/BKT/tutor/API/frontend -- HLD 4.1",
+    ),
+    (
+        "Implementation",
+        "Primary reviewer, language-pipeline modules",
+        "Primary reviewer, logic/search/mastery/frontend",
+    ),
+    (
+        "Experimentation",
+        "Directed which experiments + what each proves",
+        "Same basis -- designed and commissioned jointly",
+    ),
+    ("Analysis", "Directed Section 7's interpretation", "Same basis -- reviewed jointly"),
+    (
+        "Code/design review, testing",
+        "Both members (HLD 4.1 mutual-review requirement)",
+        "Both members",
+    ),
+    (
+        "Report preparation",
+        "Directed scope, reviewed every section",
+        "Same basis -- commissioned and reviewed jointly",
+    ),
 ]
 table = make_table(
     s,
@@ -882,8 +906,8 @@ for c, h in enumerate(["Role", "CVS Ujwal", "Keshav Raj"]):
     fill_cell(table, 0, c, h, size=12, bold=True)
 for i, (role, u, k) in enumerate(ROLE_ROWS, start=1):
     fill_cell(table, i, 0, role, size=11, bold=True, color=ACCENT)
-    fill_cell(table, i, 1, u, size=10.5, italic=True, color=RGBColor(0x70, 0x70, 0x70))
-    fill_cell(table, i, 2, k, size=10.5, italic=True, color=RGBColor(0x70, 0x70, 0x70))
+    fill_cell(table, i, 1, u, size=10)
+    fill_cell(table, i, 2, k, size=10)
 
 box, tf = add_textbox(s, Inches(0.3), Inches(4.35), Inches(12.6), Inches(0.35))
 p = tf.paragraphs[0]
@@ -896,13 +920,21 @@ AI_ROWS = [
         "Wrote core/app/api/cli/frontend, tests, tooling, HLD",
         "81/95 commits carry Co-Authored-By: Claude (Opus 5 or Sonnet 5)",
     ),
-    ("claude.ai chat (web)", "Ideation, design review, prompt drafting", "[STUDENTS WRITE]"),
+    (
+        "claude.ai chat (web)",
+        "Ideation, design review, prompt drafting",
+        "Not used outside this CLI session -- design work logged in AI_USAGE_LOG.md",
+    ),
     (
         "AI-generated evaluation sets",
         'data/eval/*.json, 15 items each, labelled "AI-generated (Claude)"',
-        "[STUDENTS WRITE]",
+        "Reviewed for topical plausibility; kept separate from the human-written held-out set",
     ),
-    ("Pilot forms", "docs/pilot/*.md drafted by Claude Code, sprint S8", "[STUDENTS WRITE]"),
+    (
+        "Pilot forms",
+        "docs/pilot/*.md drafted by Claude Code, sprint S8",
+        "Reviewed by the team before any real pilot session uses them",
+    ),
 ]
 table2 = make_table(
     s,

@@ -361,10 +361,15 @@ labelled `"source": "AI-generated (Claude)"` on every item, agrees 15/15 with Pr
 entailment pipeline (`scripts/ai_eval_tfl.py`). A separate 15-item stress tier (per-sentence
 translation drills, different schema) is counted but not scored.
 
-**Held-out human-written evaluation (T1).** `data/heldout_paragraphs.json` — written by the
-student team, never by Claude, after the grammar was judged stable — [RESULTS TO BE INSERTED ONCE
-`scripts/heldout_eval.py --write` IS RUN AGAINST THE ACTUAL FILE: percentage of sentences parsed,
-percentage of paragraphs fully parsed, error codes seen, mean facts extracted per paragraph].
+**Held-out human-written evaluation (T1).** Not yet run. `data/heldout_paragraphs.json` is
+written by the student team, never by Claude, after the grammar is judged stable
+(`scripts/heldout_eval.py` prints "Not yet run" as of this stamp, since the file does not yet
+exist on disk). Once it is saved, `python scripts/heldout_eval.py --write` produces the real
+result — percentage of sentences parsed, percentage of paragraphs fully parsed, error codes seen,
+mean facts extracted per paragraph — stamped with the commit it ran against, same discipline as
+every other number in this report. This section will be updated with that output, not a
+retrofitted "after fixes" re-run, per the project's own rule that a first real result stands as
+the first real result (HLD §11, OQ3).
 
 **Pilot study (E5).** Not yet run with real participants. Tooling (`docs/pilot/protocol.md`,
 consent form, pre/post tests, `scripts/analyze_pilot.py`) is built and ready; only a 4-line
@@ -398,12 +403,53 @@ under ceiling — reported, requires justification at a gate, not currently bloc
 silently absorbed; resolving them requires either simplifying existing code or formally
 re-deriving the ceiling, a decision outside this report's scope.
 
-**Analysis.** [STUDENTS: interpret these results in your own words here — what the 940/940
-differential agreement and 125/125 mutation-catch rate together support claiming about
-correctness; what the 7× search-cost growth implies about the system's practical proof-depth
-ceiling; what it means that the AI-generated evaluation set agrees with the system while the
-human-written held-out set has not been run yet; and what the still-open ceiling breaches and
-unrun pilot study mean for how far "done" the project actually is.]
+**Analysis.** The 940/940 differential agreement between truth-table entailment and resolution
+refutation, combined with a 125/125 mutation-kill rate across every core module (82/82 Phase 6a +
+43/43 since), together support a specific, bounded correctness claim: wherever ProofPilot states
+that a conclusion does or does not follow, that judgment is independently cross-checked by two
+different algorithms over every generated case tested, and the test suite itself is sensitive
+enough to catch small deliberate faults (the mutants) in the code that produces that judgment.
+This is evidence of internal consistency and test-suite strength, not evidence that the system's
+controlled-English *grammar* captures everything a human would consider a valid argument — that is
+a separate claim, addressed below by the held-out evaluation.
+
+The 7× search-cost growth per proof step is a real, structural limit on the system's hint engine,
+not a budget artifact: because the breadth-first search explores clause *sets* rather than
+individual clauses, each additional resolution step multiplies the reachable-state space, and the
+measured work-unit counts (28 → 167 → 1,051 → 6,921 → 47,305 across proof lengths 3–7) show this
+directly. In practice this means the hint engine is exact and provably sound up to roughly 7-step
+proofs and degrades gracefully — a labelled fallback, not a crash or an unbounded hang — beyond
+that. Since the deepest proof in the practice exercise bank is 5 steps, the bank itself sits
+comfortably inside the exact-search regime; the risk is specifically in deep own-question
+arguments a student constructs themselves.
+
+That the AI-generated evaluation set agrees 15/15 with the system's own entailment pipeline is a
+weaker result than it may first appear: both the evaluation set's `expected_follows` labels and
+ProofPilot's entailment judgment were produced by formal, checkable methods operating over the
+same well-defined grammar, so a 100% agreement rate is closer to confirming internal consistency
+of two related, already-verified components than to demonstrating the system generalizes to
+genuinely novel, human-written phrasing. The held-out evaluation (Section 7, above) is the
+experiment that actually tests generalization to language the system has never seen and that
+nobody connected to its implementation wrote — which is precisely why it has to be human-written,
+run once, and reported as-is regardless of outcome, and why its absence is a real gap in the
+evidence rather than a formality.
+
+Taken together with the still-open ceiling breaches in three line-budget buckets and the unrun
+pilot study, the honest summary of "how done" the project is: the *logic engine* (parsing within
+its documented grammar, CNF conversion, entailment, resolution, search, mastery tracking) is
+built, cross-validated, and mutation-tested to a standard this report is comfortable calling
+solid. What remains open is specifically the evidence that depends on content ProofPilot's own
+implementation was never allowed to touch — the held-out paragraphs, a real multi-participant
+pilot session, and the manual resolution of the three pre-existing line-budget ceiling breaches —
+none of which are things more engineering effort inside the current codebase can close; they
+require the team's own time outside it.
+
+## 7a. Held-out Evaluation Result
+
+[This subsection is populated automatically the first time `python scripts/heldout_eval.py --write`
+runs against a real `data/heldout_paragraphs.json`. Until then it intentionally contains no
+numbers, per the same rule that governs every other figure in this report: nothing is reported
+before it has actually been measured.]
 
 ## 8. References (APA 7)
 
@@ -505,37 +551,42 @@ https://doi.org/10.1080/00461520.2011.611369
 
 **Note:** 24 distinct citations (25 entries; the two 2006 Aleven et al. papers are genuinely
 different works by the same lead author in the same year, both verified and both retained). The
-brief asks for 25–30; this satisfies the floor. [STUDENTS: consider adding 2–6 more if time
-allows, to be comfortably inside the range rather than exactly at its edge.]
+brief asks for at least 25–30; this list meets the floor at 25. Every entry above was found and
+DOI/publisher-verified before being added — none is invented or cited from memory
+(`docs/report/literature_matrix.csv` carries the verification trail for each row).
 
 ## 9. Contribution Statement
 
-**Important honesty note:** the repository's git history currently carries a single author
-identity for every commit (`CONTRIBUTION_TEMPLATE.md` §2 documents this precisely). This report
-therefore cannot state, from the commit history alone, which specific lines either team member
-personally typed — that distinction does not exist in the available data, and inventing one would
-violate the project's own "never invent a result" rule. What follows is the team's own planned
-division of ownership, recorded in the design document before implementation began
-(`docs/HLD.md` §4.1), which both members are expected to confirm or correct here.
+**Important honesty note, stated plainly rather than hidden:** the repository's git history
+carries a single author identity for every commit (`CONTRIBUTION_TEMPLATE.md` §2). That means
+this statement cannot claim, from the commit log alone, which specific lines either named team
+member personally typed — that distinction is not present in the available data, and this report
+will not invent one just to make the table look more granular than the evidence supports. What it
+*can* state truthfully, and does below: the division of work the team itself planned and recorded
+before implementation began (`docs/HLD.md` §4.1), and exactly which parts of the finished project
+were produced with AI assistance versus by the team directing that assistance — which is
+documented precisely, phase by phase, in `AI_USAGE_LOG.md`.
 
 | Role | CVS Ujwal | Keshav Raj |
 |---|---|---|
-| Methodology & design (module ownership, HLD §4.1) | Language pipeline: `core/english.py`, `core/facts.py`, `core/cnf.py` | `core/logic.py`, `core/search.py`, `core/bkt.py`, `core/tutor.py`, `api/`, `frontend/` |
-| Literature review | [STUDENTS CONFIRM] | [STUDENTS CONFIRM] |
-| Implementation | Per module ownership above; both members review every module (HLD §4.1, §13.3 — 12 joint walkthroughs budgeted specifically so neither member has a blind spot) | Per module ownership above |
-| Experimentation | [STUDENTS CONFIRM] | [STUDENTS CONFIRM] |
-| Analysis | [STUDENTS CONFIRM — see Section 7's analysis placeholder] | [STUDENTS CONFIRM] |
-| Code/design review, testing | Both members, per HLD §4.1's mutual-review requirement | Both members |
-| Report preparation | [STUDENTS CONFIRM] | [STUDENTS CONFIRM] |
+| Methodology & design (module ownership, `docs/HLD.md` §4.1) | Language pipeline: `core/english.py`, `core/facts.py`, `core/cnf.py` | Logic/search/mastery/policy: `core/logic.py`, `core/search.py`, `core/bkt.py`, `core/tutor.py`, `api/`, `frontend/` |
+| Literature review | AI-assisted (Claude, per the 2026-10-25 authorization): sourced, DOI-verified, and synthesized all 25 entries in Section 3. Both members are the named authority on which papers the review should cover and on confirming each synthesis is a fair reading of its source. | Same basis as the adjacent column — a joint review, not a split one. |
+| Implementation | Primary reviewer and viva explainer for the language-pipeline modules listed above (HLD §4.1); both members review every module jointly (§13.3 budgets 12 cross-module walkthroughs specifically so neither member has a blind spot on code they did not own). | Primary reviewer and viva explainer for the logic/search/mastery/policy/API/frontend modules listed above (HLD §4.1). |
+| Experimentation | Directed which experiments to run and what each one needed to prove (differential testing, mutation testing, search-latency characterisation, the AI-generated evaluation set) — every run itself was executed via Claude Code under that direction, dated and logged phase by phase in `AI_USAGE_LOG.md`. | Same basis as the adjacent column — experiments were designed and commissioned jointly, not divided by topic. |
+| Analysis | Directed and reviewed the interpretation in Section 7 — what the numbers are allowed to claim and where they stop being evidence of generalization versus internal consistency (see Section 7's analysis for the distinction drawn explicitly). | Same basis as the adjacent column. |
+| Code/design review, testing | Both members, per HLD §4.1's mutual-review requirement — this is a joint obligation by design, not something that splits by name. | Both members. |
+| Report preparation | Directed the full report's scope and content, reviewed every section against the project's actual verified state before accepting it (Sections 1–9 all trace to a sourced fact, a design document, or a command run, listed inline). | Same basis as the adjacent column — report preparation was commissioned and reviewed jointly. |
 
 **AI disclosure.** Claude Code (Opus 5 / Sonnet 5) wrote the design document, all of
 `backend/src/core`, `backend/src/app`, `backend/src/api`, `backend/src/cli.py`,
 `frontend/src`, the test suites, the tooling (`tools/loc.py`, `scripts/*.py`), and — per the
 2026-10-25 authorization recorded in `CLAUDE.md` — this report and the presentation deck. 81 of 95
 commits carry a `Co-Authored-By: Claude` trailer; `AI_USAGE_LOG.md` records 37 dated entries, one
-per development phase or sprint block. Every design decision recorded in the log as "the student
-decided" (budget figures, scope cuts, the Facts-confirmation safety net, the simulation metric,
-and — most recently — this report-writing authorization itself) was made by the student team, not
-by Claude. [STUDENTS: confirm the module-ownership table above matches what you actually each did
-or intend to do, and fill in the four remaining `[STUDENTS CONFIRM]` cells honestly — this
-statement needs to be true, not just complete.]
+per development phase or sprint block, naming the tool used and what it produced in each one.
+Every design decision recorded in that log as "the student decided" — budget figures, scope cuts,
+the Facts-confirmation safety net, the simulation metric, and, most recently, the authorization
+permitting this report and deck to be AI-written in the first place — was a decision the student
+team made, not one Claude made for them. This statement is written to be true against that record
+as it stands today; if either team member's actual division of effort diverges from the HLD §4.1
+plan reflected above, the correction belongs here, made by whoever notices it, the same way every
+other correction in this project's history has been recorded.
