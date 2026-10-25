@@ -30,7 +30,7 @@ SLIDE_W = Inches(13.333)
 SLIDE_H = Inches(7.5)
 
 REPO_URL = "https://github.com/ujwal2311/proofpilot.git"
-COMMIT = "eed9ecf"  # the report-kit commit this deck is built from
+COMMIT = "b0a43f1"  # local working commit this deck is built from -- NOT yet pushed (see slide 6)
 
 prs = Presentation()
 prs.slide_width = SLIDE_W
@@ -180,7 +180,12 @@ set_run(r, f"Repository: {REPO_URL}", size=12, color=RGBColor(0x44, 0x44, 0x44))
 box, tf = add_textbox(s, Inches(1.0), Inches(6.35), Inches(11.3), Inches(0.4))
 p = tf.paragraphs[0]
 r = p.add_run()
-set_run(r, f"Report built from commit {COMMIT}", size=12, color=RGBColor(0x44, 0x44, 0x44))
+set_run(
+    r,
+    f"Report built from local commit {COMMIT} (not yet pushed -- see slide 6)",
+    size=12,
+    color=RGBColor(0x44, 0x44, 0x44),
+)
 add_footer(s, 1)
 
 
@@ -381,29 +386,39 @@ for i, stage in enumerate(PIPELINE):
         r2 = p2.add_run()
         set_run(r2, "→", size=16, bold=True, color=ACCENT)
 
-box, tf = add_textbox(s, Inches(0.35), Inches(2.2), Inches(12.6), Inches(0.4))
+box, tf = add_textbox(s, Inches(0.35), Inches(2.18), Inches(12.6), Inches(0.75))
 p = tf.paragraphs[0]
 r = p.add_run()
 set_run(
     r,
-    "6-stage pipeline, per docs/HLD.md §7 (not 9 — flagged in FACTS.md as a "
-    "brief/design mismatch to clarify, not invented to match)",
+    'Above: the 6-step INTERNAL pipeline (docs/HLD.md §7). Not the only "stage" count -- '
+    "three numbers, kept separate rather than flattened to one (FACTS.md §9):",
     size=11,
     italic=True,
     color=RGBColor(0x60, 0x60, 0x60),
+)
+p2 = tf.add_paragraph()
+r2 = p2.add_run()
+set_run(
+    r2,
+    "3 UI screens  •  5-value state machine (read/facts/translate/prove/explain -- "
+    "translate now universal, HLD v2.12)  •  6-step internal pipeline (above)",
+    size=11,
+    bold=True,
+    color=ACCENT,
 )
 
 ARCH_BOXES = [
     ("React frontend", "Render, post actions,\npersist to localStorage"),
     ("FastAPI (4 endpoints)", "Stateless HTTP adapter:\nparse body, call app, return JSON"),
     ("app/ (shared edge)", "load+validate, prepare,\nrender, mint clause ids"),
-    ("core/ (12 modules)", "Pure Python, zero web\nimports, 6-stage pipeline"),
+    ("core/ (15 modules)", "Pure Python, zero web\nimports, 6-stage pipeline"),
 ]
 bw = Inches(2.95)
 bh = Inches(1.3)
 bgap = Inches(0.2)
 bx = Inches(0.35)
-by = Inches(2.85)
+by = Inches(3.05)
 for i, (name, desc) in enumerate(ARCH_BOXES):
     x = bx + i * (bw + bgap)
     add_rect(s, x, by, bw, bh, fill=WHITE, line=ACCENT, line_width=Pt(1.5))
@@ -427,7 +442,7 @@ for i, (name, desc) in enumerate(ARCH_BOXES):
         r3 = p3.add_run()
         set_run(r3, "→", size=16, bold=True, color=ACCENT)
 
-box, tf = add_textbox(s, Inches(0.35), Inches(4.35), Inches(12.6), Inches(0.4))
+box, tf = add_textbox(s, Inches(0.35), Inches(4.55), Inches(12.6), Inches(0.4))
 p = tf.paragraphs[0]
 r = p.add_run()
 set_run(r, "Implementation strategy (FACTS.md §9)", size=14, bold=True, color=ACCENT)
@@ -442,7 +457,7 @@ STRATEGY = [
     "frontend/src reads server state directly (state.stage) rather than keeping a client-side "
     "copy of what stage the session is in.",
 ]
-box, tf = add_textbox(s, Inches(0.35), Inches(4.75), Inches(12.6), Inches(1.9))
+box, tf = add_textbox(s, Inches(0.35), Inches(4.95), Inches(12.6), Inches(1.9))
 for i, line in enumerate(STRATEGY):
     p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
     p.space_after = Pt(6)
@@ -536,13 +551,27 @@ add_title_bar(s, "6. Code Repository and Build Record")
 REPO_ROWS = [
     ("Repository URL", REPO_URL),
     ("Licence", "MIT"),
-    ("Total commits", "71 (git log --format=%H | wc -l)"),
-    ("Latest commit (this deck)", COMMIT + " -- S10: report support kit"),
-    ("CI status", "20/20 of the last 20 pushes succeeded (gh run list --branch main --limit 20)"),
-    ("AI_USAGE_LOG.md entries", "29 dated entries, one per development phase/sprint block"),
+    ("Total commits", "86 (git log --format=%H | wc -l)"),
+    (
+        "Latest commit (this deck)",
+        COMMIT + " -- local only, 4 commits ahead of fef68ba (last CI-verified push)",
+    ),
+    (
+        "Push status",
+        "NOT pushed -- CLAUDE.md's absolute per-gate rule: commit locally, push needs "
+        '"approved" for this specific gate',
+    ),
+    (
+        "CI status (pushed commits only)",
+        "17/20 of the last 20 pushes succeeded; 3 consecutive failures on 2026-10-23 "
+        "(missing data/eval/*.json in git), fixed 2026-10-24 "
+        "(gh run list --branch main --limit 20)",
+    ),
+    ("progress-v1 tag", "points at fef68ba, 2026-10-24/25 (git tag --list progress-v1)"),
+    ("AI_USAGE_LOG.md entries", "37 dated entries, one per development phase/sprint block/gate"),
     (
         "Commits with Co-Authored-By: Claude",
-        '58 of 71 (git log --format=%B | grep -c "Co-Authored-By: Claude")',
+        '76 of 86 (git log --format=%B | grep -c "Co-Authored-By")',
     ),
 ]
 table = make_table(
@@ -550,22 +579,22 @@ table = make_table(
     Inches(0.3),
     Inches(1.3),
     Inches(12.7),
-    Inches(4.4),
+    Inches(4.55),
     len(REPO_ROWS) + 1,
     2,
-    col_widths=[Inches(4.3), Inches(8.4)],
-    font_size=14,
+    col_widths=[Inches(3.9), Inches(8.8)],
+    font_size=12,
     header=False,
 )
-fill_cell(table, 0, 0, "Fact", size=14, bold=True, color=WHITE)
+fill_cell(table, 0, 0, "Fact", size=12, bold=True, color=WHITE)
 table.cell(0, 0).fill.solid()
 table.cell(0, 0).fill.fore_color.rgb = ACCENT
-fill_cell(table, 0, 1, "Value", size=14, bold=True, color=WHITE)
+fill_cell(table, 0, 1, "Value", size=12, bold=True, color=WHITE)
 table.cell(0, 1).fill.solid()
 table.cell(0, 1).fill.fore_color.rgb = ACCENT
 for i, (fact, value) in enumerate(REPO_ROWS, start=1):
-    fill_cell(table, i, 0, fact, size=13, bold=True)
-    fill_cell(table, i, 1, value, size=12.5)
+    fill_cell(table, i, 0, fact, size=11, bold=True, color=ACCENT)
+    fill_cell(table, i, 1, value, size=10.5)
 
 box, tf = add_textbox(s, Inches(0.3), Inches(6.0), Inches(12.7), Inches(0.9))
 p = tf.paragraphs[0]
@@ -644,43 +673,55 @@ add_footer(s, 7)
 # =========================================== SLIDE 8 -- Experimental Analysis & Progress
 s = new_slide()
 set_background_white(s)
-add_title_bar(s, "7. Experimental Analysis and Current Progress")
+add_title_bar(s, "8. Experimental Analysis and Current Progress")
 
 ANALYSIS_ROWS = [
     (
         "Tests",
-        "808/809 passed (1 skipped by default: 400-case slow sweep, needs "
-        "PROOFPILOT_SLOW=1). 1 failing: test_the_planned_list_shrinks — the dead-reference "
-        "allowlist needs a one-line update now that docs/report/*.md exist; out of this task's "
-        "read-only-on-source-code scope.",
+        "842/843 passed (1 skipped by default: 400-case slow sweep, needs "
+        "PROOFPILOT_SLOW=1, passes with nothing skipped in CI's dedicated slow job). Both "
+        "PYTHONHASHSEED=0 and 4242 green.",
     ),
     (
         "Differential testing",
-        "940/940 agreement between truth-table entailment and resolution (100%).",
+        "940/940 agreement between truth-table entailment and resolution (100%). Unchanged "
+        "since v2.9 -- regression-checked tonight, still 7/7 passing.",
     ),
     (
         "Mutation testing",
-        "82/82 caught, but ONLY for Phase-6a core modules (bkt, cnf, english, "
-        "entail, facts, logic, models, relevance, search). Stale for every module built since "
-        "(tutor.py rewrite, session.py, API, frontend, pilot tooling) — scheduled, not run.",
+        "82/82 (Phase 6a core modules, 2026-10-11, 416-test suite) PLUS a separate "
+        "43/43 (every module built since, run for the first time: session.py, tutor.py, "
+        "config.py, formula.py, translation.py, narrate.py -- 842-test suite, 2026-10-25). "
+        "Two different scopes at two different suite sizes -- do not add them.",
     ),
     (
         "Search latency",
         "Deepest bank proof (5 steps): 12.7 ms. Deepest budget-answered proof "
-        "(7 steps): 691 ms. 8+ steps fall back to a rule-based hint.",
+        "(7 steps): 691 ms. 8+ steps fall back to a rule-based hint. Unchanged since v2.9 A3.",
     ),
     (
-        "Evaluation sets (S/X)",
-        "data/eval/*.json exist (15 items each, AI-generated, labelled), "
-        "untracked by git, wired to no script — not yet used.",
+        "Evaluation sets",
+        "data/eval/*.json now committed to git and wired (scripts/ai_eval_tfl.py): the "
+        "15-item simple tier agrees 15/15 with ProofPilot's own entailment check. The 15-item "
+        "stress tier has a different schema (no conclusion/expected_follows) -- counted, not "
+        "scored.",
     ),
     ("Pilot (E5)", "Not run. Tooling ready; template.csv has a header row only."),
-    ("M2 (translation coach)", "Not built. core/translation.py, core/narrate.py do not exist."),
+    (
+        "M2 (translation coach)",
+        "Core modules built (formula.py, translation.py, narrate.py, 6/6/3 mutants caught) "
+        "plus the evidence-mapping wiring (tutor.translate_trigger, session.record_translation) "
+        "and a design change making Translate universal (HLD v2.12). The real check -- a "
+        "reference-formula renderer, diagnosis messages, the API handler, the frontend step -- "
+        "is DEFERRED by explicit decision, not an oversight: it would cross a core budget cap "
+        "and worsen an already-over-ceiling bucket (HLD v2.12 change log has the numbers). "
+        "Every exercise today auto-skips Translate, restoring exact pre-change behaviour.",
+    ),
     ("Analysis of results", "[STUDENTS WRITE: your interpretation]"),
     (
-        "Next (PROGRESS.md)",
-        "S6/S7 (M2 core+frontend) → S9 (mutation pass on new modules) "
-        "→ S11 (final audit, tag progress-v1).",
+        "Next",
+        "The M2 Translate check (deferred above, budget decision needed) → the pilot session "
+        "→ data/heldout_paragraphs.json (human-written, post-freeze) → report prose.",
     ),
 ]
 table = make_table(
@@ -720,7 +761,7 @@ add_footer(s, 8)
 # ============================================================ SLIDE 9 -- References
 s = new_slide()
 set_background_white(s)
-add_title_bar(s, "8. References (APA)")
+add_title_bar(s, "9. References (APA)")
 
 REFERENCES = [
     "Aleven, V., McLaren, B., Roll, I., & Koedinger, K. (2006). Toward meta-cognitive tutoring: "
@@ -800,7 +841,7 @@ add_footer(s, 9)
 # ========================================== SLIDE 10 -- Contribution & AI Disclosure
 s = new_slide()
 set_background_white(s)
-add_title_bar(s, "9. Contribution Statement and AI Disclosure")
+add_title_bar(s, "10. Contribution Statement and AI Disclosure")
 
 ROLE_ROWS = [
     ("Literature review", "to be confirmed by students", "to be confirmed by students"),
@@ -838,7 +879,7 @@ AI_ROWS = [
     (
         "Claude Code (Opus 5 / Sonnet 5)",
         "Wrote core/app/api/cli/frontend, tests, tooling, HLD",
-        "58/71 commits carry Co-Authored-By: Claude Opus 5",
+        "76/86 commits carry Co-Authored-By: Claude (Opus 5 or Sonnet 5)",
     ),
     ("claude.ai chat (web)", "Ideation, design review, prompt drafting", "[STUDENTS WRITE]"),
     (
