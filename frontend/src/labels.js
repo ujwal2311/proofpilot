@@ -31,6 +31,7 @@ export const UI = {
   ownButton: "Check this argument",
   ownRequired: "Write at least one premise sentence and a conclusion.",
   backToStart: "New argument",
+  back: "← Back",
 
   // Read & Facts
   sentencesHeading: "The paragraph",

@@ -16,6 +16,7 @@ import { useSession } from "./useSession.js";
 // table exists precisely so there is only one.
 const STAGES = ["read", "facts", "translate", "prove", "explain"];
 const STAGE_ORDER = ["facts", "translate", "prove", "explain"];
+const VISIBLE_TABS = ["facts", "prove", "explain"]; // M1 never shows Translate
 
 export default function App() {
   const {
@@ -95,11 +96,28 @@ export default function App() {
     setActiveTab(tab);
   };
 
+  // One step back through the VISIBLE tabs only (M1 never shows Translate) -- same "just
+  // looking" semantics as clicking a tab directly, never the API. Fixed order, not browser
+  // history: predictable for a teacher narrating live, same reason the tabs stay in one place.
+  const currentTab = showEditableFacts ? "facts" : activeTab;
+  const backIndex = VISIBLE_TABS.indexOf(currentTab) - 1;
+  const canGoBack = backIndex >= 0;
+
   return (
     <main aria-busy={pending}>
       <Header pilotId={pilotId} onPilotId={updatePilotId} />
       <div className="toolbar">
-        <Stepper current={showEditableFacts ? "facts" : activeTab} onSelect={selectTab} />
+        <div className="toolbar-nav">
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => selectTab(VISIBLE_TABS[backIndex])}
+            disabled={pending || !canGoBack}
+          >
+            {UI.back}
+          </button>
+          <Stepper current={currentTab} onSelect={selectTab} />
+        </div>
         <button type="button" className="ghost" onClick={goHome} disabled={pending}>
           {UI.backToStart}
         </button>
