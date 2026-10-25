@@ -35,6 +35,7 @@ from src.api import schemas
 from src.api.schemas import ActRequest, NextRequest, ParseRequest
 from src.app.audit import Tampered, audit
 from src.app.data import DataError
+from src.app.render import clause_english_map
 from src.core import search, session, tutor
 from src.core.bkt import is_done
 from src.core.english import ParseError
@@ -188,7 +189,11 @@ def next_exercise(body: NextRequest) -> dict:
         mastery=mastery,
         done_ids=(*seen, chosen.id),
     )
-    return {"state": schemas.dump_state(fresh), "done": False}
+    return {
+        "state": schemas.dump_state(fresh),
+        "clause_english": clause_english_map(fresh),
+        "done": False,
+    }
 
 
 @api.post("/api/parse")
@@ -218,6 +223,7 @@ def parse(body: ParseRequest, request: Request) -> dict:
     _pilot_log(request, "parse", code, dumped)
     return {
         "state": dumped,
+        "clause_english": clause_english_map(fresh),
         "warnings": [say.warning(raw) for raw in found.warnings],
         "error": None,
     }
@@ -275,6 +281,7 @@ def _step(state, action) -> dict:
         "code": found.code.value,
         "message": runtime().render.step(found, productive),
         "state": schemas.dump_state(after),
+        "clause_english": clause_english_map(after),
         "extras": {"valid": found.code.value == "VALID", "productive": productive},
     }
 
@@ -287,6 +294,7 @@ def _hint(state, action) -> dict:
         "code": plan.code,
         "message": runtime().render.hint(plan, board.names()),
         "state": schemas.dump_state(charged),
+        "clause_english": clause_english_map(charged),
         "extras": {"available": True, "level": plan.level},
     }
 
@@ -300,6 +308,7 @@ def _claim(state, _action) -> dict:
         "code": code,
         "message": message,
         "state": schemas.dump_state(after),
+        "clause_english": clause_english_map(after),
         "extras": {"accepted": accepted, "counterexample": counterexample},
     }
 
@@ -322,6 +331,7 @@ def _confirm_facts(state, _action) -> dict:
         "code": "FACTS_CONFIRMED",
         "message": runtime().render.text["confirm"]["FACTS_CONFIRMED"],
         "state": schemas.dump_state(moved),
+        "clause_english": clause_english_map(moved),
         "extras": {"stage": moved.stage},
     }
 
@@ -352,6 +362,7 @@ def _merge(state, action) -> dict:
         "code": "MERGE_RESET",
         "message": runtime().render.text["confirm"]["MERGE_RESET"],
         "state": schemas.dump_state(fresh),
+        "clause_english": clause_english_map(fresh),
         "extras": {"stage": fresh.stage},
     }
 

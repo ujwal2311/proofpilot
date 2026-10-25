@@ -21,6 +21,7 @@ export function useSession() {
   const [done, setDone] = useState(false);
   const [started, setStarted] = useState(false); // has the student chosen practice or own-question yet
   const [warnings, setWarnings] = useState([]);
+  const [clauseEnglish, setClauseEnglish] = useState({}); // {clause id: rendered phrase text}
 
   const run = useCallback(async (work, { keepFeedback = false } = {}) => {
     setPending(true);
@@ -56,6 +57,7 @@ export function useSession() {
         setStarted(true);
         const answer = await api.next(from);
         setDone(answer.done);
+        setClauseEnglish(answer.clause_english ?? {});
         keep(answer.state);
         return answer;
       }),
@@ -68,6 +70,7 @@ export function useSession() {
         setStarted(true);
         const answer = await api.parse(paragraph, conclusion, merges);
         setWarnings(answer.warnings ?? []);
+        setClauseEnglish(answer.clause_english ?? {});
         return keep(answer.state);
       }),
     [run, keep],
@@ -78,6 +81,7 @@ export function useSession() {
       run(async () => {
         const answer = await api.act(state, action);
         setFeedback({ code: answer.code, message: answer.message, extras: answer.extras });
+        setClauseEnglish(answer.clause_english ?? {});
         keep(answer.state);
         return answer;
       }, { keepFeedback: true }),
@@ -110,6 +114,7 @@ export function useSession() {
     setState(null);
     setFeedback(null);
     setWarnings([]);
+    setClauseEnglish({});
     setStarted(false);
   }, []);
 
@@ -121,6 +126,7 @@ export function useSession() {
     done,
     started,
     warnings,
+    clauseEnglish,
     nextExercise,
     parse,
     act,

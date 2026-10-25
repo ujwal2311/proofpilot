@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from src.core.entail import Entailment, Verdict
 from src.core.logic import Clause, Diagnosis, canonical
-from src.core.models import Skill
+from src.core.models import ClauseRec, Fact, Skill, State
 from src.core.tutor import Hint
 
 
@@ -87,6 +87,32 @@ class Renderer:
 def clause_text(clause: Clause) -> str:
     """One clause, canonically ordered. The empty clause is `[]`, which is the goal of a proof."""
     return " v ".join(canonical(clause)) or "[]"
+
+
+def clause_english(clause: ClauseRec, facts: tuple[Fact, ...]) -> str:
+    """One board clause in the student's own words -- built ONLY from phrases they confirmed.
+
+    Each literal's symbol is looked up against `facts` (never guessed): a missing symbol is a
+    data-integrity bug and crashes here rather than inventing wording for it, same discipline as
+    every other lookup in this module. A fact's FIRST phrase is used when several were merged
+    into one symbol, since that is the phrase order the student's own paragraph established.
+    General over any clause the resolution process can produce -- nothing here names a symbol or
+    an exercise.
+    """
+    if not clause.literals:
+        return "a contradiction"
+    text_of = {fact.symbol: fact.phrases[0][1] for fact in facts}
+    parts = []
+    for literal in clause.literals:
+        negated = literal.startswith("~")
+        phrase = text_of[literal[1:] if negated else literal]
+        parts.append(f"not {phrase}" if negated else phrase)
+    return " or ".join(parts)
+
+
+def clause_english_map(state: State) -> dict[str, str]:
+    """Every board clause's English, keyed by id -- what the Prove screen's sidebar renders."""
+    return {clause.id: clause_english(clause, state.facts) for clause in state.clauses}
 
 
 def _literals(clause: Clause) -> str:

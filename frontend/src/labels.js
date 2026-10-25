@@ -50,6 +50,8 @@ export const UI = {
 
   // Prove
   boardHeading: "Clauses on the board",
+  legendHeading: "What the letters mean",
+  clauseEnglishHeading: "What each clause says",
   notNeeded: "not needed for this conclusion",
   resolventLabel: "The resolvent you get",
   resolventPlaceholder: "e.g. B  or  ~A B",

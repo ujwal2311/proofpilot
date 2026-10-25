@@ -490,3 +490,68 @@ def test_the_api_declares_no_mastery_of_a_skill_the_milestone_does_not_teach(cli
     # M1 tracks three skills. A TRANSLATE entry appearing in a returned session would make
     # `is_done` unreachable for a student who never meets the Translate stage.
     assert set(board["mastery"]) == {s.value for s in Skill} - {"TRANSLATE"}
+
+
+# ================================================================= clause English (HLD change)
+
+
+def test_clause_english_is_wired_through_the_real_pipeline(client) -> None:
+    # Deliberately fresh content -- a warehouse and a generator, nothing used anywhere else in
+    # this file -- to prove the rendering generalizes rather than matching a known fixture.
+    parsed = client.post(
+        "/api/parse",
+        json={
+            "paragraph": (
+                "If the warehouse loses power, the backup generator starts. "
+                "The warehouse loses power."
+            ),
+            "conclusion": "The backup generator starts.",
+        },
+    ).json()
+    # Clauses are already on the board right after parsing, before the student confirms facts --
+    # so clause_english must be populated from the very first response, not only after Prove.
+    english = parsed["clause_english"]
+    by_literals = {tuple(c["literals"]): english[c["id"]] for c in parsed["state"]["clauses"]}
+    assert by_literals[("B", "~A")] == (
+        "the backup generator starts or not the warehouse loses power"
+    )
+    assert by_literals[("A",)] == "the warehouse loses power"
+    assert by_literals[("~B",)] == "not the backup generator starts"
+
+    # Confirm facts to reach the Prove stage, where "step" is a legal action.
+    board = client.post(
+        ACT, json={"state": parsed["state"], "action": {"type": "confirm_facts"}}
+    ).json()["state"]
+
+    # Step 1: A + (~A or B) -> B. The DERIVED clause must render too, not just the given ones --
+    # this is what "updates live after the student's own step" actually means.
+    c_a = next(c["id"] for c in board["clauses"] if tuple(c["literals"]) == ("A",))
+    c_b = next(c["id"] for c in board["clauses"] if tuple(c["literals"]) == ("B", "~A"))
+    stepped = client.post(
+        ACT,
+        json={
+            "state": board,
+            "action": {"type": "step", "clause_a": c_a, "clause_b": c_b, "resolvent": ["B"]},
+        },
+    ).json()
+    new_b = next(
+        c for c in stepped["state"]["clauses"] if tuple(c["literals"]) == ("B",) and c["id"] != c_b
+    )
+    assert stepped["clause_english"][new_b["id"]] == "the backup generator starts"
+
+    # Step 2: the derived B + (~B) -> the empty clause, the goal of a refutation.
+    c_not_b = next(c["id"] for c in stepped["state"]["clauses"] if tuple(c["literals"]) == ("~B",))
+    finished = client.post(
+        ACT,
+        json={
+            "state": stepped["state"],
+            "action": {
+                "type": "step",
+                "clause_a": new_b["id"],
+                "clause_b": c_not_b,
+                "resolvent": [],
+            },
+        },
+    ).json()
+    empty = next(c for c in finished["state"]["clauses"] if c["literals"] == [])
+    assert finished["clause_english"][empty["id"]] == "a contradiction"

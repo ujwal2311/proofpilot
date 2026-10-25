@@ -25,6 +25,7 @@ export default function App() {
     done,
     started,
     warnings,
+    clauseEnglish,
     nextExercise,
     parse,
     act,
@@ -120,6 +121,7 @@ export default function App() {
         <ProveBoard
           state={state}
           pending={pending}
+          clauseEnglish={clauseEnglish}
           onStep={(step) => act({ type: "step", ...step })}
           onHint={(level) => act({ type: "hint", level })}
           onClaim={() => act({ type: "claim_not_provable" })}
