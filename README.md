@@ -4,7 +4,7 @@ Step-level formative feedback for propositional logic arguments, built with cont
 parsing, truth tables, resolution refutation, BFS and Bayesian Knowledge Tracing.
 
 > **Status: M1 complete, M2 core modules built.** The design is frozen at
-> [`docs/HLD.md`](docs/HLD.md) v2.12. Backend, frontend and CLI all run end to end — see
+> [`docs/HLD.md`](docs/HLD.md) v2.13. Backend, frontend and CLI all run end to end — see
 > [Run the app](#run-the-app) below. Current progress: [`docs/report/FACTS.md`](docs/report/FACTS.md).
 
 A college AI course project (3rd year) by **CVS Ujwal** (24BCE0667) and **Keshav Raj**
@@ -142,12 +142,12 @@ holding it server-side behind a session id, is the future work; the design note 
 | `backend/tests/` | pytest suite |
 | `data/` | `exercises.json`, `heldout_paragraphs.json`, `messages.yaml` |
 | `scripts/` | Difficulty computation, experiments, held-out evaluation |
-| `frontend/` | React + Vite UI, built (M1 stages; M2's Translate step deferred, see HLD v2.12) |
+| `frontend/` | React + Vite UI, built (M1 stages; M2's Translate step deferred, see HLD v2.13) |
 | `docs/` | `HLD.md` (source of truth), review, experiment results, report support kit |
 
 ## Documents
 
-- **[`docs/HLD.md`](docs/HLD.md)** — high-level design v2.12, frozen. Architecture, grammar,
+- **[`docs/HLD.md`](docs/HLD.md)** — high-level design v2.13, frozen. Architecture, grammar,
   algorithms with correctness arguments, API contract, budgets, and a verification report.
 - **[`docs/HLD_REVIEW.md`](docs/HLD_REVIEW.md)** — adversarial review of the v1 design (historical).
 - **[`AI_USAGE_LOG.md`](AI_USAGE_LOG.md)** — factual record of AI assistance, updated every phase.

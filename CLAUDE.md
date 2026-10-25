@@ -1,6 +1,6 @@
 # CLAUDE.md — ProofPilot rules and constraints
 
-**Design: see `docs/HLD.md` v2.12 — APPROVED AND FROZEN (2026-10-12; v2.12 2026-10-25).** Any design change requires
+**Design: see `docs/HLD.md` v2.13 — APPROVED AND FROZEN (2026-10-12; latest change request 2026-10-25).** Any design change requires
 an explicit change request from the student; never alter the design unilaterally. That document is
 the single source of truth for architecture,
 grammar, algorithms, data model, API contract, budgets, milestones and test names. This file holds
@@ -121,7 +121,7 @@ message contains the word "approved" for that specific gate. There are no carve-
 repository creation, not for CI fixes, not for "finishing" a phase that was explicitly requested.
 Committing locally is always fine; publishing is not.** If in doubt, commit and ask.
 
-`docs/HLD.md` §15 Open Questions are resolved and v2.12 is frozen. Implementation proceeds
+`docs/HLD.md` §15 Open Questions are resolved and v2.13 is frozen. Implementation proceeds
 milestone by milestone: **M1 first and complete**, M2 only after M1 ships.
 
 ## TEMPORARY SPRINT RULE — EXPIRES AT THE `progress-v1` TAG

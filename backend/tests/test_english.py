@@ -265,3 +265,90 @@ def test_connective_inside_fact_mis_splits_visibly() -> None:
     # forbids. The Facts confirmation screen is the safety net: BOTH bogus facts are shown to
     # the user before any proving starts.
     assert parse("We sell bread and butter") == And((Atom("we sell bread"), Atom("butter")))
+
+
+# --------------------------------------------------------------- gap-list phrases (HLD change)
+# Deliberately fresh vocabulary throughout -- none of these words appear in any fixture above --
+# to prove each production generalizes rather than matching the sentences used to build it.
+
+
+def test_necessary_for_flips_the_implication() -> None:
+    # "X is necessary for Y" means Y cannot hold without X: Y -> X, not X -> Y.
+    assert parse("A strong signal is necessary for the connection to hold") == Implies(
+        Atom("the connection to hold"), Atom("a strong signal")
+    )
+
+
+def test_sufficient_for_does_not_flip() -> None:
+    # The paired construction, opposite direction: X guarantees Y, so X -> Y.
+    assert parse("A valid signature is sufficient for the document to be accepted") == Implies(
+        Atom("a valid signature"), Atom("the document to be accepted")
+    )
+
+
+def test_implies_stated_directly() -> None:
+    assert parse("The sensor is faulty implies the alarm triggers") == Implies(
+        Atom("the sensor is faulty"), Atom("the alarm triggers")
+    )
+
+
+def test_not_both_is_nand_distinct_from_neither_nor() -> None:
+    # The pairing the professor's gap list calls out explicitly: "not both A and B" negates the
+    # WHOLE conjunction (NAND); "neither A nor B" negates each clause separately. Same two
+    # clauses, genuinely different formulas -- asserted here, not just described.
+    nand = parse("Not both the ticket is approved and the refund is issued")
+    neither = parse("Neither the ticket is approved nor the refund is issued")
+    assert nand == Not(And((Atom("the ticket is approved"), Atom("the refund is issued"))))
+    assert neither == And((Not(Atom("the ticket is approved")), Not(Atom("the refund is issued"))))
+    assert nand != neither
+
+
+def test_not_both_governs_or_is_rejected() -> None:
+    # Same reasoning as "Either A and B": one connective present, so the generic mixed-connective
+    # check is blind to it -- without this branch it would silently parse as the wrong formula.
+    with pytest.raises(ParseError) as caught:
+        parse_sentence("Not both the ticket is approved or the refund is issued")
+    assert caught.value.code is ErrorCode.AMBIGUOUS_AND_OR
+    assert caught.value.detail == "not_both_governs_or"
+
+
+def test_ordinary_leading_not_is_unaffected_by_not_both() -> None:
+    # Regression guard: adding "not" to the sentence-initial dispatch must not change a single
+    # thing about ordinary leading negation, which is the one truly new code path in this batch.
+    assert parse("Not the engine misfires") == Not(Atom("the engine misfires"))
+    assert parse("Not the engine misfires and the sensor is faulty") == And(
+        (Not(Atom("the engine misfires")), Atom("the sensor is faulty"))
+    )
+
+
+def test_whenever_is_if_with_a_different_head_word() -> None:
+    assert parse("Whenever the device reboots, the firmware updates") == Implies(
+        Atom("the device reboots"), Atom("the firmware updates")
+    )
+
+
+def test_provided_that_and_given_that() -> None:
+    assert parse("Provided that the signature is valid, the document is accepted") == Implies(
+        Atom("the signature is valid"), Atom("the document is accepted")
+    )
+    assert parse("Given that the engine misfires, the sensor is faulty") == Implies(
+        Atom("the engine misfires"), Atom("the sensor is faulty")
+    )
+
+
+def test_provided_and_given_decline_without_that() -> None:
+    # Regression guard for the decline-to-None pattern: an ordinary fact starting with
+    # "provided"/"given" but without the literal word "that" must still parse as plain text,
+    # the same way "Both lights are on" survives the "both" dispatch key.
+    assert parse("Provided we have time we will review it") == Atom(
+        "provided we have time we will review it"
+    )
+    assert parse("Given the circumstances we proceeded") == Atom(
+        "given the circumstances we proceeded"
+    )
+
+
+def test_otherwise_is_the_unless_family() -> None:
+    assert parse("The ticket is approved, otherwise the refund is issued") == Or(
+        (Atom("the ticket is approved"), Atom("the refund is issued"))
+    )

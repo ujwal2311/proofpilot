@@ -295,15 +295,22 @@ def _refuse_bad_input(tokens: list[str], sentence: str) -> None:
         raise ParseError(ErrorCode.EMPTY_FACT_PHRASE, sentence)
 
 
-def _initial_if(tokens: list[str], sentence: str) -> Node:
-    """`if cond then junction` / `if cond, junction` -- the antecedent comes first."""
-    split = next((i for i, token in enumerate(tokens) if i and token in (",", "then")), None)
+def _initial_if(tokens: list[str], sentence: str, head_len: int = 1) -> Node:
+    """`if cond then junction` / `if cond, junction` -- the antecedent comes first.
+
+    `head_len` is how many leading tokens are the keyword itself: 1 for "if"/"whenever", 2 for
+    "provided that"/"given that". The function never checks what the keyword actually was, so
+    registering it directly for a new single-token keyword costs nothing beyond a dict entry.
+    """
+    split = next(
+        (i for i, token in enumerate(tokens) if i >= head_len and token in (",", "then")), None
+    )
     if split is None:
         raise ParseError(ErrorCode.UNPARSEABLE, sentence, "if_without_then")
     rest = split
     while rest < len(tokens) and tokens[rest] in (",", "then"):
         rest += 1
-    return Implies(_junction(tokens[1:split], sentence), _junction(tokens[rest:], sentence))
+    return Implies(_junction(tokens[head_len:split], sentence), _junction(tokens[rest:], sentence))
 
 
 def _initial_unless(tokens: list[str], sentence: str) -> Node:
@@ -350,17 +357,41 @@ def _initial_neither(tokens: list[str], sentence: str) -> Node | None:
     return And(tuple(_negated(_clause(segment, sentence)) for segment in segments))
 
 
-# Head word -> the production it opens. A table rather than a chain of `if head == ...`: the
-# parser recognises five sentence-initial forms and one body testing all five scored 13 on
-# mccabe, over the complexity gate. Each handler now reads on its own, and the DISPATCH is the
-# thing a reader checks for completeness.
+def _initial_that_clause(tokens: list[str], sentence: str) -> Node | None:
+    """`provided that X, Y` / `given that X, Y` -- declines unless "that" immediately follows,
+    so an ordinary fact starting with "provided"/"given" still falls through unchanged."""
+    if len(tokens) > 1 and tokens[1] == "that":
+        return _initial_if(tokens, sentence, head_len=2)
+    return None
+
+
+def _initial_not(tokens: list[str], sentence: str) -> Node | None:
+    """`not both X and Y` -- NAND. Distinct from "neither X nor Y": this negates the WHOLE
+    conjunction, not each clause separately. Declines for every other leading "not", which then
+    falls through unchanged to `_clause`'s own single-atom negation marker."""
+    if len(tokens) > 1 and tokens[1] == "both":
+        if "and" in tokens[2:]:
+            return Not(_junction(tokens[2:], sentence))
+        if "or" in tokens[2:]:
+            # Same reasoning as "both A or B" above: one connective present, mixed-check misses it.
+            raise ParseError(ErrorCode.AMBIGUOUS_AND_OR, sentence, "not_both_governs_or")
+    return None
+
+
+# Head word -> the production it opens. A table rather than a chain of `if head == ...`: one body
+# testing every sentence-initial form by hand scored 13 on mccabe, over the complexity gate. Each
+# handler now reads on its own, and the DISPATCH is the thing a reader checks for completeness.
 _SENTENCE_INITIAL = {
     "if": _initial_if,
+    "whenever": _initial_if,
     "unless": _initial_unless,
     "only": _initial_only,
     "either": _initial_bracketed,
     "both": _initial_bracketed,
     "neither": _initial_neither,
+    "provided": _initial_that_clause,
+    "given": _initial_that_clause,
+    "not": _initial_not,
 }
 
 
@@ -393,8 +424,12 @@ def parse_sentence(sentence: str) -> Node:
     for keyword, build in (
         (("if", "and", "only", "if"), lambda left, right: Iff(left, right)),
         (("only", "if"), lambda left, right: Implies(left, right)),
+        (("is", "necessary", "for"), lambda left, right: Implies(right, left)),
+        (("is", "sufficient", "for"), lambda left, right: Implies(left, right)),
         (("unless",), lambda left, right: Or((left, right))),
         (("if",), lambda left, right: Implies(right, left)),
+        (("implies",), lambda left, right: Implies(left, right)),
+        (("otherwise",), lambda left, right: Or((left, right))),
     ):
         at = _find(tokens, keyword)
         if at is not None:

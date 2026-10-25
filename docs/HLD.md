@@ -1,8 +1,8 @@
-# ProofPilot — High-Level Design v2.12
+# ProofPilot — High-Level Design v2.13
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
-Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests). v2.9 applies the Phase-5-gate change request; v2.10 the budget decision and the cache bound; v2.11 the sprint scope decision and the M2 budget bucket; v2.12 the student's post-progress-review change request making Translate universal (§16).
+Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests). v2.9 applies the Phase-5-gate change request; v2.10 the budget decision and the cache bound; v2.11 the sprint scope decision and the M2 budget bucket; v2.12 the student's post-progress-review change request making Translate universal; v2.13 the student's change request adding 8 grammar productions from the gap-list review (§16).
 This document is the source of truth. Any later
 design change requires an explicit change request from the student; Claude must not alter the
 design unilaterally.
@@ -147,11 +147,19 @@ tractable (§6.1) and is also the source of the system's most important limitati
 
 ```
 sentence := "if" cond ("," | "then")+ junction      # consequent runs to end of sentence
+          | "whenever" cond ("," | "then")+ junction  # same production as "if", different head word
+          | "provided" "that" cond ("," | "then")+ junction
+          | "given" "that" cond ("," | "then")+ junction
           | "unless" clause "," junction             # sentence-initial; ≡ junction ∨ clause
+          | "not" "both" clause "and" clause          # NAND; ¬(A ∧ B) -- distinct from "neither … nor"
           | clause "if" cond                         # B if A  ≡  A → B
           | clause "only if" clause                  # A only if B  ≡  A → B
           | clause "unless" clause                   # A unless B  ≡  A ∨ B
           | clause "if and only if" clause           # A ↔ B
+          | clause "is" "necessary" "for" clause      # B is necessary for A  ≡  A → B
+          | clause "is" "sufficient" "for" clause     # A is sufficient for B  ≡  A → B
+          | clause "implies" clause                  # A implies B  ≡  A → B
+          | clause "," "otherwise" clause             # A, otherwise B  ≡  A ∨ B; ≡ "unless" family
           | "either" or_junction                     # "either" forces pure-or
           | "both"   and_junction                    # "both"   forces pure-and
           | "neither" clause ("nor" clause)+         # ¬A ∧ ¬B ∧ …
@@ -188,11 +196,18 @@ is unambiguous because `unless` is symmetric in neither reading.)
 | Pattern | Formula | Clausal form |
 |---|---|---|
 | `if A then B` / `B if A` | A→B | `{¬A, B}` |
+| `whenever A, B` | A→B | `{¬A, B}` |
+| `provided that A, B` / `given that A, B` | A→B | `{¬A, B}` |
 | `A only if B` | A→B | `{¬A, B}` |
 | `A unless B` / `Unless B, A` | A∨B | `{A, B}` |
+| `not both A and B` | ¬(A∧B) | `{¬A, ¬B}` |
 | `either A or B` | A∨B (inclusive) | `{A, B}` |
 | `neither A nor B` | ¬A∧¬B | `{¬A}, {¬B}` |
 | `A if and only if B` | (A→B)∧(B→A) | `{¬A,B}, {¬B,A}` |
+| `A is necessary for B` | B→A | `{¬B, A}` |
+| `A is sufficient for B` | A→B | `{¬A, B}` |
+| `A implies B` | A→B | `{¬A, B}` |
+| `A, otherwise B` | A∨B | `{A, B}` |
 | `both A and B` / `A and B` | A∧B | `{A}, {B}` |
 | `A or B` | A∨B | `{A, B}` |
 | bare clause `A` / `not A` | A / ¬A | `{A}` / `{¬A}` |
@@ -1039,6 +1054,41 @@ a new version with a Change Log entry.
      Rewriting those names would falsify the record, so this whole section is exempt from
      the dead-reference guard (test_docs_version.py states the rule). -->
 
+
+### From v2.12 → v2.13 — 8 grammar productions from the gap-list review, 2026-10-25
+
+Explicit change request from the student after a textbook-coverage review against intro
+propositional-logic conventions (Russell & Norvig's phrasing among them): `necessary for`,
+`sufficient for`, `implies` (stated directly), `not both … and …` (NAND), `whenever`,
+`provided that`, `given that`, and `, otherwise` added to §3.2/§3.3. All eight reuse the existing
+two-phase dispatch (`_SENTENCE_INITIAL` table / longest-first infix scan) — no new parsing
+pathway. `whenever` registers `_initial_if` directly under a second key, since that function never
+references the literal word "if"; `provided`/`given` share one new handler that declines (falls
+through to plain text) unless immediately followed by "that", parameterizing `_initial_if` with a
+`head_len` rather than duplicating its comma/then-split logic. `not both … and …` is the one
+genuinely new code path — "not" was not previously a dispatch key — and is pinned distinct from
+`neither … nor` by a dedicated test (`test_not_both_is_nand_distinct_from_neither_nor`), since the
+two are easy to conflate: NAND negates the whole conjunction, `neither…nor` negates each clause
+separately. A regression test (`test_ordinary_leading_not_is_unaffected_by_not_both`) confirms
+ordinary leading negation is untouched.
+
+**Two phrases from the same review were explicitly rejected, not silently dropped:**
+
+- **`"X just in case Y"` (↔)** — real textbook usage for biconditional, but the identical
+  mid-sentence token sequence is also how the ordinary precautionary idiom is phrased ("Take an
+  umbrella just in case it rains" is not a biconditional). No syntactic signal distinguishes the
+  two readings; accepting it would mean guessing, which §2's never-guess principle rules out.
+- **`"at least one of A or B"` (∨)** — logically identical to the already-supported plain `A or B`,
+  so it adds no expressive power. Cut for budget reasons (`core` was within 28 lines of its
+  ceiling before this batch) in favor of the seven constructions that are textbook-standard and
+  not yet expressible at all.
+
+**Cost:** +21 `core` lines (912 → 933 code lines; `budgets.toml` ceiling unchanged and not
+crossed). 10 new tests in `test_english.py`, all using vocabulary not found in any existing
+fixture, to demonstrate each production generalizes rather than matching the sentences used to
+build it.
+
+---
 
 ### From v2.11 → v2.12 — Translate is universal, not conditional, 2026-10-25
 
