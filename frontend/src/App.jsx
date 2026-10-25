@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PILOT_MODE, getPilotId, setPilotId } from "./api.js";
 import { Explanation } from "./Explanation.jsx";
@@ -15,6 +15,7 @@ import { useSession } from "./useSession.js";
 // client-side stage would be a second opinion about what may happen next, and the transition
 // table exists precisely so there is only one.
 const STAGES = ["read", "facts", "translate", "prove", "explain"];
+const STAGE_ORDER = ["facts", "translate", "prove", "explain"];
 
 export default function App() {
   const {
@@ -34,6 +35,16 @@ export default function App() {
   } = useSession();
   const [pilotId, setPilotIdState] = useState(() => getPilotId());
   const [editingFacts, setEditingFacts] = useState(false);
+
+  // What the student is LOOKING AT, independent of where the session actually is. Clicking a tab
+  // only ever changes this -- never state.stage, never the API. A genuine stage advance (e.g.
+  // confirming facts) re-syncs the view to follow it, same as before this existed.
+  const stage = state ? (state.stage === "read" ? "facts" : state.stage) : null;
+  const [activeTab, setActiveTab] = useState(stage);
+  useEffect(() => {
+    if (stage) setActiveTab(stage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
 
   const updatePilotId = (value) => {
     setPilotIdState(value);
@@ -76,13 +87,19 @@ export default function App() {
     );
   }
 
-  const stage = state.stage === "read" ? "facts" : state.stage;
-  const showFacts = stage === "facts" || (stage === "prove" && editingFacts);
+  const showEditableFacts =
+    (stage === "facts" && activeTab === "facts") || (stage === "prove" && editingFacts);
+  const reached = (tab) => STAGE_ORDER.indexOf(stage) >= STAGE_ORDER.indexOf(tab);
+  const selectTab = (tab) => {
+    setEditingFacts(false); // clicking any tab abandons "just looking", not a merge
+    setActiveTab(tab);
+  };
+
   return (
     <main aria-busy={pending}>
       <Header pilotId={pilotId} onPilotId={updatePilotId} />
       <div className="toolbar">
-        <Stepper current={stage} />
+        <Stepper current={showEditableFacts ? "facts" : activeTab} onSelect={selectTab} />
         <button type="button" className="ghost" onClick={goHome} disabled={pending}>
           {UI.backToStart}
         </button>
@@ -97,7 +114,7 @@ export default function App() {
       ) : null}
       <Feedback feedback={feedback} problem={problem} />
 
-      {showFacts ? (
+      {showEditableFacts ? (
         <ReadFacts
           state={state}
           pending={pending}
@@ -117,20 +134,30 @@ export default function App() {
         />
       ) : null}
 
-      {stage === "prove" && !editingFacts ? (
-        <ProveBoard
-          state={state}
-          pending={pending}
-          clauseEnglish={clauseEnglish}
-          onStep={(step) => act({ type: "step", ...step })}
-          onHint={(level) => act({ type: "hint", level })}
-          onClaim={() => act({ type: "claim_not_provable" })}
-          onEditFacts={() => setEditingFacts(true)}
-        />
+      {!showEditableFacts && activeTab === "facts" ? <ReadFacts state={state} readOnly /> : null}
+
+      {!showEditableFacts && activeTab === "prove" ? (
+        reached("prove") ? (
+          <ProveBoard
+            state={state}
+            pending={pending}
+            clauseEnglish={clauseEnglish}
+            onStep={(step) => act({ type: "step", ...step })}
+            onHint={(level) => act({ type: "hint", level })}
+            onClaim={() => act({ type: "claim_not_provable" })}
+            onEditFacts={() => setEditingFacts(true)}
+          />
+        ) : (
+          <NotReachedYet text={UI.notReachedProve} />
+        )
       ) : null}
 
-      {stage === "explain" ? (
-        <Explanation state={state} pending={pending} onNext={() => nextExercise(state)} />
+      {!showEditableFacts && activeTab === "explain" ? (
+        reached("explain") ? (
+          <Explanation state={state} pending={pending} onNext={() => nextExercise(state)} />
+        ) : (
+          <NotReachedYet text={UI.notReachedExplain} />
+        )
       ) : null}
 
       {pending ? (
@@ -139,6 +166,14 @@ export default function App() {
         </p>
       ) : null}
     </main>
+  );
+}
+
+function NotReachedYet({ text }) {
+  return (
+    <section className="not-reached">
+      <p>{text}</p>
+    </section>
   );
 }
 
@@ -162,16 +197,25 @@ function Header({ pilotId, onPilotId }) {
   );
 }
 
-// The stage the student is on, and the ones they have passed. M1 has no Translate stage, so it is
-// shown only when the session actually reaches it rather than as a permanent empty promise.
-function Stepper({ current }) {
+// What the student is looking at, and the ones they have passed. Clicking a tab only ever calls
+// `onSelect` -- it never reaches the API, so browsing a past or future stage is never an action.
+// M1 has no Translate stage, so it is shown only when the session actually reaches it rather than
+// as a permanent empty promise.
+function Stepper({ current, onSelect }) {
   const shown = STAGES.filter((stage) => stage !== "read" && (stage !== "translate" || current === "translate"));
   return (
     <nav className="stepper" aria-label="stages">
       <ol>
         {shown.map((stage) => (
-          <li key={stage} className={stage === current ? "here" : ""} aria-current={stage === current ? "step" : undefined}>
-            {UI.stages[stage]}
+          <li key={stage}>
+            <button
+              type="button"
+              className={stage === current ? "here" : ""}
+              aria-current={stage === current ? "step" : undefined}
+              onClick={() => onSelect(stage)}
+            >
+              {UI.stages[stage]}
+            </button>
           </li>
         ))}
       </ol>

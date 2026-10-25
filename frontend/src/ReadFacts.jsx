@@ -11,7 +11,7 @@ import { UI } from "./labels.js";
 //
 // Merges are addressed by PHRASE ID (v2.7 A3). Quoting the text back breaks the moment a student
 // edits a sentence, and two sentences can produce the same phrase.
-export function ReadFacts({ state, pending, onMerge, onConfirm }) {
+export function ReadFacts({ state, pending, onMerge, onConfirm, readOnly = false }) {
   const [a, setA] = useState("");
   const [b, setB] = useState("");
   const [relation, setRelation] = useState("same");
@@ -63,61 +63,65 @@ export function ReadFacts({ state, pending, onMerge, onConfirm }) {
         ))}
       </ul>
 
-      <fieldset className="merge" disabled={pending}>
-        <legend>{UI.mergeApply}</legend>
-        <select value={a} onChange={(event) => setA(event.target.value)} aria-label="first phrase">
-          <option value="">—</option>
-          {phrases.map((phrase) => (
-            <option key={phrase.id} value={phrase.id}>
-              {phrase.id}: {phrase.text}
-            </option>
-          ))}
-        </select>
-        <select
-          value={relation}
-          onChange={(event) => setRelation(event.target.value)}
-          aria-label="relation"
-        >
-          <option value="same">{UI.mergeSame}</option>
-          <option value="opposite">{UI.mergeOpposite}</option>
-          <option value="different">{UI.mergeDifferent}</option>
-        </select>
-        <select value={b} onChange={(event) => setB(event.target.value)} aria-label="second phrase">
-          <option value="">—</option>
-          {phrases.map((phrase) => (
-            <option key={phrase.id} value={phrase.id}>
-              {phrase.id}: {phrase.text}
-            </option>
-          ))}
-        </select>
-        <button type="button" onClick={apply} disabled={!ready}>
-          {UI.mergeApply}
-        </button>
-      </fieldset>
+      {readOnly ? null : (
+        <>
+          <fieldset className="merge" disabled={pending}>
+            <legend>{UI.mergeApply}</legend>
+            <select value={a} onChange={(event) => setA(event.target.value)} aria-label="first phrase">
+              <option value="">—</option>
+              {phrases.map((phrase) => (
+                <option key={phrase.id} value={phrase.id}>
+                  {phrase.id}: {phrase.text}
+                </option>
+              ))}
+            </select>
+            <select
+              value={relation}
+              onChange={(event) => setRelation(event.target.value)}
+              aria-label="relation"
+            >
+              <option value="same">{UI.mergeSame}</option>
+              <option value="opposite">{UI.mergeOpposite}</option>
+              <option value="different">{UI.mergeDifferent}</option>
+            </select>
+            <select value={b} onChange={(event) => setB(event.target.value)} aria-label="second phrase">
+              <option value="">—</option>
+              {phrases.map((phrase) => (
+                <option key={phrase.id} value={phrase.id}>
+                  {phrase.id}: {phrase.text}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={apply} disabled={!ready}>
+              {UI.mergeApply}
+            </button>
+          </fieldset>
 
-      {confirming ? (
-        <div className="confirm" role="alertdialog" aria-label={UI.resetTitle}>
-          <p>
-            <strong>{UI.resetTitle}</strong>
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              onMerge(confirming);
-              setConfirming(null);
-            }}
-          >
-            {UI.resetConfirm}
-          </button>
-          <button type="button" onClick={() => setConfirming(null)}>
-            {UI.resetCancel}
-          </button>
-        </div>
-      ) : null}
+          {confirming ? (
+            <div className="confirm" role="alertdialog" aria-label={UI.resetTitle}>
+              <p>
+                <strong>{UI.resetTitle}</strong>
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  onMerge(confirming);
+                  setConfirming(null);
+                }}
+              >
+                {UI.resetConfirm}
+              </button>
+              <button type="button" onClick={() => setConfirming(null)}>
+                {UI.resetCancel}
+              </button>
+            </div>
+          ) : null}
 
-      <button type="button" className="primary" onClick={onConfirm} disabled={pending}>
-        {UI.confirmFacts}
-      </button>
+          <button type="button" className="primary" onClick={onConfirm} disabled={pending}>
+            {UI.confirmFacts}
+          </button>
+        </>
+      )}
     </section>
   );
 }

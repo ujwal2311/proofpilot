@@ -64,6 +64,9 @@ export const UI = {
   editFacts: "Edit facts",
   selectTwo: "Select two clauses to resolve.",
 
+  notReachedProve: "You haven't reached Prove yet — confirm the facts first.",
+  notReachedExplain: "You haven't finished the proof yet.",
+
   // Explanation
   proofHeading: "Your proof",
   fromSentence: "from",

@@ -195,7 +195,7 @@ label:first-of-type {
   flex-wrap: wrap;
 }
 
-.stepper li {
+.stepper button {
   padding: 0.35rem 0.85rem;
   border: 1.5px solid var(--line);
   border-radius: 999px;
@@ -203,12 +203,25 @@ label:first-of-type {
   font-size: 0.85rem;
   font-weight: 600;
   background: var(--paper);
+  font-family: inherit;
+  cursor: pointer;
 }
 
-.stepper li.here {
+.stepper button:hover {
+  border-color: var(--line-strong);
+  color: var(--muted);
+}
+
+.stepper button.here {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-bg);
+}
+
+.not-reached {
+  color: var(--muted);
+  padding: 2rem 0;
+  text-align: center;
 }
 
 /* mastery */
