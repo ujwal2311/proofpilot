@@ -1055,17 +1055,26 @@ updated to show all five stages directly (`read → facts → translate → prov
 than carrying the old "M2 inserts translate before prove" hedge, since it is no longer
 conditional. `test_tutor.py`'s two assertions pinning the old destination were updated to match.
 
-**What this exposed, not yet resolved:** the `board` fixture used across ~17 tests in
-`test_api.py` / `test_api_hardening.py` / `test_pilot_log.py` could previously reach `"prove"`
-with nothing but `confirm_facts`, because `api/main.py`'s `_translate` handler was still the
-Block-3 stub (`NotImplementedUntilM2`). Finishing it for real turns out to need a new
-reference-formula renderer -- `SentenceRec.formula` is never populated, and the system is
-stateless across requests, so there is no existing way to recover a sentence's reference formula
-on a later `/api/act` call. See the gate report (not this document) for the cost/design options;
-no core/api code for `_translate` has been written yet, pending the student's decision.
+**What this exposed, and the minimal fix actually shipped:** the `board` fixture used across 17
+tests in `test_api.py` / `test_api_hardening.py` / `test_pilot_log.py` could previously reach
+`"prove"` with nothing but `confirm_facts`. A real Translate check needs a reference-formula
+renderer -- `SentenceRec.formula` is never populated, and the system is stateless across
+requests, so there is no existing way to recover a sentence's reference formula on a later
+`/api/act` call. Rather than build that renderer tonight, `session.enter_stage` now treats
+entering `"translate"` with every sentence's `formula` still `None` as "nothing to translate" and
+advances straight through to `"prove"` -- which is every exercise today, so this restores exactly
+the pre-v2.12 observable behaviour (2 new lines, `core_session` only).
+
+**Deferred, explicitly, not hidden: the real M2 Translate coach** -- the reference-formula
+renderer in `cnf.py`, the six new `messages.yaml` diagnosis entries, `render.py`'s translate
+method, and the interactive Translate UI. Building just the renderer and its API wiring would
+push `core_session` over its cap and worsen `api_cli`, which is already over its *ceiling*
+(`budgets.toml` → `[api_cli]`) from the sprint's acknowledged overrun -- a budget decision for a
+calmer moment than a 1am gate, not a 23-line addition to push through unreviewed.
 
 No change to `core/translation.py`, `core/narrate.py`, `core/formula.py`, the evidence mapping
-(§9), or the error model (§8) -- those were already correct for a universal Translate stage.
+(§9), or the error model (§8) -- those were already correct for a universal Translate stage, and
+remain unused until the deferred work above lands.
 
 ---
 

@@ -235,7 +235,15 @@ def record_translation(state: State, sentence_id: str, formula: str, diagnosis_c
 
 
 def enter_stage(state: State, stage: str) -> State:
-    """Move to `stage`, resetting the hint level only if the stage actually changed."""
+    """Move to `stage`, resetting the hint level only if the stage actually changed.
+
+    Entering "translate" with nothing to translate (every `SentenceRec.formula` still `None` --
+    the real M2 Translate check is deferred, HLD v2.12 change log) skips straight through to
+    "prove", identical to pre-v2.12 behaviour. Once a future module starts setting `formula`,
+    this same check starts routing those exercises through Translate for real -- no second flag.
+    """
+    if stage == "translate" and all(s.formula is None for s in state.sentences):
+        stage = "prove"
     if stage == state.stage:
         return state
     return replace(state, stage=stage, hint_level=0)
