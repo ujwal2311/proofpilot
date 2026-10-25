@@ -12,7 +12,7 @@ export const UI = {
   title: "ProofPilot",
   subtitle: "step-level feedback for propositional logic",
 
-  stages: { read: "Read & Facts", translate: "Translate", prove: "Prove", explain: "Explanation" },
+  stages: { facts: "Read & Facts", translate: "Translate", prove: "Prove", explain: "Explanation" },
 
   // Read & Facts
   sentencesHeading: "The paragraph",

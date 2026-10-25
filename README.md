@@ -3,8 +3,9 @@
 Step-level formative feedback for propositional logic arguments, built with controlled-English
 parsing, truth tables, resolution refutation, BFS and Bayesian Knowledge Tracing.
 
-> **Status: Phase 1 (scaffold).** The design is frozen at [`docs/HLD.md`](docs/HLD.md) v2.12.
-> No logic is implemented yet — this README is a stub and grows at Phase 9.
+> **Status: M1 complete, M2 core modules built.** The design is frozen at
+> [`docs/HLD.md`](docs/HLD.md) v2.12. Backend, frontend and CLI all run end to end — see
+> [Run the app](#run-the-app) below. Current progress: [`docs/report/FACTS.md`](docs/report/FACTS.md).
 
 A college AI course project (3rd year) by **CVS Ujwal** (24BCE0667) and **Keshav Raj**
 (24BCI0306). Syllabus mapping: Unit 2 Search (BFS), Unit 4 Logic (resolution, refutation),
@@ -74,6 +75,39 @@ the floor and the next release. Node 18+ is needed from Phase 7.
 whole point of pinning is that the toolchain does not move underneath a build, and a nag about a
 newer pip is not a reason to change it mid-project.
 
+## Run the app
+
+Two servers, started separately (two terminals). Needs the backend venv from
+[Quick start](#quick-start-windows-powershell) above, plus Node 18+ for the frontend.
+
+**Backend** (serves the API on `http://127.0.0.1:8000`):
+
+```powershell
+cd backend
+..\.venv\Scripts\Activate.ps1   # if not already active
+python -m uvicorn src.api.main:app --reload
+```
+
+**Frontend** (serves the UI on `http://localhost:5173`, pinned — see `frontend/vite.config.js`):
+
+```powershell
+cd frontend
+npm install     # first time only
+npm run dev
+```
+
+Open `http://localhost:5173`. The frontend calls the backend at `127.0.0.1:8000` by default
+(`frontend/src/api.js`; override with the `VITE_API_URL` env var if the backend runs elsewhere).
+CORS is pinned to exactly this origin and `http://127.0.0.1:5173` — a different port fails with a
+browser error that does not mention CORS (see `backend/src/api/main.py`).
+
+**CLI** (no web layer at all — the HARD GATE a full practice session must pass):
+
+```powershell
+cd backend
+python -m src.cli
+```
+
 ## Honest limitations of the API
 
 **The session lives on the client, and the client can edit it.** ProofPilot is stateless by
@@ -108,7 +142,7 @@ holding it server-side behind a session id, is the future work; the design note 
 | `backend/tests/` | pytest suite |
 | `data/` | `exercises.json`, `heldout_paragraphs.json`, `messages.yaml` |
 | `scripts/` | Difficulty computation, experiments, held-out evaluation |
-| `frontend/` | React + Vite UI (Phase 7) |
+| `frontend/` | React + Vite UI, built (M1 stages; M2's Translate step deferred, see HLD v2.12) |
 | `docs/` | `HLD.md` (source of truth), review, experiment results, report support kit |
 
 ## Documents
