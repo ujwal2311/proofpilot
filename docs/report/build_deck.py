@@ -946,7 +946,7 @@ shots = [
     ("docs/screenshots/04_explanation_screen.png", "Explanation screen: completed proof trace"),
 ]
 shot_x = [Inches(0.35), Inches(6.75)]
-for (path, caption), x in zip(shots, shot_x):
+for (path, caption), x in zip(shots, shot_x, strict=True):
     s.shapes.add_picture(path, x, Inches(1.25), width=SHOT_W, height=SHOT_H)
     box, tf = add_textbox(s, x, Inches(5.1), SHOT_W, Inches(0.5))
     p = tf.paragraphs[0]
