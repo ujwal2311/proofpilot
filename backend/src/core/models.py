@@ -117,6 +117,19 @@ class Translation:
 
 
 @dataclass(frozen=True)
+class ConversionStep:
+    """One law of the textbook 3-step CNF algorithm (`core/cnf.py`) that changed a formula.
+
+    A law that did not fire is not recorded -- "it did nothing" is not a step a reader benefits
+    from seeing.
+    """
+
+    law: str  # "Elimination" | "De Morgan" | "Distribution"
+    before: str
+    after: str
+
+
+@dataclass(frozen=True)
 class State:
     """The whole session, as it crosses the boundary in both directions.
 
@@ -152,3 +165,8 @@ class State:
     done_ids: tuple[str, ...] = ()
     solved: bool = False
     entailment: Entailment | None = None
+    # Sentence id -> the CNF-conversion laws that actually fired for it (section 6.2), so the
+    # Explanation screen can say *why* a given/goal clause reads the way it does. Keyed by
+    # sentence, not clause: one sentence's conversion can produce several clauses that all share
+    # the same trace. Absent (or empty) for a sentence whose conversion needed no law at all.
+    conversions: dict[str, tuple[ConversionStep, ...]] = field(default_factory=dict)

@@ -9,7 +9,14 @@ of.
 import random
 
 import pytest
-from src.core.cnf import distribute, eliminate, goal_clauses, premise_clauses, push_negation
+from src.core.cnf import (
+    conversion_steps,
+    distribute,
+    eliminate,
+    goal_clauses,
+    premise_clauses,
+    push_negation,
+)
 from src.core.english import And, Atom, Iff, Implies, Not, Or, parse_sentence
 from src.core.logic import canonical
 
@@ -278,3 +285,45 @@ def test_cnf_is_deterministic() -> None:
         node = _random_formula(rng, phrases)
         first = [canonical(c) for c in premise_clauses(node, literal_of)]
         assert first == [canonical(c) for c in premise_clauses(node, literal_of)]
+
+
+# --------------------------------------------------------- conversion_steps (narrated CNF)
+
+
+def test_conversion_steps_records_only_the_law_that_fired() -> None:
+    # "if A then B" needs elimination only -- the result is already negation-normal and already
+    # a single disjunction, so De Morgan and Distribution have nothing to do and record nothing.
+    steps = conversion_steps(parse_sentence("if A then B"), IDENT)
+    assert [s.law for s in steps] == ["Elimination"]
+    assert steps[0].before == "(A -> B)"
+    assert steps[0].after == "(~A | B)"
+
+
+def test_conversion_steps_is_empty_when_no_law_fires() -> None:
+    # Already a bare conjunction of atoms -- nothing for any of the three laws to change.
+    assert conversion_steps(parse_sentence("A and B"), IDENT) == ()
+
+
+def test_conversion_steps_records_all_three_laws_in_order() -> None:
+    # An iff whose right side is itself a junction is the one M1 sentence shape that exercises
+    # all three laws: elimination introduces a Not over a junction, which only De Morgan's push
+    # can clear, which only then leaves something for Distribution to flatten.
+    steps = conversion_steps(parse_sentence("A if and only if B or C"), IDENT)
+    assert [s.law for s in steps] == ["Elimination", "De Morgan", "Distribution"]
+    assert steps[0].before == "(A <-> (B | C))"
+    assert steps[-1].after == "((~A | B | C) & (A | ~B) & (A | ~C))"
+    # Each step's "after" is the next step's "before" -- one continuous trace, not three
+    # unrelated snapshots.
+    assert steps[0].after == steps[1].before
+    assert steps[1].after == steps[2].before
+
+
+def test_conversion_steps_never_changes_what_to_clauses_computes() -> None:
+    # The narration must never be a second opinion: tracing a formula changes nothing about the
+    # clauses to_clauses() would produce for the exact same input.
+    for sentence in ("if A then B", "A and B", "A if and only if B or C", "neither A nor B"):
+        node = parse_sentence(sentence)
+        before = [canonical(c) for c in premise_clauses(node, IDENT)]
+        conversion_steps(node, IDENT)
+        after = [canonical(c) for c in premise_clauses(node, IDENT)]
+        assert before == after

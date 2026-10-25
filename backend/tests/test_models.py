@@ -99,6 +99,7 @@ def test_state_matches_the_hld_data_model() -> None:
         "done_ids",
         "solved",
         "entailment",
+        "conversions",
     }
 
 

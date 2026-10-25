@@ -14,6 +14,7 @@ from collections.abc import Callable
 
 from src.core.english import And, Atom, Iff, Implies, Node, Not, Or
 from src.core.logic import Clause, canonical, is_tautology
+from src.core.models import ConversionStep
 
 LiteralOf = Callable[[str], str]
 
@@ -125,3 +126,51 @@ def goal_clauses(node: Node, literal_of: LiteralOf) -> list[Clause]:
     entail.py owns truth tables, not formula rewriting.
     """
     return to_clauses(Not(node), literal_of)
+
+
+def _text(node: Node, literal_of: LiteralOf) -> str:
+    """One formula as text, in the same connective spelling `core/formula.py` parses (M2) --
+    one notation for a typed formula across the system, not a second one invented here."""
+    match node:
+        case Atom(phrase):
+            return literal_of(phrase)
+        case Not(Atom(phrase)):
+            lit = literal_of(phrase)
+            return lit[1:] if lit.startswith("~") else f"~{lit}"
+        case Not(item):
+            # Only reachable mid-algorithm: the parsed grammar never nests Not this deep, but
+            # `eliminate`'s own output legitimately does, one step before `push_negation` clears
+            # it -- this function renders what IS there, not what the grammar promises.
+            return f"~{_text(item, literal_of)}"
+        case And(items):
+            return "(" + " & ".join(_text(i, literal_of) for i in items) + ")"
+        case Or(items):
+            return "(" + " | ".join(_text(i, literal_of) for i in items) + ")"
+        case Implies(antecedent, consequent):
+            return f"({_text(antecedent, literal_of)} -> {_text(consequent, literal_of)})"
+        case Iff(left, right):
+            return f"({_text(left, literal_of)} <-> {_text(right, literal_of)})"
+    raise TypeError(f"not a formula node: {node!r}")
+
+
+# Paired with the three real functions above, in the order `to_clauses` runs them. A law that
+# does not change the formula is not recorded -- the Explanation screen shows what happened, not
+# every law that was merely checked.
+_LAWS = (("Elimination", eliminate), ("De Morgan", push_negation), ("Distribution", distribute))
+
+
+def conversion_steps(node: Node, literal_of: LiteralOf) -> tuple[ConversionStep, ...]:
+    """The textbook 3-step algorithm, narrated -- the same transform `to_clauses` runs, traced.
+
+    Does not alter `eliminate`/`push_negation`/`distribute` or change what they compute; this
+    only renders each one's input and output as text and keeps the steps where they differ.
+    """
+    steps = []
+    current = node
+    for law, transform in _LAWS:
+        before = _text(current, literal_of)
+        current = transform(current)
+        after = _text(current, literal_of)
+        if before != after:
+            steps.append(ConversionStep(law, before, after))
+    return tuple(steps)

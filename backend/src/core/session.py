@@ -19,8 +19,8 @@ Reads no file. Every data file is loaded by an edge and handed over as plain dat
 
 from dataclasses import dataclass, field, replace
 
-from src.core.cnf import goal_clauses, premise_clauses
-from src.core.english import ErrorCode, ParseError, parse_sentence, phrases_of, prepare
+from src.core.cnf import conversion_steps, goal_clauses, premise_clauses
+from src.core.english import ErrorCode, Not, ParseError, parse_sentence, phrases_of, prepare
 from src.core.entail import Entailment, Verdict, check
 from src.core.facts import extract
 from src.core.logic import Clause, canonical
@@ -48,6 +48,7 @@ class Analysis:
     # rather than parallel to `kb`, because positional parallelism between two tuples is the kind
     # of invariant that breaks silently. A clause two sentences both produce keeps the FIRST.
     source_of: dict[Clause, str] = field(default_factory=dict)
+    conversions: dict[str, tuple] = field(default_factory=dict)  # str -> tuple[ConversionStep, ...]
 
 
 def _one(conclusion: str) -> list[str]:
@@ -98,6 +99,17 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
     def literal_of(phrase: str) -> str:
         return f"{sign[phrase]}{symbol[phrase]}"
 
+    # The goal sentence is traced negated -- goal_clauses() converts Not(tree), so a trace of the
+    # bare tree would show a different formula than the one that actually produced the clauses.
+    conversions = {}
+    for record, tree in zip(records, trees, strict=True):
+        if tree is None:
+            continue
+        source = Not(tree) if tree is trees[-1] else tree
+        steps = conversion_steps(source, literal_of)
+        if steps:
+            conversions[record.id] = steps
+
     traced = [
         (clause, record.id)
         for record, tree in zip(records[:-1], trees[:-1], strict=True)
@@ -125,6 +137,7 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
         relevant,
         found.warnings + entailment.warnings,
         source_of,
+        conversions,
     )
 
 
@@ -188,6 +201,7 @@ def state_of(
         # it to "entails" / "does_not_follow" for a client is presentation, and belongs at the
         # edge (v2.11). An earlier version kept a `_STATUS` table here to do it.
         entailment=found.entailment,
+        conversions=found.conversions,
     )
 
 
