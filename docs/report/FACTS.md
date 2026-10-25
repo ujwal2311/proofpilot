@@ -4,24 +4,38 @@ Facts only. Every number below has its source command or file next to it, so it 
 re-checked rather than taken on trust. No interpretation, no prose — that is the students' job
 (`REPORT_OUTLINE.md` has the guiding questions for that).
 
-**Stamp.** Commit `9d5b0bf022ea16633ed1a955a5db6ac517904f84` (short `9d5b0bf`), generated
-2026-10-12. Source: `git rev-parse HEAD`.
+**Stamp.** Local working commit `3b8c5eaa3f42dd02ecf1f880d75ee77802f368e6` (short `3b8c5ea`),
+generated 2026-10-25. Source: `git rev-parse HEAD`. **Not yet pushed** — the absolute per-gate
+push rule (`CLAUDE.md`) means the last commit CI has actually verified is `fef68ba` (2026-10-24);
+`3b8c5ea` is 4 commits ahead of it, locally committed, awaiting "approved". Every number in this
+file was measured against the local working tree at `3b8c5ea`, not against what CI last ran.
 
 ---
 
 ## 1. Repository
 
 - **URL:** `https://github.com/ujwal2311/proofpilot.git` — source: `git remote get-url origin`.
-- **Latest commit:** `9d5b0bf022ea16633ed1a955a5db6ac517904f84`, 2026-10-12 20:33:23 +0530 —
+- **Latest local commit:** `3b8c5eaa3f42dd02ecf1f880d75ee77802f368e6`, 2026-10-25 11:21:06 +0530 —
   source: `git log -1`.
-- **Total commits:** 70 — source: `git log --format=%H | wc -l`.
+- **Latest pushed/CI-verified commit:** `fef68ba`, 2026-10-24.
+- **Total commits:** 86 — source: `git log --format=%H | wc -l`.
 
-### CI (last 20 runs, all on `main`)
+### CI (last 20 pushed runs, all on `main`)
 
-Source: `gh run list --branch main --limit 20`, run 2026-10-12.
+Source: `gh run list --branch main --limit 20`, run 2026-10-25. Only pushed commits appear here;
+the 4 local commits since `fef68ba` are not yet reflected.
 
 | Status | Workflow | Run | Duration | Pushed |
 |---|---|---|---|---|
+| success | tests | 40122677467 | 2m23s | 2026-10-24T18:52:08Z |
+| success | tests | 40122398719 | 1m52s | 2026-10-24T18:48:31Z |
+| success | tests | 40121969820 | 2m28s | 2026-10-24T18:42:56Z |
+| success | tests | 40121617719 | 2m23s | 2026-10-24T18:38:21Z |
+| success | tests | 40121000927 | 2m20s | 2026-10-24T18:30:18Z |
+| success | tests | 40119498026 | 2m19s | 2026-10-24T18:10:40Z |
+| **failure** | tests | 40008592562 | 2m24s | 2026-10-23T19:05:10Z |
+| **failure** | tests | 40000223858 | 2m24s | 2026-10-23T18:03:55Z |
+| **failure** | tests | 39998457963 | 2m24s | 2026-10-23T17:51:06Z |
 | success | tests | 38267441881 | 2m19s | 2026-10-12T15:03:35Z |
 | success | tests | 38229045152 | 2m21s | 2026-10-12T09:18:31Z |
 | success | tests | 38228266890 | 2m13s | 2026-10-12T09:11:21Z |
@@ -33,86 +47,99 @@ Source: `gh run list --branch main --limit 20`, run 2026-10-12.
 | success | tests | 38225150713 | 2m20s | 2026-10-12T08:41:48Z |
 | success | tests | 38223063315 | 2m24s | 2026-10-12T08:21:22Z |
 | success | tests | 38222974467 | 2m23s | 2026-10-12T08:20:29Z |
-| success | tests | 38157752704 | 2m25s | 2026-10-11T16:59:33Z |
-| success | tests | 38156151768 | 2m22s | 2026-10-11T16:36:11Z |
-| success | tests | 38154411687 | 1m37s | 2026-10-11T16:11:24Z |
-| success | tests | 38142374743 | 2m18s | 2026-10-11T13:14:19Z |
-| success | tests | 38132161577 | 2m22s | 2026-10-11T10:30:04Z |
-| success | tests | 38131360204 | 1m43s | 2026-10-11T10:16:27Z |
-| success | tests | 38126689577 | 2m15s | 2026-10-11T08:58:19Z |
-| success | tests | 38126532525 | 1m35s | 2026-10-11T08:55:37Z |
-| success | tests | 38124983064 | 1m33s | 2026-10-11T08:29:34Z |
 
-**20/20 of the last 20 runs succeeded.** Re-run: `gh run list --branch main --limit 20`.
+**17/20 succeeded; 3 failures, consecutive, 2026-10-23.** Root cause (found and fixed
+2026-10-24): `data/eval/tfl_simple_tier_15.json` and `tfl_stress_set_15.json` were referenced by
+`docs/report/CONTRIBUTION_TEMPLATE.md`/`FACTS.md` but never committed to git, so every fresh CI
+checkout failed `test_no_doc_or_workflow_points_at_a_file_that_does_not_exist`. Fixed by
+committing the two files (commit `d090e8f`); every push since is green. Re-run:
+`gh run list --branch main --limit 20`.
 
 ---
 
 ## 2. What is built
 
-Source: `ls backend/src/core backend/src/app backend/src/api frontend/src` plus `docs/HLD.md`
-§4's module table, read 2026-10-12.
+Source: `ls backend/src/core backend/src/app backend/src/api frontend/src`, read 2026-10-25.
 
-### `backend/src/core/` — pure Python, zero web imports (M1 complete)
+### `backend/src/core/` — pure Python, zero web imports
 
-| Module | Status |
-|---|---|
-| `english.py` | built |
-| `facts.py` | built |
-| `cnf.py` | built |
-| `entail.py` | built |
-| `relevance.py` | built |
-| `search.py` | built |
-| `logic.py` | built |
-| `bkt.py` | built |
-| `tutor.py` | built |
-| `session.py` | built |
-| `config.py` | built |
-| `models.py` | built |
-| `translation.py` (M2) | **NOT BUILT** — file does not exist |
-| `narrate.py` (M2) | **NOT BUILT** — file does not exist |
+| Module | Status | Milestone |
+|---|---|---|
+| `english.py` | built | M1 |
+| `facts.py` | built | M1 |
+| `cnf.py` | built | M1 |
+| `entail.py` | built | M1 |
+| `relevance.py` | built | M1 |
+| `search.py` | built | M1 |
+| `logic.py` | built | M1 |
+| `bkt.py` | built | M1 |
+| `tutor.py` | built | M1 (+ v2.12: `translate_trigger`, the universal Translate routing) |
+| `session.py` | built | M1 (+ v2.12: `record_translation`, the "nothing to translate" skip in `enter_stage`) |
+| `config.py` | built | M1 |
+| `models.py` | built | M1 |
+| `formula.py` | **built** (S6, 2026-10-24) | M2 |
+| `translation.py` | **built** (S6, 2026-10-24) | M2 |
+| `narrate.py` | **built** (S6, 2026-10-24) | M2 |
 
-### `backend/src/app/` — the shared edge (M1 complete)
+### `backend/src/app/` — the shared edge
 
-`data.py`, `render.py`, `view.py`, `audit.py`, `__init__.py` — all built.
+`data.py`, `render.py`, `view.py`, `audit.py`, `__init__.py` — all built, unchanged tonight.
 
-### `backend/src/api/` and CLI (M1 complete)
+### `backend/src/api/` and CLI
 
 `main.py`, `schemas.py` built. `backend/src/cli.py` built (the HARD GATE: a full practice
-session plays with no web layer, per `docs/HLD.md` §4).
+session plays with no web layer, per `docs/HLD.md` §4). `api/main.py`'s `translate` action
+handler is **still a stub** — `grep NotImplementedUntilM2 backend/src/api/main.py` → 3 matches
+(the exception class, its raise site, its status-code mapping). Deliberately deferred; see §2a.
 
 ### `frontend/src/` (M1 complete, M2 not started)
 
 `App.jsx`, `ReadFacts.jsx`, `ProveBoard.jsx`, `Explanation.jsx`, `Feedback.jsx`,
 `MasteryBars.jsx`, `api.js`, `labels.js`, `storage.js`, `useSession.js`, `main.jsx`, `index.css`
-— all built (Read & Facts, Prove, Explanation stages). No `Translate` stage component exists.
+— all built (Read & Facts, Prove, Explanation screens). No `TranslateStep.jsx` exists.
 
-**M2 status: not started.** `core/translation.py`, `core/narrate.py`, the API's `translate`
-action handler (currently `raise NotImplementedUntilM2` in `backend/src/api/main.py`), and the
-frontend's Translate stage are all unbuilt. Source: file listing above plus
-`grep NotImplementedUntilM2 backend/src/api/main.py`.
+### 2a. M2 status — the honest middle ground
+
+`core/formula.py`, `core/translation.py`, `core/narrate.py` are built and unit-tested (6/6/3
+mutants caught each, §4 below). `core/tutor.py`'s `translate_trigger` (evidence-mapping dispatch)
+and `core/session.py`'s `record_translation` (the attempt record) are built. The stage machine
+now routes every exercise through `"translate"` universally (`docs/HLD.md` v2.12).
+
+**What is NOT built, by explicit, recorded decision (not an oversight):** a reference-formula
+renderer (there is no way to recover a sentence's reference formula from `State` alone — it is
+never populated and the API is stateless across requests), the six `messages.yaml` diagnosis
+entries, `app/render.py`'s translate method, `api/main.py`'s real `_translate` handler, and
+`frontend/src/TranslateStep.jsx`. Until that lands, `session.enter_stage` treats every exercise
+as having nothing to translate (`SentenceRec.formula` is `None` everywhere, always, today) and
+skips straight through to `"prove"` — which reproduces pre-v2.12 behaviour exactly, not a hack.
+See `docs/HLD.md`'s v2.12 change-log entry for the budget reason the renderer was deferred
+(`core_session` would cross its cap; `api_cli` is already over its *ceiling*).
 
 ---
 
 ## 3. Tests
 
-Source: `python -m pytest backend/tests -q`, run 2026-10-12.
+Source: `python -m pytest backend/tests -q`, run 2026-10-25 against commit `3b8c5ea`.
 
 ```
-804 passed, 1 skipped in 22.62s
+842 passed, 1 skipped in ~23s
 ```
 
-The 1 skip is `backend/tests/test_search_budget.py`'s 400-case production-budget sweep, which
-only runs with `PROOFPILOT_SLOW=1` set (it was run and passed earlier in this sprint — see
-`AI_USAGE_LOG.md`, block S8 — but is skipped by default because the suite runs on every push).
+Confirmed under both `PYTHONHASHSEED=0` and `PYTHONHASHSEED=4242` — same count, same result,
+both runs today. The 1 skip is `test_search_budget.py`'s 400-case production-budget sweep, which
+only runs with `PROOFPILOT_SLOW=1` (CI's dedicated `slow` job sets it and passes with nothing
+skipped — see `.github/workflows/ci.yml`).
+
+`ruff check .` and `ruff format --check .`: both clean, run 2026-10-25.
 
 ---
 
 ## 4. Mutation testing
 
-Source: `docs/experiments/mutation_log.md`. **This table reflects Phase 6a (2026-10-11,
-commit `f1eaf28`) — the last point mutation testing was run.** Modules built since then in
-sprint blocks S1–S8 (`tutor.py`'s S2 rewrite, `session.py`, the API, the frontend, the pilot
-tooling) have **not** been mutation-tested; that is scheduled for sprint block S9, not yet run.
+Source: `docs/experiments/mutation_log.md`. Two scopes, each labelled with the suite size it ran
+against — do not add the totals together, they are different modules at different suite sizes.
+
+**Phase 6a, 2026-10-11, commit `f1eaf28`, suite of 416 tests:**
 
 | Module | Mutants | Caught |
 |---|---|---|
@@ -125,27 +152,50 @@ tooling) have **not** been mutation-tested; that is scheduled for sprint block S
 | `models.py` | 2 | 2 |
 | `relevance.py` | 8 | 8 |
 | `search.py` | 10 | 10 |
-| **Total (as of Phase 6a)** | **82** | **82** |
+| **Subtotal** | **82** | **82** |
 
-Regenerate: `python tools/mutate.py` (see `docs/experiments/mutation_log.md` for the isolation
-method — mutations are applied only inside a detached git worktree, never to the real files).
+**S11, 2026-10-25, commit `fef68ba`, suite of 842 tests — every module built since Phase 6a with
+no score on record, run for the first time:**
+
+| Module | Mutants | Caught |
+|---|---|---|
+| `session.py` | 12 | 12 |
+| `tutor.py` | 14 | 14 |
+| `config.py` | 2 | 2 |
+| `formula.py` | 6 | 6 |
+| `translation.py` | 6 | 6 |
+| `narrate.py` | 3 | 3 |
+| **Subtotal** | **43** | **43** |
+
+Two genuine survivors were found and fixed by adding a missing test each (never by excusing the
+gap or weakening a mutant) — `translation.py`'s TR6 (a fallback path with no test at all) and
+`narrate.py`'s N1+N2 (the module's whole purpose — distinguishing given/goal/derived wording —
+was untested). Detail in `docs/experiments/mutation_log.md`.
+
+Regenerate: `python tools/mutate.py` (isolation method — a detached `git worktree`, never the
+real files — documented in `docs/experiments/mutation_log.md`).
 
 ---
 
 ## 5. Differential testing
 
-Source: `docs/experiments/differential.md`.
+Source: `docs/experiments/differential.md`, generated v2.9 (2026-10-09/10), **unchanged tonight**
+— `entail.py`, `logic.py` and `search.py` were not touched by this gate's work. Regression-
+checked today: `python -m pytest backend/tests/test_differential.py -q -s` → `7 passed`
+(D1: 26 entailed / 174 not / 16 inconsistent per-seed sample shown; D2: 200 checked, all dropped
+a clause; D3: 180 fully-connected, nothing dropped — see the doc file for the full 940-case
+aggregate across all seeds).
 
-**Agreement rate: 940 / 940 = 100%.** Truth-table entailment and resolution-closure refutation
-existence were compared on 940 generated cases (D1: 200+360 cases across 4 seeds; D2: 200 cases;
-D3: 180 cases) and never disagreed. Regenerate: `python -m pytest backend/tests/test_differential.py -q -s`.
+**Agreement rate: 940 / 940 = 100%**, as originally generated. No disagreement found then or in
+tonight's regression run.
 
 ---
 
 ## 6. Simulation (BKT stopping rule vs. a fixed-length baseline)
 
 Source: `docs/results_simulation.csv`, generated by `python scripts/run_experiments.py --write`,
-commit `8b76db3`, seed `20261012`, N=500 simulated learners per arm.
+commit `8b76db3`, seed `20261012`, N=500 simulated learners per arm. **Unchanged tonight** —
+`bkt.py` was not touched by this gate's work.
 
 | policy | premature-release % | mean exercises | mean over-practice |
 |---|---|---|---|
@@ -177,8 +227,9 @@ the numbers:**
 
 ## 7. Search latency
 
-Source: `docs/experiments/search_latency.md`. Machine: Intel64 Family 6 Model 154, Windows 11,
-CPython 3.12.10. Measured 2026-10-10, commit `f651d3b`, budget `MAX_SEARCH_WORK = 60,000`.
+Source: `docs/experiments/search_latency.md`, measured 2026-10-10, commit `f651d3b`. **Unchanged
+tonight** — `search.py` was not touched by this gate's work. Machine: Intel64 Family 6 Model 154,
+Windows 11, CPython 3.12.10. Budget `MAX_SEARCH_WORK = 60,000`.
 
 | Proof length | Clauses | Work units | Wall time | Hint |
 |---|---|---|---|---|
@@ -204,24 +255,23 @@ full sweep).
 
 ## 8. Evaluation sets and pilot
 
-- **`data/eval/tfl_simple_tier_15.json`** — exists, valid JSON, **15 items** (source:
-  `python -c "import json; print(len(json.load(open('data/eval/tfl_simple_tier_15.json'))))"`
-  → `15`). Each item's `"source"` field reads `"AI-generated (Claude)"`.
-- **`data/eval/tfl_stress_set_15.json`** — exists, valid JSON, **15 items** (same check → `15`).
-  Each item's `"source"` field also reads `"AI-generated (Claude)"`.
-- **Neither file is tracked by git** (`git status --short data/eval/` → `?? data/eval/`) **and
-  no script in the repository reads them** (`grep -rl "data/eval" --include="*.py" .` →
-  no matches). They are **NOT YET WIRED** to any evaluation script. `scripts/heldout_eval.py`
-  (built, S8) reads a *different* file, `data/heldout_paragraphs.json`, which **does not exist
-  yet** — it is written by the student and classmates after the parser is frozen, never by
-  Claude (CLAUDE.md rule 6).
-- **T1 (held-out parser generalisation): NOT YET RUN.** `scripts/heldout_eval.py` reports
-  "Not yet run" honestly when the input file is absent — verified by running it:
-  `python scripts/heldout_eval.py` → prints exactly that, no fabricated numbers.
-- **Pilot (E5): NOT YET RUN.** `docs/pilot/template.csv` has a header row only, no participant
-  rows. The results file `analyze_pilot.py --write` would produce does not exist yet.
-  `scripts/analyze_pilot.py` reports `N = 0 participants` when run against the empty template —
-  verified by running it.
+- **`data/eval/tfl_simple_tier_15.json`** — 15 items, `"source": "AI-generated (Claude)"` on
+  every item. **Now committed to git and wired** (changed tonight's predecessor gate, S11 Block
+  1/4; `git ls-files data/eval/` → both files tracked).
+- **`data/eval/tfl_stress_set_15.json`** — 15 items, same source tag. Different schema (no
+  `conclusion`/`expected_follows` field — per-sentence translation drills only), so it is not
+  scored, only counted.
+- **`scripts/ai_eval_tfl.py`** (new, S11 Block 4) checks the simple tier's `expected_follows`
+  against ProofPilot's own entailment pipeline: **15/15 agree**, re-run 2026-10-25 against commit
+  `3b8c5ea` → same result. Report: `docs/experiments/ai_eval_tfl.md`. Deliberately a separate
+  script from `scripts/heldout_eval.py` — see that script's own docstring for why reusing it
+  would have risked the exact blur CLAUDE.md rule 6 warns against.
+- **`data/heldout_paragraphs.json` still does not exist** — `ls data/heldout_paragraphs.json` →
+  no such file. It is written by the student and classmates after the parser is frozen, never by
+  Claude. **T1 (held-out parser generalisation): still NOT YET RUN** — `python
+  scripts/heldout_eval.py` → prints "Not yet run", re-verified 2026-10-25.
+- **Pilot (E5): still NOT YET RUN.** `docs/pilot/template.csv` has a header row only (`wc -l` →
+  1). `python scripts/analyze_pilot.py` → `N = 0 participants`, re-verified 2026-10-25.
 
 ---
 
@@ -230,7 +280,7 @@ full sweep).
 ```mermaid
 flowchart LR
     subgraph Browser
-        A[React App<br/>stage-driven stepper]
+        A[React App<br/>5-value stage machine]
     end
     subgraph Server
         B[FastAPI<br/>4 endpoints]
@@ -246,6 +296,9 @@ flowchart LR
             E9[tutor.py]
             E9b[session.py]
             E10[config.py]
+            E11["formula.py (M2, built)"]
+            E12["translation.py (M2, built)"]
+            E13["narrate.py (M2, built)"]
         end
         D1[(data/exercises.json)]
         D3[(messages.yaml)]
@@ -265,8 +318,8 @@ flowchart LR
     F -- "direct import, no HTTP" --> Core
 ```
 
-Source: `docs/HLD.md` §4 (M2-only nodes `translation.py`/`narrate.py` and
-`heldout_paragraphs.json` omitted above since they are not built/not present).
+Source: `docs/HLD.md` §4, re-checked against `backend/src/core/` 2026-10-25.
+`data/heldout_paragraphs.json` omitted above since it is not present (§8).
 
 ### Module responsibilities, one line each
 
@@ -282,10 +335,13 @@ Source: `docs/HLD.md` §4's module table.
 | `core/search.py` | Exact BFS distance, best next step, productivity, work budget, fallback hint |
 | `core/logic.py` | Literal normalization, resolvents, 6-code step diagnosis |
 | `core/bkt.py` | Single-skill Bayesian update, parameter validation, the done check |
-| `core/tutor.py` | Policy: stage×action transition table, evidence mapping, hint ladders, next-exercise selection |
-| `core/session.py` | Mechanics: the pipeline (`analyse`), and every edit to a `State` |
+| `core/tutor.py` | Policy: stage×action transition table, evidence mapping (incl. `translate_trigger`), hint ladders, next-exercise selection |
+| `core/session.py` | Mechanics: the pipeline (`analyse`), every edit to a `State`, the "nothing to translate" skip |
 | `core/config.py` | Every numeric limit and seed, as named constants |
 | `core/models.py` | The dataclasses crossing the edge↔core boundary |
+| `core/formula.py` | Typed-formula parser and truth-table evaluator (M2) |
+| `core/translation.py` | Truth-table equivalence, 3 fixed diagnoses, counterexample (M2) |
+| `core/narrate.py` | Finished proof → English prose (M2) |
 | `app/data.py` | The only module that reads a data file; validates each at startup |
 | `app/render.py` | Code → wording, filling a `messages.yaml` template |
 | `app/view.py` | The board's clause ids, assigned once and stable |
@@ -294,19 +350,20 @@ Source: `docs/HLD.md` §4's module table.
 | `cli.py` | Thin terminal adapter: read a line, call `app`, print — the HARD GATE |
 | `frontend/src` | Render, post actions, persist to localStorage |
 
-### Pipeline ordering
+### Three numbers that are easy to conflate — keep them separate
 
-Source: `docs/HLD.md` §7, verbatim. **This is a 6-stage ordering, not 9** — if the assignment
-brief specifies a 9-stage pipeline, that does not match anything in the frozen design
-(`docs/HLD.md` v2.11) or the code, and the students should clarify the brief rather than this
-document inventing a 9th stage to match it:
+Source: `docs/HLD.md` §7 (pipeline) and `core/tutor.py` `STAGES` (verbatim), re-checked
+2026-10-25. **If an assignment brief asks for a single "N-stage" number, none of the three below
+is a safe default — say which one you mean:**
 
-```
-parse → facts → consistency → entailment → relevance → proof
-```
-
-`test_pipeline_order_enforced` asserts `relevance` and `search` raise if invoked before
-consistency/entailment are resolved.
+1. **3 UI screens** the frontend currently renders: Read & Facts, Prove, Explanation. (A fourth,
+   Translate, is reachable in the state machine but has no component yet — §2a.)
+2. **A 5-value session state machine** (`core/tutor.py` `STAGES`): `read → facts → translate →
+   prove → explain`. `translate` is now universal (v2.12), not M2-conditional.
+3. **A 6-step internal verification pipeline** (`docs/HLD.md` §7, run once per `/api/parse`
+   call, nothing to do with the stage machine above): `parse → facts → consistency → entailment →
+   relevance → proof`. `test_pipeline_order_enforced` asserts `relevance` and `search` raise if
+   invoked before consistency/entailment are resolved.
 
 ### Syllabus-unit mapping
 
@@ -315,7 +372,7 @@ Unit 5 Uncertainty (Bayes' rule, BKT)."
 
 ### Known limitations
 
-Source: `docs/HLD.md` §14, verbatim (all 11 items, including 7b):
+Source: `docs/HLD.md` §14, verbatim (all items, including 7b):
 
 1. The grammar is flat. No connective may nest inside another: *"If A then (B and if C then
    D)"* is unsupported. Write it as two sentences.
@@ -346,6 +403,11 @@ Source: `docs/HLD.md` §14, verbatim (all 11 items, including 7b):
 9. The simulation tests only the stopping rule under the model's own assumptions — it is not
    evidence that students learn more.
 10. Held-out results are reported as first-run numbers, including bad ones.
+11. **(new, 2026-10-25)** The Translate stage exists in the state machine for every exercise but
+    has no real check behind it yet (§2a) — every exercise today is routed straight through to
+    Prove. This is not a silent gap: it is recorded as deferred scope in `docs/HLD.md`'s v2.12
+    change log, with the budget reason, and `session.enter_stage`'s behaviour is deliberate, not
+    a bug.
 
 ### Screenshots
 

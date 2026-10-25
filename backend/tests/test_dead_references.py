@@ -67,6 +67,7 @@ FENCES = (
 PLANNED = {
     "data/heldout_paragraphs.json": "S8 -- written by the team, never by Claude",
     "docs/misconceptions.md": "S10",
+    "frontend/src/TranslateStep.jsx": "deferred M2 scope (HLD v2.12 change log), not yet built",
 }
 
 # Docs write a module path relative to the package as often as to the repo root --
