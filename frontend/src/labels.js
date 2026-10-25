@@ -14,6 +14,24 @@ export const UI = {
 
   stages: { facts: "Read & Facts", translate: "Translate", prove: "Prove", explain: "Explanation" },
 
+  // Start screen
+  startHeading: "Prove something",
+  startSub:
+    "Read an argument, check the facts it found, then build the proof yourself — ProofPilot tells you exactly where a step goes wrong instead of just marking it wrong.",
+  practiceTitle: "Practice",
+  practiceBody: "A ready-made argument from the exercise bank. Good for a first look.",
+  practiceButton: "Start practising",
+  ownTitle: "Your own argument",
+  ownBody: "Type any argument in plain English and ProofPilot checks whether the conclusion follows.",
+  paragraphLabel: "Premises",
+  paragraphPlaceholder:
+    "If it rains then the match is cancelled. It rains.",
+  conclusionLabel: "Conclusion",
+  conclusionPlaceholder: "The match is cancelled.",
+  ownButton: "Check this argument",
+  ownRequired: "Write at least one premise sentence and a conclusion.",
+  backToStart: "New argument",
+
   // Read & Facts
   sentencesHeading: "The paragraph",
   conclusionHeading: "The claimed conclusion",
@@ -51,6 +69,7 @@ export const UI = {
   goal: "negated conclusion",
   derived: "you derived",
   nextExercise: "Next exercise",
+  conversionSteps: "How this became a clause",
 
   // pilot mode only
   pilotIdLabel: "Pilot ID",

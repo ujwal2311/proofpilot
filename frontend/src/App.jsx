@@ -6,6 +6,7 @@ import { Feedback } from "./Feedback.jsx";
 import { MasteryBars } from "./MasteryBars.jsx";
 import { ProveBoard } from "./ProveBoard.jsx";
 import { ReadFacts } from "./ReadFacts.jsx";
+import { StartScreen } from "./StartScreen.jsx";
 import { UI } from "./labels.js";
 import { useSession } from "./useSession.js";
 
@@ -16,8 +17,20 @@ import { useSession } from "./useSession.js";
 const STAGES = ["read", "facts", "translate", "prove", "explain"];
 
 export default function App() {
-  const { state, feedback, problem, pending, done, nextExercise, parse, act, restart } =
-    useSession();
+  const {
+    state,
+    feedback,
+    problem,
+    pending,
+    done,
+    started,
+    warnings,
+    nextExercise,
+    parse,
+    act,
+    restart,
+    goHome,
+  } = useSession();
   const [pilotId, setPilotIdState] = useState(() => getPilotId());
   const [editingFacts, setEditingFacts] = useState(false);
 
@@ -34,23 +47,9 @@ export default function App() {
       </main>
     );
   }
-  if (!state) {
-    return (
-      <main>
-        <Header pilotId={pilotId} onPilotId={updatePilotId} />
-        {problem ? <Feedback problem={problem} /> : <p className="help">{UI.loading}</p>}
-        {problem ? (
-          <button type="button" onClick={restart}>
-            {UI.retry}
-          </button>
-        ) : null}
-      </main>
-    );
-  }
 
-  // Pilot mode needs a participant code before any action reaches the server -- the server's own
-  // event log refuses a request with none (api/main.py's `_require_pilot_id`), so blocking here
-  // is a courtesy that turns a 400 into a plain on-screen ask instead.
+  // Pilot mode needs a participant code before any action reaches the server -- checked before
+  // the start screen too, since practice/own-question both post to the server immediately.
   if (PILOT_MODE && !pilotId.trim()) {
     return (
       <main>
@@ -60,13 +59,41 @@ export default function App() {
     );
   }
 
+  if (!state) {
+    return (
+      <main>
+        <Header pilotId={pilotId} onPilotId={updatePilotId} />
+        {problem ? <Feedback problem={problem} /> : null}
+        {problem && started ? (
+          <button type="button" onClick={restart}>
+            {UI.retry}
+          </button>
+        ) : (
+          <StartScreen pending={pending} onPractice={nextExercise} onOwnQuestion={parse} />
+        )}
+      </main>
+    );
+  }
+
   const stage = state.stage === "read" ? "facts" : state.stage;
   const showFacts = stage === "facts" || (stage === "prove" && editingFacts);
   return (
     <main aria-busy={pending}>
       <Header pilotId={pilotId} onPilotId={updatePilotId} />
-      <Stepper current={stage} />
+      <div className="toolbar">
+        <Stepper current={stage} />
+        <button type="button" className="ghost" onClick={goHome} disabled={pending}>
+          {UI.backToStart}
+        </button>
+      </div>
       <MasteryBars mastery={state.mastery} />
+      {warnings.length ? (
+        <ul className="warnings">
+          {warnings.map((text, index) => (
+            <li key={index}>{text}</li>
+          ))}
+        </ul>
+      ) : null}
       <Feedback feedback={feedback} problem={problem} />
 
       {showFacts ? (

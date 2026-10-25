@@ -19,6 +19,8 @@ export function useSession() {
   const [problem, setProblem] = useState(null); // an ApiError the student should see
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
+  const [started, setStarted] = useState(false); // has the student chosen practice or own-question yet
+  const [warnings, setWarnings] = useState([]);
 
   const run = useCallback(async (work, { keepFeedback = false } = {}) => {
     setPending(true);
@@ -51,6 +53,7 @@ export function useSession() {
   const nextExercise = useCallback(
     (from = null) =>
       run(async () => {
+        setStarted(true);
         const answer = await api.next(from);
         setDone(answer.done);
         keep(answer.state);
@@ -61,7 +64,12 @@ export function useSession() {
 
   const parse = useCallback(
     (paragraph, conclusion, merges = []) =>
-      run(async () => keep((await api.parse(paragraph, conclusion, merges)).state)),
+      run(async () => {
+        setStarted(true);
+        const answer = await api.parse(paragraph, conclusion, merges);
+        setWarnings(answer.warnings ?? []);
+        return keep(answer.state);
+      }),
     [run, keep],
   );
 
@@ -76,14 +84,15 @@ export function useSession() {
     [run, keep, state],
   );
 
-  // Restore on first load, and fall back to a fresh exercise. A stored session that the server
-  // rejects is handled by `run` above, which clears it -- so a bad save cannot wedge the app.
+  // Restore on first load. A stored session that the server rejects is handled by `run` above,
+  // which clears it -- so a bad save cannot wedge the app. A FRESH visitor sees the start screen
+  // (practice vs. your own argument) rather than being dropped straight into a random exercise --
+  // that choice belongs to the student, not to whichever one happened to load first.
   useEffect(() => {
     const saved = storage.load();
     if (saved) {
       setState(saved);
-    } else {
-      nextExercise();
+      setStarted(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -95,5 +104,28 @@ export function useSession() {
     nextExercise();
   }, [nextExercise]);
 
-  return { state, feedback, problem, pending, done, nextExercise, parse, act, restart, setState };
+  // Back to the start screen -- NOT the same as `restart`, which jumps straight into practice.
+  const goHome = useCallback(() => {
+    storage.clear();
+    setState(null);
+    setFeedback(null);
+    setWarnings([]);
+    setStarted(false);
+  }, []);
+
+  return {
+    state,
+    feedback,
+    problem,
+    pending,
+    done,
+    started,
+    warnings,
+    nextExercise,
+    parse,
+    act,
+    restart,
+    goHome,
+    setState,
+  };
 }
