@@ -17,9 +17,15 @@ must be disclosed. Therefore:
 1. Claude MAY write: code, tests, scripts, config, README, `docs/HLD.md`,
    `docs/misconceptions.md`, experiment outputs produced by running code, templates, outlines,
    checklists, guiding questions.
-2. Claude MUST NOT write report prose — no drafted paragraphs for problem statement, objectives,
-   literature review, limitations, methodology narrative, analysis or conclusions. If asked,
-   refuse briefly and offer an outline, guiding questions, or a review.
+2. **UPDATED 2026-10-25 — the student confirmed directly with the professor, in person, that AI
+   use is permitted for the full report (including prose) and the presentation, with one standing
+   condition: the student must understand and be able to explain everything submitted.** Claude
+   MAY now write report prose — problem statement, objectives, literature review, limitations,
+   methodology narrative, analysis, conclusions — and the presentation deck, in addition to
+   everything already permitted under rule 1. Permitted AI use must still be disclosed (the
+   standing rule above this list) and recorded in `AI_USAGE_LOG.md` with the same discipline as
+   every other phase tonight. REVIEW MODE (rule 3) stays available whenever the student prefers
+   to write a section themselves and have it checked instead.
 3. REVIEW MODE: when the student pastes their own text and says "review", list factual errors,
    unsupported claims, missing citations, unclear explanations, and contradictions with code or
    results — each with a line reference. Do not rewrite their text. Do not supply replacement

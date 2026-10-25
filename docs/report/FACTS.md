@@ -4,56 +4,55 @@ Facts only. Every number below has its source command or file next to it, so it 
 re-checked rather than taken on trust. No interpretation, no prose — that is the students' job
 (`REPORT_OUTLINE.md` has the guiding questions for that).
 
-**Stamp.** Local working commit `3b8c5eaa3f42dd02ecf1f880d75ee77802f368e6` (short `3b8c5ea`),
-generated 2026-10-25. Source: `git rev-parse HEAD`. **Not yet pushed** — the absolute per-gate
-push rule (`CLAUDE.md`) means the last commit CI has actually verified is `fef68ba` (2026-10-24);
-`3b8c5ea` is 4 commits ahead of it, locally committed, awaiting "approved". Every number in this
-file was measured against the local working tree at `3b8c5ea`, not against what CI last ran.
+**Stamp.** Local working commit `e0b3acab1f1985eeaca49b128f70dd6f0d5fc97f` (short `e0b3aca`),
+generated 2026-10-25. Source: `git rev-parse HEAD`. **Pushed and CI-verified** — commit `e0b3aca`
+is the tip of `origin/main` as of this stamp (`gh run list` confirms a green run against it).
+Every number in this file was measured against this exact commit.
 
 ---
 
 ## 1. Repository
 
 - **URL:** `https://github.com/ujwal2311/proofpilot.git` — source: `git remote get-url origin`.
-- **Latest local commit:** `3b8c5eaa3f42dd02ecf1f880d75ee77802f368e6`, 2026-10-25 11:21:06 +0530 —
+- **Latest local commit:** `e0b3acab1f1985eeaca49b128f70dd6f0d5fc97f`, 2026-10-25 21:00:43 +0530 —
   source: `git log -1`.
-- **Latest pushed/CI-verified commit:** `fef68ba`, 2026-10-24.
-- **Total commits:** 86 — source: `git log --format=%H | wc -l`.
+- **Latest pushed/CI-verified commit:** `e0b3aca`, same commit — fully in sync.
+- **Total commits:** 95 — source: `git log --format=%H | wc -l`.
 
 ### CI (last 20 pushed runs, all on `main`)
 
-Source: `gh run list --branch main --limit 20`, run 2026-10-25. Only pushed commits appear here;
-the 4 local commits since `fef68ba` are not yet reflected.
+Source: `gh run list --branch main --limit 20`, run 2026-10-25.
 
-| Status | Workflow | Run | Duration | Pushed |
-|---|---|---|---|---|
-| success | tests | 40122677467 | 2m23s | 2026-10-24T18:52:08Z |
-| success | tests | 40122398719 | 1m52s | 2026-10-24T18:48:31Z |
-| success | tests | 40121969820 | 2m28s | 2026-10-24T18:42:56Z |
-| success | tests | 40121617719 | 2m23s | 2026-10-24T18:38:21Z |
-| success | tests | 40121000927 | 2m20s | 2026-10-24T18:30:18Z |
-| success | tests | 40119498026 | 2m19s | 2026-10-24T18:10:40Z |
-| **failure** | tests | 40008592562 | 2m24s | 2026-10-23T19:05:10Z |
-| **failure** | tests | 40000223858 | 2m24s | 2026-10-23T18:03:55Z |
-| **failure** | tests | 39998457963 | 2m24s | 2026-10-23T17:51:06Z |
-| success | tests | 38267441881 | 2m19s | 2026-10-12T15:03:35Z |
-| success | tests | 38229045152 | 2m21s | 2026-10-12T09:18:31Z |
-| success | tests | 38228266890 | 2m13s | 2026-10-12T09:11:21Z |
-| success | tests | 38227751028 | 2m22s | 2026-10-12T09:06:30Z |
-| success | tests | 38227697393 | 2m22s | 2026-10-12T09:06:01Z |
-| success | tests | 38227371069 | 2m21s | 2026-10-12T09:02:55Z |
-| success | tests | 38226151523 | 2m21s | 2026-10-12T08:51:18Z |
-| success | tests | 38225417378 | 2m24s | 2026-10-12T08:44:22Z |
-| success | tests | 38225150713 | 2m20s | 2026-10-12T08:41:48Z |
-| success | tests | 38223063315 | 2m24s | 2026-10-12T08:21:22Z |
-| success | tests | 38222974467 | 2m23s | 2026-10-12T08:20:29Z |
+| Status | Workflow | Run | Pushed |
+|---|---|---|---|
+| success | tests | 40209116142 | 2026-10-25T15:54:02Z |
+| success | tests | 40205800253 | 2026-10-25T15:12:00Z |
+| success | tests | 40176077053 | 2026-10-25T08:18:11Z |
+| success | tests | 40170203521 | 2026-10-25T06:45:01Z |
+| success | tests | 40168197104 | 2026-10-25T06:11:02Z |
+| success | tests | 40122677467 | 2026-10-24T18:52:08Z |
+| success | tests | 40122398719 | 2026-10-24T18:48:31Z |
+| success | tests | 40121969820 | 2026-10-24T18:42:56Z |
+| success | tests | 40121617719 | 2026-10-24T18:38:21Z |
+| success | tests | 40121000927 | 2026-10-24T18:30:18Z |
+| success | tests | 40119498026 | 2026-10-24T18:10:40Z |
+| **failure** | tests | 40008592562 | 2026-10-23T19:05:10Z |
+| **failure** | tests | 40000223858 | 2026-10-23T18:03:55Z |
+| **failure** | tests | 39998457963 | 2026-10-23T17:51:06Z |
+| success | tests | 38267441881 | 2026-10-12T15:03:35Z |
+| success | tests | 38229045152 | 2026-10-12T09:18:31Z |
+| success | tests | 38228266890 | 2026-10-12T09:11:21Z |
+| success | tests | 38227751028 | 2026-10-12T09:06:30Z |
+| success | tests | 38227697393 | 2026-10-12T09:06:01Z |
+| success | tests | 38227371069 | 2026-10-12T09:02:55Z |
 
-**17/20 succeeded; 3 failures, consecutive, 2026-10-23.** Root cause (found and fixed
-2026-10-24): `data/eval/tfl_simple_tier_15.json` and `tfl_stress_set_15.json` were referenced by
-`docs/report/CONTRIBUTION_TEMPLATE.md`/`FACTS.md` but never committed to git, so every fresh CI
-checkout failed `test_no_doc_or_workflow_points_at_a_file_that_does_not_exist`. Fixed by
-committing the two files (commit `d090e8f`); every push since is green. Re-run:
-`gh run list --branch main --limit 20`.
+**17/20 succeeded; 3 failures, consecutive, 2026-10-23** (same 3 historical failures still inside
+the 20-run window; every run since, including all of tonight's 5 pushes, is green). Root cause
+of the 3 failures (found and fixed 2026-10-24): `data/eval/tfl_simple_tier_15.json` and
+`tfl_stress_set_15.json` were referenced by `docs/report/CONTRIBUTION_TEMPLATE.md`/`FACTS.md` but
+never committed to git, so every fresh CI checkout failed
+`test_no_doc_or_workflow_points_at_a_file_that_does_not_exist`. Fixed by committing the two files
+(commit `d090e8f`). Re-run: `gh run list --branch main --limit 20`.
 
 ---
 
@@ -65,7 +64,7 @@ Source: `ls backend/src/core backend/src/app backend/src/api frontend/src`, read
 
 | Module | Status | Milestone |
 |---|---|---|
-| `english.py` | built | M1 |
+| `english.py` | built (+ 2026-10-25: 8 new grammar phrases — `is necessary for`, `is sufficient for`, `implies`, `not both...and...`, `whenever`, `provided that`, `given that`, `, otherwise`) | M1 |
 | `facts.py` | built | M1 |
 | `cnf.py` | built | M1 |
 | `entail.py` | built | M1 |
@@ -83,7 +82,10 @@ Source: `ls backend/src/core backend/src/app backend/src/api frontend/src`, read
 
 ### `backend/src/app/` — the shared edge
 
-`data.py`, `render.py`, `view.py`, `audit.py`, `__init__.py` — all built, unchanged tonight.
+`data.py`, `view.py`, `audit.py`, `__init__.py` — built, unchanged tonight. `render.py` — built,
+gained `clause_english()`/`clause_english_map()` tonight (2026-10-25): renders a board clause's
+literals as the student's own confirmed phrases, wired as a `clause_english` field alongside
+`state` in every `/api/next`, `/api/parse` and `/api/act` response.
 
 ### `backend/src/api/` and CLI
 
@@ -95,8 +97,13 @@ handler is **still a stub** — `grep NotImplementedUntilM2 backend/src/api/main
 ### `frontend/src/` (M1 complete, M2 not started)
 
 `App.jsx`, `ReadFacts.jsx`, `ProveBoard.jsx`, `Explanation.jsx`, `Feedback.jsx`,
-`MasteryBars.jsx`, `api.js`, `labels.js`, `storage.js`, `useSession.js`, `main.jsx`, `index.css`
-— all built (Read & Facts, Prove, Explanation screens). No `TranslateStep.jsx` exists.
+`MasteryBars.jsx`, `StartScreen.jsx`, `api.js`, `labels.js`, `storage.js`, `useSession.js`,
+`main.jsx`, `index.css` — all built (Read & Facts, Prove, Explanation screens). No
+`TranslateStep.jsx` exists. **Added 2026-10-25:** a symbol legend and per-clause plain-English
+sidebar on the Prove screen (reusing `state.facts`/`clause_english`, no new backend data model);
+all three stage tabs are now independently clickable (view-only, never calls the API — a past
+stage renders read-only, a not-yet-reached stage shows a placeholder); a `← Back` button beside
+the tabs steps back one stage at a time through the same view-only path.
 
 ### 2a. M2 status — the honest middle ground
 
@@ -119,16 +126,20 @@ See `docs/HLD.md`'s v2.12 change-log entry for the budget reason the renderer wa
 
 ## 3. Tests
 
-Source: `python -m pytest backend/tests -q`, run 2026-10-25 against commit `3b8c5ea`.
+Source: `python -m pytest backend/tests -q`, run 2026-10-25 against commit `e0b3aca`.
 
 ```
-842 passed, 1 skipped in ~23s
+864 passed, 1 skipped in ~31s
 ```
 
-Confirmed under both `PYTHONHASHSEED=0` and `PYTHONHASHSEED=4242` — same count, same result,
-both runs today. The 1 skip is `test_search_budget.py`'s 400-case production-budget sweep, which
-only runs with `PROOFPILOT_SLOW=1` (CI's dedicated `slow` job sets it and passes with nothing
-skipped — see `.github/workflows/ci.yml`).
+Confirmed under `PYTHONHASHSEED=0` and `PYTHONHASHSEED=4242` — same count, same result, both
+runs today. Up from 842 at the last stamp: new tests tonight cover the 8 new grammar phrases
+(`test_english.py`), the new `backend/tests/test_render.py` (clause-to-English rendering),
+`clause_english` wired end-to-end in `test_api.py`, and one more the dead-reference guard's own
+dynamic collection picked up for this file's new sibling, `docs/report/demo_paragraphs.md`. The 1
+skip is `test_search_budget.py`'s 400-case production-budget sweep, which only runs with
+`PROOFPILOT_SLOW=1` (CI's dedicated `slow` job sets it and passes with nothing skipped — see
+`.github/workflows/ci.yml`).
 
 `ruff check .` and `ruff format --check .`: both clean, run 2026-10-25.
 
@@ -261,17 +272,19 @@ full sweep).
 - **`data/eval/tfl_stress_set_15.json`** — 15 items, same source tag. Different schema (no
   `conclusion`/`expected_follows` field — per-sentence translation drills only), so it is not
   scored, only counted.
-- **`scripts/ai_eval_tfl.py`** (new, S11 Block 4) checks the simple tier's `expected_follows`
-  against ProofPilot's own entailment pipeline: **15/15 agree**, re-run 2026-10-25 against commit
-  `3b8c5ea` → same result. Report: `docs/experiments/ai_eval_tfl.md`. Deliberately a separate
-  script from `scripts/heldout_eval.py` — see that script's own docstring for why reusing it
-  would have risked the exact blur CLAUDE.md rule 6 warns against.
+- **`scripts/ai_eval_tfl.py`** (S11 Block 4) checks the simple tier's `expected_follows` against
+  ProofPilot's own entailment pipeline: **15/15 agree**, last run against commit `3b8c5ea` (not
+  re-run tonight — `ai_eval_tfl.py` and the modules it exercises were untouched). Report:
+  `docs/experiments/ai_eval_tfl.md`. Deliberately a separate script from `scripts/heldout_eval.py`
+  — see that script's own docstring for why reusing it would have risked the exact blur CLAUDE.md
+  rule 6 warns against.
 - **`data/heldout_paragraphs.json` still does not exist** — `ls data/heldout_paragraphs.json` →
-  no such file. It is written by the student and classmates after the parser is frozen, never by
-  Claude. **T1 (held-out parser generalisation): still NOT YET RUN** — `python
-  scripts/heldout_eval.py` → prints "Not yet run", re-verified 2026-10-25.
+  no such file, re-verified 2026-10-25 against commit `e0b3aca`. It is written by the student and
+  classmates after the parser is frozen, never by Claude. **T1 (held-out parser generalisation):
+  still NOT YET RUN** — `python scripts/heldout_eval.py` → prints "Not yet run".
 - **Pilot (E5): still NOT YET RUN.** `docs/pilot/template.csv` has a header row only (`wc -l` →
-  1). `python scripts/analyze_pilot.py` → `N = 0 participants`, re-verified 2026-10-25.
+  1). `python scripts/analyze_pilot.py` → `N = 0 participants`, re-verified 2026-10-25 against
+  commit `e0b3aca`.
 
 ---
 
@@ -343,7 +356,7 @@ Source: `docs/HLD.md` §4's module table.
 | `core/translation.py` | Truth-table equivalence, 3 fixed diagnoses, counterexample (M2) |
 | `core/narrate.py` | Finished proof → English prose (M2) |
 | `app/data.py` | The only module that reads a data file; validates each at startup |
-| `app/render.py` | Code → wording, filling a `messages.yaml` template |
+| `app/render.py` | Code → wording, filling a `messages.yaml` template; clause → the student's own confirmed phrases (`clause_english`) |
 | `app/view.py` | The board's clause ids, assigned once and stable |
 | `app/__init__.py` | `Runtime.load()` and `prepare()`, the single text entry point every adapter calls |
 | `api/main.py`, `api/schemas.py` | Thin HTTP adapter: parse a body, call `app`, return JSON |
@@ -413,8 +426,12 @@ Source: `docs/HLD.md` §14, verbatim (all items, including 7b):
 
 **NOT AVAILABLE.** `docs/screenshots/` does not exist, and this task is restricted to writing
 only under `docs/report/`, so no screenshot files were created here. The frontend was verified
-live in a browser during sprint block S5 (see `AI_USAGE_LOG.md`); the students should capture
-screenshots of the following screens themselves by running the app (`README.md`'s quick start):
-the Facts confirmation screen with multiple phrases under one symbol, the Prove board mid-proof
-with a named mistake (e.g. `NO_CLASH`) displayed, the Explanation panel after a solved proof, and
-(if the pilot has run) the Pilot ID field and a `FACTS_CONFIRMED`/`MERGE_RESET` banner.
+live in a browser during sprint block S5, and again tonight (2026-10-25) via Playwright against
+the real running app for every feature added — the symbol legend, the per-clause English
+sidebar, the Back button, and a full combined walkthrough exercising all of it together — but
+those screenshots live in a session-scratch temp directory, never committed to the repo. The
+students should capture their own screenshots for the report by running the app (`README.md`'s
+quick start): the Facts confirmation screen with multiple phrases under one symbol, the Prove
+board mid-proof with a named mistake (e.g. `NO_CLASH`) displayed, the Explanation panel after a
+solved proof, and (if the pilot has run) the Pilot ID field and a `FACTS_CONFIRMED`/`MERGE_RESET`
+banner.

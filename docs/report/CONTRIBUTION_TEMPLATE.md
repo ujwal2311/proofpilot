@@ -70,22 +70,23 @@ Source: `git log --format="%ad|%h|%s" --date=short`.
 
 - First commit: 2026-10-08 (`3030edf`, "Phase 1: scaffold M1 backend, tooling, CI and frozen
   design docs")
-- Latest commit: 2026-10-12 (`9d5b0bf`, "Pilot ID persistence + the Edit-facts reset path")
-- Span: 5 calendar days, 70 commits.
+- Latest commit: 2026-10-25 (`e0b3aca`, "Add a dedicated Back button next to the stepper")
+- Span: 18 calendar days, 95 commits.
 
 ---
 
 ## 3. AI disclosure table
 
-Source: `AI_USAGE_LOG.md` (29 dated entries, one per development phase/sprint block) and the git
-commit trailers (`git log --format=%B | grep -c "Co-Authored-By: Claude"` → 58 of 70 commits
-carry the trailer).
+Source: `AI_USAGE_LOG.md` (37 dated entries, one per development phase/sprint block — the last
+entry on record predates the night's final 4 commits, see `PROGRESS.md`'s "Remaining" table) and
+the git commit trailers (`git log --format=%B | grep -c "Co-Authored-By: Claude"` → 81 of 95
+commits carry the trailer).
 
 | Tool | Purpose | Extent | What humans did |
 |---|---|---|---|
-| Claude Code (Opus 5 / Sonnet 5) | Wrote the design document (`docs/HLD.md`), implemented `backend/src/core`, `backend/src/app`, `backend/src/api`, `backend/src/cli.py`, `frontend/src`, the test suites, and the tooling (`tools/loc.py`, `scripts/*.py`) | 58 of 70 commits carry a `Co-Authored-By: Claude Opus 5` trailer; every `AI_USAGE_LOG.md` entry (29 total) names it as the tool used | Directed every phase via the CLAUDE.md design/engineering rules; made every design decision the log records as "the student decided" (budget, scope, the Facts-confirmation fix, the simulation metric); reviewed and approved each phase gate before proceeding; ran and read every test/lint/CI result before accepting a block as done |
+| Claude Code (Opus 5 / Sonnet 5) | Wrote the design document (`docs/HLD.md`), implemented `backend/src/core`, `backend/src/app`, `backend/src/api`, `backend/src/cli.py`, `frontend/src`, the test suites, and the tooling (`tools/loc.py`, `scripts/*.py`) | 81 of 95 commits carry a `Co-Authored-By: Claude` trailer; 37 `AI_USAGE_LOG.md` entries name it as the tool used | Directed every phase via the CLAUDE.md design/engineering rules; made every design decision the log records as "the student decided" (budget, scope, the Facts-confirmation fix, the simulation metric); reviewed and approved each phase gate before proceeding; ran and read every test/lint/CI result before accepting a block as done |
 | claude.ai chat (web) | **(a) To be confirmed by students.** Used for ideation, design review, and prompt drafting outside this CLI session, per the task brief — the CLI tool has no record of what happened in a separate chat | not recorded in this repository | to be confirmed by students — list specifically what was discussed/drafted there |
-| AI-generated evaluation sets | **(b)** `data/eval/tfl_simple_tier_15.json` and `data/eval/tfl_stress_set_15.json` — both contain a `"source": "AI-generated (Claude)"` field on every item (verified: `python -c "import json; print(set(i['source'] for i in json.load(open('data/eval/tfl_simple_tier_15.json'))))"` → `{'AI-generated (Claude)'}`, same for the stress set) | 15 items each, 30 total; **neither file is yet wired to any evaluation script** (see `FACTS.md` §8) | Students should review every item for topical plausibility before any script consumes them, and must never present these as held-out human-written data — `data/heldout_paragraphs.json` (not yet written) is the human-authored evaluation set and must remain genuinely human-written |
+| AI-generated evaluation sets | **(b)** `data/eval/tfl_simple_tier_15.json` and `data/eval/tfl_stress_set_15.json` — both contain a `"source": "AI-generated (Claude)"` field on every item (verified: `python -c "import json; print(set(i['source'] for i in json.load(open('data/eval/tfl_simple_tier_15.json'))))"` → `{'AI-generated (Claude)'}`, same for the stress set) | 15 items each, 30 total; the simple tier is wired into `scripts/ai_eval_tfl.py` (15/15 agree with ProofPilot's own entailment pipeline — see `FACTS.md` §8); the stress tier has a different schema and is counted, not scored | Students should review every item for topical plausibility before any script consumes them, and must never present these as held-out human-written data — `data/heldout_paragraphs.json` (not yet written) is the human-authored evaluation set and must remain genuinely human-written |
 | Pilot forms | **(c)** `docs/pilot/pre_test.md`, `post_test.md`, `consent.md`, `protocol.md`, `template.csv` — drafted by Claude Code in sprint block S8 | 5 files | **To be confirmed by students: which of these were revised, and how, before use in the actual pilot session.** Record any wording changes here. |
 
 ### Human-written content (students: fill this in)

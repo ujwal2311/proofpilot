@@ -1,8 +1,7 @@
 # Progress — built / in progress / remaining
 
-Taken from repo state at local commit `3b8c5ea`, 2026-10-25 (4 commits ahead of `fef68ba`, the
-last one CI has actually verified — commit-locally-and-stop, awaiting "approved"). Source for
-each line is given; nothing here is an estimate unless explicitly labelled one.
+Taken from repo state at local commit `e0b3aca`, 2026-10-25 — pushed, CI-verified green. Source
+for each line is given; nothing here is an estimate unless explicitly labelled one.
 
 ## Built
 
@@ -27,7 +26,10 @@ each line is given; nothing here is an estimate unless explicitly labelled one.
 | `core/tutor.py`'s `translate_trigger` + `core/session.py`'s `record_translation` (M2 evidence wiring) | `backend/src/core/tutor.py`, `session.py` | commit `9a9b0b4`, 2026-10-24 |
 | **Design change: Translate is universal, not M2-conditional** (HLD v2.12) | `docs/HLD.md` §16; `tutor.TRANSITIONS` | commit `f236863`, 2026-10-25 |
 | **Minimal fix: Translate auto-skips when nothing needs it** — restores pre-v2.12 behaviour for every exercise today | `backend/src/core/session.py` `enter_stage` | commit `3b8c5ea`, 2026-10-25 |
-| 842 passing tests, 0 failing, both hash seeds | `python -m pytest backend/tests -q` → `842 passed, 1 skipped` | re-run 2026-10-25 |
+| **8 new grammar phrases** — necessary-for, sufficient-for, implies, not-both (NAND), whenever, provided that, given that, otherwise | `backend/src/core/english.py`; `docs/HLD.md` v2.13 | commit `072f731`, 2026-10-25 |
+| **Prove-screen symbol legend + per-clause plain-English rendering** | `frontend/src/ProveBoard.jsx`; `backend/src/app/render.py` `clause_english`/`clause_english_map` | commit `9d067fa`, 2026-10-25 |
+| **All 3 stage tabs independently browsable** (view-only, never calls the API) + **Back button** | `frontend/src/App.jsx` | commits `50a203a`, `e0b3aca`, 2026-10-25 |
+| 864 passing tests, 0 failing, both hash seeds | `python -m pytest backend/tests -q` → `864 passed, 1 skipped` | re-run 2026-10-25 |
 | Differential testing — 940/940 agreement | `docs/experiments/differential.md` | v2.9, 2026-10-09/10, regression-checked 2026-10-25 |
 | Search latency characterised and bounded | `docs/experiments/search_latency.md` | v2.9 A3, 2026-10-10, unaffected by any change since |
 
@@ -46,8 +48,27 @@ each line is given; nothing here is an estimate unless explicitly labelled one.
 | The pilot session itself | the tooling is ready but no participant has run through it yet | `docs/pilot/template.csv` has a header row only; `python scripts/analyze_pilot.py` → `N = 0 participants`, re-verified 2026-10-25 |
 | `docs/misconceptions.md`, `docs/report/REPORT_OUTLINE.md`'s guiding-question answers, report prose, the Contribution Statement | human-only content per CLAUDE.md's academic integrity section | not written (and must not be written by Claude) |
 | `docs/screenshots/` | needed for `FACTS.md` §9's architecture section | directory does not exist |
-| **Pushing the 4 local commits past `fef68ba`** | the absolute per-gate push rule — needs "approved" for this specific gate | `git log origin/main..HEAD` → 4 commits not on `origin/main` |
-| The 34-entry `AI_USAGE_LOG.md` "what the student changed by hand: to confirm" backlog | the student is filling this in separately, not as part of this report | per the student's explicit instruction, not touched tonight |
+| The 35-entry `AI_USAGE_LOG.md` "what the student changed by hand: to confirm" backlog | the student is filling this in separately, not as part of this report | per the student's explicit instruction, not touched tonight |
+| **`AI_USAGE_LOG.md` has no entries for tonight's 4 commits** (`072f731`, `9d067fa`, `50a203a`, `e0b3aca`) | required after every phase per CLAUDE.md rule 5 — this is Claude's own gap, not student content | last entry in the file predates tonight's grammar/UI work; not written as part of this report-kit pass, since it wasn't in this task's scope — flagging rather than silently adding it |
+
+## Budgets (`tools/loc.py`, re-run 2026-10-25 against commit `e0b3aca`)
+
+| Bucket | Code | Cap | Ceiling | Status |
+|---|---|---|---|---|
+| `core` | 933 | 854 | 940 | over cap, under ceiling |
+| `core` (session) | 161 | 148 | 163 | over cap, under ceiling |
+| `core` (M2) | 165 | 245 | 270 | under cap |
+| `api` + `cli` | 934 | 648 | 713 | **over ceiling** (pre-existing) |
+| `scripts` | 574 | 284 | 313 | **over ceiling** (pre-existing) |
+| `frontend` | 1524 | 787 | 866 | **over ceiling** (pre-existing) |
+| `tools` | 220 | — | — | reported only, not capped |
+
+CORE TOTAL (`core`+session+M2): 1259 / 1247 cap / 1373 ceiling — reported, not blocking.
+`ruff C901` complexity gate and the 60-line function-length gate: both clean (longest function is
+57 lines, `core/session.py`'s `analyse`). `api_cli`/`scripts`/`frontend` ceiling breaches predate
+tonight's work and are unresolved — flagged repeatedly through the night, not fixed, since
+resolving them means either simplifying existing code or formally re-deriving the ceilings, and
+neither was in scope for any of tonight's gates.
 
 ## Dates, summarised
 
@@ -62,4 +83,8 @@ each line is given; nothing here is an estimate unless explicitly labelled one.
 - **2026-10-24 → 2026-10-25 (S11, post-`progress-v1` gate):** CI unblocked (committed the
   AI-generated eval sets); mutation refresh across 6 modules (43/43, two survivors fixed);
   `translate_trigger`/`record_translation` wiring; `progress-v1` tagged; the Translate-universal
-  design change (HLD v2.12); the minimal auto-skip fix; this `FACTS.md`/`PROGRESS.md` refresh.
+  design change (HLD v2.12); the minimal auto-skip fix.
+- **2026-10-25, later the same night:** 8 new grammar phrases (HLD v2.13); the Prove-screen
+  symbol legend and per-clause plain-English rendering; all 3 stage tabs made independently
+  browsable; the Back button. All 4 commits pushed and CI-verified green. This `FACTS.md`/
+  `PROGRESS.md` refresh, `docs/report/demo_paragraphs.md`, and `docs/report/STATUS_2026-10-25.md`.

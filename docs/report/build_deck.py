@@ -30,7 +30,7 @@ SLIDE_W = Inches(13.333)
 SLIDE_H = Inches(7.5)
 
 REPO_URL = "https://github.com/ujwal2311/proofpilot.git"
-COMMIT = "b0a43f1"  # local working commit this deck is built from -- NOT yet pushed (see slide 6)
+COMMIT = "e0b3aca"  # local working commit this deck is built from -- pushed, CI-verified green
 
 prs = Presentation()
 prs.slide_width = SLIDE_W
@@ -182,7 +182,7 @@ p = tf.paragraphs[0]
 r = p.add_run()
 set_run(
     r,
-    f"Report built from local commit {COMMIT} (not yet pushed -- see slide 6)",
+    f"Report built from commit {COMMIT} (pushed, CI-verified green -- see slide 6)",
     size=12,
     color=RGBColor(0x44, 0x44, 0x44),
 )
@@ -448,19 +448,34 @@ r = p.add_run()
 set_run(r, "Implementation strategy (FACTS.md §9)", size=14, bold=True, color=ACCENT)
 
 STRATEGY = [
-    "core/ imports nothing outside the standard library — no web, no file I/O — so every "
-    "module is unit-testable from literals with no fixture files.",
-    "app/ is the only layer allowed to read a data file; it validates every file at startup with "
-    "a named error per failure mode.",
-    "api/ and cli.py are thin adapters: parse input, call app, render output — zero logic, "
-    "zero user-facing wording of their own (enforced by a dedicated test).",
-    "frontend/src reads server state directly (state.stage) rather than keeping a client-side "
-    "copy of what stage the session is in.",
+    "core/ imports nothing outside the standard library -- unit-testable from literals.",
+    "app/ is the only layer allowed to read a data file, validated at startup.",
+    "api/ and cli.py are thin adapters: zero logic, zero wording of their own.",
+    "frontend/src reads state.stage directly -- no client-side copy of the stage.",
 ]
-box, tf = add_textbox(s, Inches(0.35), Inches(4.95), Inches(12.6), Inches(1.9))
+box, tf = add_textbox(s, Inches(0.35), Inches(4.95), Inches(6.1), Inches(2.1))
 for i, line in enumerate(STRATEGY):
     p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-    p.space_after = Pt(6)
+    p.space_after = Pt(8)
+    r = p.add_run()
+    set_run(r, f"• {line}", size=12)
+
+box, tf = add_textbox(s, Inches(6.75), Inches(4.55), Inches(6.2), Inches(0.4))
+p = tf.paragraphs[0]
+r = p.add_run()
+set_run(r, "Added 2026-10-25 (FACTS.md §2)", size=14, bold=True, color=ACCENT)
+
+ADDED_TONIGHT = [
+    "8 new grammar phrases (HLD v2.13): necessary/sufficient-for, implies, not-both, "
+    "whenever, provided/given-that, otherwise.",
+    "Prove screen: symbol legend + per-clause plain-English rendering (clause_english).",
+    "All 3 stage tabs independently browsable -- view-only, never calls the API.",
+    "A Back button beside the tabs, same view-only navigation.",
+]
+box, tf = add_textbox(s, Inches(6.75), Inches(4.95), Inches(6.2), Inches(2.1))
+for i, line in enumerate(ADDED_TONIGHT):
+    p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+    p.space_after = Pt(8)
     r = p.add_run()
     set_run(r, f"• {line}", size=12)
 
@@ -551,27 +566,26 @@ add_title_bar(s, "6. Code Repository and Build Record")
 REPO_ROWS = [
     ("Repository URL", REPO_URL),
     ("Licence", "MIT"),
-    ("Total commits", "86 (git log --format=%H | wc -l)"),
+    ("Total commits", "95 (git log --format=%H | wc -l)"),
     (
         "Latest commit (this deck)",
-        COMMIT + " -- local only, 4 commits ahead of fef68ba (last CI-verified push)",
+        COMMIT + " -- pushed, CI-verified green",
     ),
     (
         "Push status",
-        "NOT pushed -- CLAUDE.md's absolute per-gate rule: commit locally, push needs "
-        '"approved" for this specific gate',
+        "Pushed. origin/main is at " + COMMIT + "; CI confirmed green for this exact commit.",
     ),
     (
-        "CI status (pushed commits only)",
-        "17/20 of the last 20 pushes succeeded; 3 consecutive failures on 2026-10-23 "
-        "(missing data/eval/*.json in git), fixed 2026-10-24 "
+        "CI status (last 20 pushes)",
+        "17/20 succeeded; 3 consecutive failures on 2026-10-23 (missing data/eval/*.json in "
+        "git), fixed 2026-10-24 -- every push since, including all of tonight's, is green "
         "(gh run list --branch main --limit 20)",
     ),
     ("progress-v1 tag", "points at fef68ba, 2026-10-24/25 (git tag --list progress-v1)"),
     ("AI_USAGE_LOG.md entries", "37 dated entries, one per development phase/sprint block/gate"),
     (
         "Commits with Co-Authored-By: Claude",
-        '76 of 86 (git log --format=%B | grep -c "Co-Authored-By")',
+        '81 of 95 (git log --format=%B | grep -c "Co-Authored-By")',
     ),
 ]
 table = make_table(
@@ -678,7 +692,7 @@ add_title_bar(s, "8. Experimental Analysis and Current Progress")
 ANALYSIS_ROWS = [
     (
         "Tests",
-        "842/843 passed (1 skipped by default: 400-case slow sweep, needs "
+        "864/865 passed (1 skipped by default: 400-case slow sweep, needs "
         "PROOFPILOT_SLOW=1, passes with nothing skipped in CI's dedicated slow job). Both "
         "PYTHONHASHSEED=0 and 4242 green.",
     ),
@@ -828,8 +842,9 @@ p = tf.paragraphs[0]
 r = p.add_run()
 set_run(
     r,
-    "23 of 24 seed citations verified; 25-30 required by the brief. Confirm you have "
-    "read each one before submitting; add the rest.",
+    "24 distinct citations verified (25 rows -- one seed citation resolved to two genuinely "
+    "different 2006 Aleven et al. papers); 25-30 required by the brief. Confirm you have read "
+    "each one before submitting; find and verify 2-6 more.",
     size=12,
     italic=True,
     color=RGBColor(0x40, 0x40, 0x40),
@@ -879,7 +894,7 @@ AI_ROWS = [
     (
         "Claude Code (Opus 5 / Sonnet 5)",
         "Wrote core/app/api/cli/frontend, tests, tooling, HLD",
-        "76/86 commits carry Co-Authored-By: Claude (Opus 5 or Sonnet 5)",
+        "81/95 commits carry Co-Authored-By: Claude (Opus 5 or Sonnet 5)",
     ),
     ("claude.ai chat (web)", "Ideation, design review, prompt drafting", "[STUDENTS WRITE]"),
     (
@@ -917,6 +932,29 @@ for i, (tool, purpose, humans) in enumerate(AI_ROWS, start=1):
     )
 
 add_footer(s, 10)
+
+
+# =========================================== SLIDE 11 -- Appendix: Interface Screenshots
+s = new_slide()
+set_background_white(s)
+add_title_bar(s, "Appendix: Interface, Live Run 2026-10-25")
+
+SHOT_W = Inches(5.9)
+SHOT_H = Inches(3.78)  # screenshots are 1400x900px, aspect ratio preserved
+shots = [
+    ("docs/screenshots/03_prove_screen.png", "Prove screen: symbol legend + plain-English clauses"),
+    ("docs/screenshots/04_explanation_screen.png", "Explanation screen: completed proof trace"),
+]
+shot_x = [Inches(0.35), Inches(6.75)]
+for (path, caption), x in zip(shots, shot_x):
+    s.shapes.add_picture(path, x, Inches(1.25), width=SHOT_W, height=SHOT_H)
+    box, tf = add_textbox(s, x, Inches(5.1), SHOT_W, Inches(0.5))
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    r = p.add_run()
+    set_run(r, caption, size=12, italic=True, color=RGBColor(0x50, 0x50, 0x50))
+
+add_footer(s, 11)
 
 
 prs.save("docs/report/ProofPilot_Progress_Report.pptx")
