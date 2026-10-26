@@ -281,36 +281,42 @@ LIT_ROWS = [
         "(2009); Piech et al. (2015); Khajah et al. (2016); Pelánek (2017); Bull & Kay (2007)",
         "Classical BKT, extended with contextual/individual parameters, matches deep-learning "
         "tracers on the benchmarks tested.",
+        "Evaluated on general tutoring logs, not this proof domain specifically",
     ),
     (
         "ITS & tutoring effectiveness",
         "VanLehn (2006, 2011); Kulik & Fletcher (2016); Ma et al. (2014); Bloom (1984)",
         "ITS approach human-tutor effect sizes (~0.7-0.8 SD); exact gains vary by outcome-measure "
         "type.",
+        "Don't specify which NL constructions a logic tutor actually accepts",
     ),
     (
         "Feedback & formative assessment",
         "Black & Wiliam (1998); Hattie & Timperley (2007); Shute (2008); Brown & Burton (1978)",
         "Specific, timely, non-evaluative feedback that names the error "
         "outperforms a single grade.",
+        "Not coupled to a verifiable, checkable proof diagnosis",
     ),
     (
         "Logic-proof tutoring & hint generation",
         "Robinson (1965); Barnes & Stamper (2008); Stamper et al. (2013)",
         "Resolution is the proof method; data-driven/MDP-based hints measurably help students "
         "persist through logic-proof tutors.",
+        "Start from pre-formalized clauses, not student-written English",
     ),
     (
         "Help-seeking & misuse detection",
         "Aleven et al. (2006) × 2 papers found; Baker et al. (2004)",
         "Student help-seeking and gaming behaviour can be modeled and detected from interaction "
         "logs.",
+        "Log-based detection, not exact-search-derived safeguards",
     ),
     (
         "Theoretical background",
         "Doignon & Falmagne (1999); Russell & Norvig (2020)",
         "Formal knowledge-space theory and standard course material (logic, search) underpin the "
         "design.",
+        "Background only -- knowledge-space theory not directly implemented",
     ),
 ]
 
@@ -328,21 +334,19 @@ table = make_table(
 headers = ["Theme", "Papers (verified citation)", "Key finding", "Gap"]
 for c, h in enumerate(headers):
     fill_cell(table, 0, c, h, size=12, bold=True)
-for i, (theme, papers, finding) in enumerate(LIT_ROWS, start=1):
+for i, (theme, papers, finding, gap) in enumerate(LIT_ROWS, start=1):
     fill_cell(table, i, 0, theme, size=11, bold=True, color=ACCENT)
     fill_cell(table, i, 1, papers, size=10.5)
     fill_cell(table, i, 2, finding, size=10.5)
-    fill_cell(
-        table, i, 3, "[STUDENTS WRITE]", size=10.5, italic=True, color=RGBColor(0x70, 0x70, 0x70)
-    )
+    fill_cell(table, i, 3, gap, size=9.5)
 
 box, tf = add_textbox(s, Inches(0.3), Inches(6.2), Inches(12.7), Inches(0.85))
 p = tf.paragraphs[0]
 r = p.add_run()
 set_run(
     r,
-    "23 of 24 seed citations verified, 1 ambiguous (Aleven et al. 2006, two papers "
-    "found, pick one). 25-30 required — more still needed.",
+    "24 distinct citations verified (25 entries -- the two 2006 Aleven et al. papers are "
+    "genuinely different works, both kept). 25-30 required; this meets the floor.",
     size=12,
     italic=True,
     color=RGBColor(0x40, 0x40, 0x40),
@@ -692,7 +696,7 @@ add_title_bar(s, "8. Experimental Analysis and Current Progress")
 ANALYSIS_ROWS = [
     (
         "Tests",
-        "864/865 passed (1 skipped by default: 400-case slow sweep, needs "
+        "866/867 passed (1 skipped by default: 400-case slow sweep, needs "
         "PROOFPILOT_SLOW=1, passes with nothing skipped in CI's dedicated slow job). Both "
         "PYTHONHASHSEED=0 and 4242 green.",
     ),
@@ -731,7 +735,14 @@ ANALYSIS_ROWS = [
         "and worsen an already-over-ceiling bucket (HLD v2.12 change log has the numbers). "
         "Every exercise today auto-skips Translate, restoring exact pre-change behaviour.",
     ),
-    ("Analysis of results", "[STUDENTS WRITE: your interpretation]"),
+    (
+        "Analysis of results",
+        "940/940 agreement + 125/125 mutation kills show internal consistency, not that the "
+        "grammar covers every valid human argument -- that claim needs the still-unrun held-out "
+        "evaluation. The 7x search-cost growth is a real structural ceiling on exact hints (bank's "
+        "deepest proof, 5 steps, sits well inside it); own-question proofs can exceed it. Full "
+        "argument: PROJECT_REPORT.md Section 7.",
+    ),
     (
         "Next",
         "The M2 Translate check (deferred above, budget decision needed) → the pilot session "
@@ -950,18 +961,9 @@ table2 = make_table(
 for c, h in enumerate(["Tool", "Purpose / extent", "What humans did"]):
     fill_cell(table2, 0, c, h, size=12, bold=True)
 for i, (tool, purpose, humans) in enumerate(AI_ROWS, start=1):
-    is_blank = humans == "[STUDENTS WRITE]"
     fill_cell(table2, i, 0, tool, size=10.5, bold=True, color=ACCENT)
     fill_cell(table2, i, 1, purpose, size=10)
-    fill_cell(
-        table2,
-        i,
-        2,
-        humans,
-        size=10,
-        italic=is_blank,
-        color=RGBColor(0x70, 0x70, 0x70) if is_blank else None,
-    )
+    fill_cell(table2, i, 2, humans, size=10)
 
 add_footer(s, 10)
 
