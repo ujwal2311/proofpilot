@@ -1453,3 +1453,17 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 **Purpose:** Student asked for the frontend to use `messages.yaml`'s existing `fol:` strings instead of the raw enum/step-count the prior block shipped, and for a live browser screenshot once the Chrome extension was connected. The rendering change was made (verified live via `curl` against a running `uvicorn` instance: `fol_message` returns the rendered sentence, not the code). The Chrome extension was checked again and was still not connected in this environment -- reported explicitly rather than skipped or substituted with a code-inspection claim. Separately confirmed, re-checked rather than assumed: the Teaches/Knows ∀x∀y binary-relation premise cannot go through the English grammar at all (only its ground, named-constants form can; `FOL_NESTED_QUANTIFIER_IN_GROUND` fires deterministically on the quantified form), matching HLD §18.2/§18.8's documented scope boundary exactly.
 
 **Final state:** `pytest backend/` -- 1037 passed, 1 skipped. `ruff` + `C901` + function-length: clean. `npm run build`: clean. Committed locally, not yet pushed at the time this entry was written.
+
+---
+
+## AI_USAGE_LOG.md restructure + screenshot closure | 2026-10-31 | Claude Code (Sonnet 5) | commits 3275619, e1a56b6 (pushed), d1843b4
+
+**Files created:** none
+
+**Files modified:** `AI_USAGE_LOG.md` (this file -- the three combined entries covering the doc-reconciliation gate, the budget-bucket gate, and the whole Phases 1-10 + Phase 8b sprint were split into 14 individual phase/gate entries, matching CLAUDE.md rule 5's "after every phase" requirement, which the combined form did not satisfy), `docs/HLD.md` (§18.13's sign-off checklist updated to reflect actual current state: Phases 1-10 and Phase 8b marked done and pushed, equality reasoning confirmed out of scope by explicit student statement, and -- after this entry -- the live browser screenshot item closed).
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Student asked directly whether the log had an entry for every phase of the FOL sprint, as CLAUDE.md requires, and whether §18.13 reflected reality -- it did not, on both counts; fixed rather than left standing. Student then approved pushing the pending commits (`3275619`, `e1a56b6`), confirmed equality reasoning stays out of scope (closing that checklist line), and asked for the live browser screenshot. The Chrome extension was checked a third time and still did not connect in this environment; rather than substitute a code-inspection claim again, the student was offered the choice to take it themselves, chose to, and the two local dev servers were started for them. The student's own screenshot (not captured by Claude) confirms the designed behaviour exactly: the propositional grammar still refuses "Every human is mortal" with `QUANTIFIER_UNSUPPORTED` unchanged, and the FOL result renders as "Valid -- the empty clause was derived in 3 step(s)." from `messages.yaml`, not a raw code, alongside the pre-existing CONCLUSION_FACT_UNSEEN warning firing independently and correctly on the same exercise.
+
+**Final state:** `pytest backend/` -- 1037 passed, 1 skipped (unchanged -- documentation only). All of this sprint's commits are pushed through `d1843b4`. HLD §18.13's checklist is fully closed except the CLAUDE.md design-freeze items that were never part of this sprint's scope.

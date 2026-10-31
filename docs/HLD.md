@@ -2648,9 +2648,13 @@ Each phase ends with `pytest backend/ -x -q`, `ruff check`, `python tools/loc.py
   `fol:` wording (added Phase 9) to be rendered instead. `app/render.py` gained `fol_outcome()`,
   `api/schemas.py`'s `ParseResponse` gained `fol_message: str | None` (a genuine schema addition,
   unlike `fol_result` itself), and the frontend shows the rendered sentence. Verified live against
-  a running `uvicorn` instance. Committed (`e1a56b6`); **not yet pushed** at the time this
-  checklist was last updated — needs its own "approved" like every other push in this project.
-- [ ] Live browser screenshot of a FOL exercise, as the student requested once the Chrome
-  extension is connected — **still open**. Checked twice (both times the extension reported not
-  connected in this environment) and reported explicitly both times rather than skipped or
-  substituted with a code-inspection claim. Re-verify when the extension is available.
+  a running `uvicorn` instance. Committed and **pushed** (`0f385fc..d1843b4`, approved together
+  with the log restructuring below).
+- [x] Live browser screenshot of a FOL exercise — **closed, 2026-10-31**. The Chrome extension
+  was checked three times across this sprint and never connected in this environment, reported
+  explicitly each time rather than skipped; the student started the local `uvicorn`/`npm run dev`
+  servers themselves and supplied their own screenshot. It shows exactly the designed behaviour:
+  "Every human is mortal" still refused by the propositional grammar
+  (`QUANTIFIER_UNSUPPORTED`, unchanged), and the FOL result rendered from `messages.yaml` --
+  "Valid -- the empty clause was derived in 3 step(s)." -- not a raw code, alongside the
+  pre-existing, independent CONCLUSION_FACT_UNSEEN warning firing correctly on the same exercise.
