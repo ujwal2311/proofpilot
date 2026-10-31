@@ -382,6 +382,13 @@ main > section h2:first-child {
   font-weight: 600;
 }
 
+/* HLD S18.7 Phase 8b, minimal: no polish pass yet, just enough to not look broken. */
+.fol-result {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
 .facts {
   list-style: none;
   padding: 0;

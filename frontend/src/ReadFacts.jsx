@@ -46,6 +46,16 @@ export function ReadFacts({ state, pending, onMerge, onConfirm, readOnly = false
       <h2>{UI.conclusionHeading}</h2>
       <p className="conclusion">{state.sentences.at(-1)?.text}</p>
 
+      {state.fol_result ? (
+        // HLD S18.7 Phase 8b, minimal display: the raw outcome and step count, same convention
+        // as a sentence's raw error_code above -- a code, not invented prose. Rendered wording
+        // for this (data/messages.yaml's `fol:` section) is a later polish pass, not this one.
+        <p className="fol-result">
+          {UI.folResultLabel} <code>{state.fol_result.outcome}</code>
+          {state.fol_result.step_count ? ` (${state.fol_result.step_count} steps)` : null}
+        </p>
+      ) : null}
+
       <h2>{UI.factsHeading}</h2>
       <p className="help">{UI.factsHelp}</p>
       <ul className="facts">
