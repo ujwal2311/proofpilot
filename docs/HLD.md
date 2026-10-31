@@ -1,8 +1,8 @@
-# ProofPilot — High-Level Design v2.13
+# ProofPilot — High-Level Design v2.14
 
 Team: CVS Ujwal (24BCE0667), Keshav Raj (24BCI0306)
 Repo: public, MIT license, GitHub user `ujwal2311`
-Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests). v2.9 applies the Phase-5-gate change request; v2.10 the budget decision and the cache bound; v2.11 the sprint scope decision and the M2 budget bucket; v2.12 the student's post-progress-review change request making Translate universal; v2.13 the student's change request adding 8 grammar productions from the gap-list review (§16).
+Status: **APPROVED AND FROZEN** (2026-10-08; v2.3 budget caps, v2.4 config-at-the-edge — both approved change requests). v2.9 applies the Phase-5-gate change request; v2.10 the budget decision and the cache bound; v2.11 the sprint scope decision and the M2 budget bucket; v2.12 the student's post-progress-review change request making Translate universal; v2.13 the student's change request adding 8 grammar productions from the gap-list review (§16); v2.14 the student's professor-approved scope-change request adding first-order logic as a second mode alongside the frozen propositional engine (§18, 2026-10-31).
 This document is the source of truth. Any later
 design change requires an explicit change request from the student; Claude must not alter the
 design unilaterally.
@@ -75,9 +75,13 @@ mobile polish · more translation diagnoses · teacher-authored questions.
 
 ### Out of scope (all milestones)
 
-Free-form NLP, LLMs, first-order logic (all/some/every), pronoun resolution, tense/time
+Free-form NLP, LLMs, pronoun resolution, tense/time
 reasoning, "because/since" causality, multiple languages, a teacher dashboard, accounts, a
 database, Docker, A*.
+
+**First-order logic** was on this list through v2.13. The student's 2026-10-31 professor-approved
+scope-change request brings it into scope as a second mode, alongside the frozen propositional
+engine — see §18. Nothing else in the list above changed.
 
 ### Budgets (changed from v1 — justified in §12)
 
@@ -1054,6 +1058,31 @@ a new version with a Change Log entry.
      Rewriting those names would falsify the record, so this whole section is exempt from
      the dead-reference guard (test_docs_version.py states the rule). -->
 
+
+### From v2.13 → v2.14 — FOL scope addendum (professor-approved), 2026-10-31
+
+Explicit change request from the student, who confirmed professor approval in person for a scope
+change adding first-order logic as a second mode alongside the existing propositional engine. The
+full design was first drafted standalone (as `FOL_Architecture.md`) during review and is merged
+into this document as §18 so the HLD remains the single source of truth per the header rule — the
+standalone file is superseded and must not be treated as authoritative from this point on.
+
+**What does not change:** the propositional engine (`english.py`, `cnf.py`, `logic.py`,
+`search.py`, `entail.py`) is frozen exactly as it stood at v2.13; every existing test in
+`backend/tests/` must keep passing unmodified; FOL modules live beside the existing ones, never
+inside them (§18.0).
+
+**What is deferred, explicitly, not hidden:** `budgets.toml` has no `core_fol` bucket yet. §18.10
+carries a pre-implementation line-count *estimate*, labelled as an estimate per rule 10 — it is
+not a cap and is not yet committed to `budgets.toml`. Adding the bucket is a separate decision
+gate requiring the student to say "approved, add the bucket" (CLAUDE.md sprint-autonomy rule);
+this change-log entry authorizes the design merge, not the budget, and not implementation.
+
+**Cost:** zero code lines — this is a documentation-only gate. No FOL implementation exists yet;
+§18.12's Phase 1 begins only once this gate and the budget-bucket gate are both separately
+approved by the student.
+
+---
 
 ### From v2.12 → v2.13 — 8 grammar productions from the gap-list review, 2026-10-25
 
@@ -2109,3 +2138,444 @@ Any design change from here requires an explicit change request from the student
 
 *(This footer read "v2.4" through v2.5–v2.8 — it was not advanced with the header. Corrected in
 v2.9, and `test_docs_reference_current_hld_version` now covers the referring docs.)*
+
+---
+
+## 18. FOL Scope Addendum (v2.14, 2026-10-31)
+
+**Status:** merged into this HLD at v2.14. Carried over from the standalone review draft
+`FOL_Architecture.md`; this section is now the single source of truth for FOL — the standalone
+file is superseded. Explicit change request from the student, who confirmed professor approval in
+person for this scope change. First-order logic becomes a **second mode** of the system, alongside
+the propositional engine; the propositional engine's design, code and tests are unaffected
+(§18.0). `budgets.toml` does **not** yet have a `core_fol` bucket — §18.10 is a labelled estimate,
+not a cap, and the bucket requires its own separate "approved, add the bucket" from the student
+before it is added. Implementation does not start until that gate and this one are both approved.
+
+### 18.0 What does not change
+
+> The existing propositional engine is frozen. Every existing test (`backend/tests/`) must keep
+> passing without modification. New FOL modules live beside, not inside, the existing ones. Shared
+> infrastructure (`config.py`, the BFS `Work` budget in `search.py`) is reused, not duplicated.
+
+| Existing module | Role | Changes? |
+|---|---|---|
+| `english.py` | Propositional grammar | **None** |
+| `cnf.py` | Propositional CNF | **None** |
+| `logic.py` | Propositional resolution & diagnosis | **None** |
+| `search.py` | BFS + Work budget | **None** — FOL search imports `Work` from here |
+| `entail.py` | Truth-table entailment | **None** — truth tables don't exist for FOL |
+| `session.py` / `tutor.py` | Session pipeline | Tiny wiring only — detect mode from AST |
+| `config.py` | All limits & seeds | Add `MAX_FOL_SEARCH_WORK`, `MAX_FOL_CLAUSES` only |
+
+### 18.1 Data model — `core/fol_models.py`
+
+**Term hierarchy:** `Term = Variable | Constant | FunctionTerm`
+
+| Class | Frozen dataclass | Fields | Invariants |
+|---|---|---|---|
+| `Variable` | yes | `name: str` | lowercase, e.g. `"x"`, `"y1"` |
+| `Constant` | yes | `name: str` | starts uppercase or is a quoted individual name, e.g. `"Socrates"`, `"alice"` (normalised by grammar) |
+| `FunctionTerm` | yes | `name: str`, `args: tuple[Term, ...]` | `args` non-empty (nullary functions = `Constant`); Skolem functions named `sk_f0`, `sk_f1`, ... |
+
+**Atom / Literal:** `Predicate(name: str, args: tuple[Term, ...])`. A zero-argument
+`Predicate("P", ())` is equivalent to a propositional atom — the bridge point that lets
+propositional mode stay untouched. A literal is `(polarity: bool, pred: Predicate)`;
+`FolLiteral = tuple[bool, Predicate]` (`True` = positive, `False` = negative). `english.py`'s
+`Atom` class is not reused for FOL predicates — `Atom.phrase` is a raw string, `Predicate` has
+typed term arguments; they stay in separate type unions.
+
+**Formula hierarchy** (all frozen dataclasses; `Fol`-prefixed Boolean nodes avoid name clashes with
+`english.py` nodes):
+
+```
+FolFormula = Predicate
+           | FolNot(body: FolFormula)
+           | FolAnd(items: tuple[FolFormula, ...])
+           | FolOr(items: tuple[FolFormula, ...])
+           | FolImplies(antecedent: FolFormula, consequent: FolFormula)
+           | FolIff(left: FolFormula, right: FolFormula)
+           | ForAll(var: Variable, body: FolFormula)
+           | Exists(var: Variable, body: FolFormula)
+```
+
+Quantifier ordering is preserved exactly — `ForAll(x, Exists(y, P(x,y)))` is a different tree from
+`Exists(y, ForAll(x, P(x,y)))`. No flattening, no reordering, ever.
+
+**Clause type:** `FolClause = frozenset[FolLiteral]` — a disjunction of literals. After
+Skolemization and dropping universal quantifiers, remaining variables are implicitly universally
+quantified by convention. `frozenset` makes clauses hashable (needed for the BFS visited set).
+
+**Substitution:** `Substitution = dict[str, Term]` (variable name → Term). Always built fresh and
+composed explicitly, never mutated in place. Invariant: a substitution never maps a variable to a
+term containing that same variable (enforced by the occurs check during unification).
+
+### 18.2 Controlled grammar — `core/fol_english.py`
+
+Same design principles as `english.py`: bounded, documented, refused (anything outside the listed
+patterns raises `FolParseError` with a named code and one rephrasing hint); never guess (two
+phrases that might refer to the same individual are never silently merged); no NLP library — pure
+regex + token scan.
+
+**Quantified sentences:**
+
+| Pattern | AST produced | Example |
+|---|---|---|
+| `"Every X is a Y"` | `ForAll(x, Implies(X(x), Y(x)))` | "Every human is mortal" |
+| `"Every X is not a Y"` | `ForAll(x, Implies(X(x), FolNot(Y(x))))` | "Every prime is not even (except 2)" — bounded grammar: 2 is excluded by refusing the sentence |
+| `"Some X is a Y"` | `Exists(x, FolAnd(X(x), Y(x)))` | "Some student studies" |
+| `"No X is a Y"` | `ForAll(x, Implies(X(x), FolNot(Y(x))))` | "No cat is a dog" |
+| `"All X that Y are Z"` | `ForAll(x, Implies(FolAnd(X(x), Y(x)), Z(x)))` | "All students that study pass" |
+
+**Ground / relational sentences:**
+
+| Pattern | AST produced | Example |
+|---|---|---|
+| `"NAME Rs NAME"` | `R(c1, c2)` | "Alice likes Bob" → `Likes(alice, bob)` |
+| `"NAME Rs NAME and NAME"` | `FolAnd(R(c1, c2), R(c1, c3))` | "Alice likes Bob and Carol" |
+| `"NAME is a Y"` | `Y(name)` | "Socrates is a human" → `Human(socrates)` |
+| `"NAME is not a Y"` | `FolNot(Y(name))` | "Tweety is not a penguin" |
+
+**Wh-patterns** (for "for all" paraphrases):
+
+| Pattern | AST produced |
+|---|---|
+| `"If X is a Y then X is a Z"` | `ForAll(x, Implies(Y(x), Z(x)))` |
+| `"If NAME Rs NAME then NAME Rs NAME"` | `Implies(R(c1,c2), R(c3,c4))` |
+
+**Predicate name normalisation:** multi-word relations are CamelCased (`"likes"` → `Likes`,
+`"is taller than"` → `IsTallerThan`); individual names are lowercased constants (`"Alice"` →
+`Constant("alice")`); single-word unary predicates (`"Human"`, `"Mortal"`, `"Student"`) must start
+with uppercase in input or get uppercased.
+
+**Refused, named errors:**
+
+| Code | Trigger |
+|---|---|
+| `FOL_UNKNOWN_PATTERN` | Sentence does not match any listed pattern |
+| `FOL_NESTED_QUANTIFIER_IN_GROUND` | "Every X likes every Y" — multiply-quantified relations not in scope |
+| `FOL_AMBIGUOUS_INDIVIDUAL` | Same name used both as a constant and a variable in one paragraph |
+| `FOL_UNSUPPORTED_ARITY` | Predicate used with inconsistent argument counts across sentences, or an equality sentence ("equals" / "is the same as") |
+| `FOL_SENTENCE_TOO_LONG` | Exceeds `MAX_SENTENCE_WORDS` |
+
+**Out of scope for the grammar:** multiply-quantified binary relations (`∀x∀y R(x,y)`), function
+terms in English input (Skolem functions are internal only), and equality (`=`).
+
+### 18.3 CNF pipeline — `core/fol_cnf.py`, 8 ordered steps, each its own pure function
+
+Each step is a pure function with its own unit tests before the next is written. The pipeline
+function `to_fol_clauses(formula)` calls them in order:
+
+```
+FolFormula
+  │ step 1: eliminate_iff_implies(formula) → FolFormula        (removes FolIff and FolImplies)
+  ▼ step 2: push_negation_inward(formula) → FolFormula         (De Morgan, propositional + quantifier)
+  ▼ step 3: standardize_variables(formula) → FolFormula        (α-rename: no two quantifiers share a name)
+  ▼ step 4: skolemize(formula, universals=[]) → FolFormula     (Exists → fresh constants / Skolem functions)
+  ▼ step 5: drop_universal_quantifiers(formula) → FolFormula   (strip ForAll; remaining vars implicitly ∀)
+  ▼ step 6: distribute_and_over_or(formula) → FolFormula       (reach CNF)
+  ▼ step 7: flatten_to_clauses(formula) → frozenset[FolClause] (split top-level And into clauses)
+  ▼ step 8: standardize_apart_clauses(clauses) → frozenset[FolClause]  (rename vars per clause)
+```
+
+**Step 1 — `eliminate_iff_implies`:** `FolIff(A,B) → FolAnd(FolImplies(A,B), FolImplies(B,A))`;
+`FolImplies(A,B) → FolOr(FolNot(A), B)`. Recurse into quantifier bodies and all connectives.
+
+**Step 2 — `push_negation_inward`:** propositional De Morgan (`FolNot(FolAnd(items)) →
+FolOr(FolNot(i) for i in items)`, and symmetrically for `FolOr`; double negation collapses).
+Quantifier De Morgan — the rule most implementations miss: `FolNot(ForAll(x, P)) → Exists(x,
+FolNot(P))`; `FolNot(Exists(x, P)) → ForAll(x, FolNot(P))`. `¬∀x P(x)` is **not** `∀x ¬P(x)` — the
+quantifier flips. Base case: `FolNot(Predicate(...))` kept as-is (negative literal). This case gets
+its own explicit test: `push_negation_inward(FolNot(ForAll(x, P(x)))) == Exists(x, FolNot(P(x)))`.
+
+**Step 3 — `standardize_variables`:** α-rename every bound variable to a globally fresh name. Must
+run before Skolemization — failing to standardize causes variable capture (`ForAll(x, Implies(P(x),
+Exists(x, Q(x))))` would let the inner `Exists`'s `x` capture the outer `ForAll`'s `x`). Traverse
+the formula; on each `ForAll`/`Exists`, generate a fresh variable name (`v0`, `v1`, ...) and
+substitute the old name throughout that quantifier's body only, using one counter shared across the
+whole call. Required tests: nested `ForAll` reusing a name; mixed `ForAll`/`Exists` nesting; free
+variables left untouched.
+
+**Step 4 — `skolemize`:** replace each `Exists` with a fresh Skolem term. No enclosing `ForAll` →
+`Exists(y, P(y)) → P[y ↦ c_sk0]` (fresh Skolem constant). One or more enclosing `ForAll`
+(`universals = (x1, x2, ...)`) → `Exists(y, P(x1,x2,y)) → P[y ↦ sk_f0(x1,x2)]` (Skolem function of
+all enclosing universals). Recurse: `ForAll(x, body) → ForAll(x, skolemize(body, universals +
+(x,)))`; other connectives recurse with `universals` unchanged. Skolem names come from a
+module-level counter reset at the start of each top-level `to_fol_clauses()` call, for determinism.
+Required tests: no-outer-ForAll case (constant); one enclosing `ForAll` (function of x); double
+nesting (function of both enclosing variables).
+
+**Step 5 — `drop_universal_quantifiers`:** remove all `ForAll` wrappers. No `Exists` remains after
+Skolemization. Remaining `Variable` occurrences are implicitly universally quantified — the
+standard convention for clausal form.
+
+**Step 6 — `distribute_and_over_or`:** push `Or` inside `And` to reach CNF (`Or(And(A,B),C) →
+And(Or(A,C), Or(B,C))`, and symmetrically). Recurse until no `Or` contains an `And`. Unlike the
+propositional case (flat grammar → at most 25 clauses), FOL formulas can produce exponentially many
+clauses from distribution — the pipeline counts clauses and raises `FolCNFExplosionError` above
+`MAX_FOL_CLAUSES` (new `config.py` constant). This is the complexity/scalability guard (§18.11.2).
+
+**Step 7 — `flatten_to_clauses`:** convert top-level `And` into a set of clauses. Each clause is
+`frozenset[FolLiteral] = frozenset[tuple[bool, Predicate]]`. A top-level `Or` → one clause; a
+top-level `Predicate` or `FolNot(Predicate)` → one unit clause.
+
+**Step 8 — `standardize_apart_clauses`:** rename variables in each clause so they are globally
+unique. Each clause is implicitly its own `ForAll` scope — two clauses sharing a variable name
+`x` have independent `x`'s, but the unifier cannot know that unless the names differ. Example:
+`{(True, P(x))}` and `{(False, P(x))}` become `{(True, P(c0_x))}` and `{(False, P(c1_x))}`.
+
+### 18.4 Unification — `core/unify.py`
+
+Given two terms, find the Most General Unifier (MGU) — the simplest substitution that makes them
+identical. Returns `None` on failure. `Substitution = dict[str, Term]`, never mutated in place.
+
+```python
+def occurs(var_name: str, term: Term) -> bool:
+    """True if var_name appears anywhere inside term (prevents circular substitutions like x ↦ f(x))."""
+
+def apply_subst(term: Term, subst: Substitution) -> Term:
+    """Recursively replace every variable in term per subst. Follows chains (x↦y, y↦c ⇒ x↦c)."""
+
+def compose(s1: Substitution, s2: Substitution) -> Substitution:
+    """Apply s1 then s2. Result = {var: apply_subst(t, s2) for var, t in s1.items()} | s2.
+    Modifies neither s1 nor s2."""
+
+def unify(t1: Term, t2: Term, subst: Substitution | None = None) -> Substitution | None:
+    """MGU of t1 and t2 under existing bindings subst; extended substitution or None.
+    Variable x vs t: x==t → unchanged; occurs(x,t) → None (occurs check); else → subst|{x.name:t}.
+    Constant vs Constant: equal → subst; else → None.
+    FunctionTerm / Predicate vs same: same name+arity → unify args pairwise; else → None."""
+
+def unify_literals(lit1: FolLiteral, lit2: FolLiteral) -> Substitution | None:
+    """Unify two literals of OPPOSITE polarity (complementary pair) — MGU of the predicates'
+    argument lists, or None. Rejects same-polarity pairs immediately."""
+```
+
+Required tests: `unify(Variable("x"), Constant("a"))` → `{"x": Constant("a")}`;
+`unify(Variable("x"), FunctionTerm("f", (Variable("x"),)))` → `None` (occurs check);
+`unify(FunctionTerm("f",(Variable("x"),)), FunctionTerm("f",(Constant("a"),)))` → `{"x":
+Constant("a")}`; `unify(Constant("a"), Constant("b"))` → `None`; a chained `x→y` then `y→a`
+composes to `x→a`.
+
+### 18.5 FOL resolution — `core/fol_resolve.py`
+
+Given two FOL clauses, produce all resolvents — clauses derived by resolving on one complementary
+literal pair.
+
+```
+resolve(clause_a, clause_b) → list[FolClause]
+For each literal la in clause_a, lb in clause_b with opposite polarity:
+  mgu = unify_literals(la, lb)
+  if mgu is not None:
+    resolvent_literals = (clause_a - {la}) ∪ (clause_b - {lb})
+    resolvent = {apply_literal_subst(lit, mgu) for lit in resolvent_literals}
+    if not is_tautology_fol(resolvent): yield frozenset(resolvent)
+```
+
+`apply_literal_subst(lit, subst)` applies a substitution to all terms in a literal's predicate.
+`is_tautology_fol(clause)` is true if the clause contains both `(True, P(t))` and `(False, P(t))`
+for the same `t` (after substitution, terms must be syntactically equal — no further unification).
+`canonical_literal` / `canonical_clause` give a stable string representation for sorting, same role
+as `canonical()` in `logic.py`, for deterministic output.
+
+**Soundness guarantee:** the substitution is applied to **all** literals in the resolvent, not just
+the literals that were resolved on. Applying the MGU only to the surviving literals is the classic
+implementation mistake that produces unsound proofs.
+
+### 18.6 Proof procedure — `core/fol_search.py`
+
+```python
+class FolProofOutcome(Enum):
+    PROVED           = "proved"            # empty clause derived
+    BUDGET_EXHAUSTED = "budget_exhausted"   # honest: not the same as "not provable"
+    INCONSISTENT     = "inconsistent"       # premises alone derive empty clause (vacuous)
+```
+
+> **`BUDGET_EXHAUSTED` must never be presented to the student as "not provable."** FOL is only
+> semi-decidable: if the argument is valid, resolution will eventually find a proof given unlimited
+> budget. If the budget runs out first, we have learned nothing about validity — the honest answer
+> is "no proof found within budget." This distinction appears in `messages.yaml` and the frontend.
+
+Reuses `Work` from `search.py`:
+
+```python
+@dataclass
+class FolSearchResult:
+    outcome: FolProofOutcome
+    proof_steps: list[tuple[FolClause, FolClause, FolClause]]  # (a, b, resolvent)
+    clauses: frozenset[FolClause]
+
+def fol_prove(premises: list[FolFormula], conclusion: FolFormula, budget: int | None = None) -> FolSearchResult:
+    """Resolution refutation:
+    1. Negate conclusion.
+    2. Clausify all premises + negated conclusion via to_fol_clauses().
+    3. standardize_apart_clauses() on the full set.
+    4. Empty clause already present → INCONSISTENT.
+    5. BFS over clause pairs; each resolvent costs one Work unit; empty clause → PROVED
+       (record step); budget exhausted → BUDGET_EXHAUSTED.
+    6. BFS space exhausted without the empty clause → BUDGET_EXHAUSTED (not
+       GoalUnreachableError — FOL completeness means the budget, not the space, always runs out
+       first in general).
+    """
+```
+
+Differences from propositional search: no truth-table pre-check (truth tables don't exist for
+FOL — `entail.py` is unused in FOL mode); budget exhausted maps to `BUDGET_EXHAUSTED`, not
+`GoalUnreachableError`, because the clause space is infinite in general; resolvent generation uses
+`resolve()` from `fol_resolve.py` (with unification) instead of `logic.py`'s `resolvents()`;
+tautology check is `is_tautology_fol()` instead of `is_tautology()`.
+
+**`messages.yaml` additions:**
+
+```yaml
+fol:
+  proved: "Valid — the empty clause was derived in {steps} step(s)."
+  budget_exhausted: >
+    No proof was found within the search budget.
+    This does NOT mean the argument is invalid — first-order logic is only
+    semi-decidable, so a valid argument may require more steps than the
+    system's budget allows. Try simplifying your premises.
+  inconsistent: >
+    The premises alone are contradictory (the empty clause was derived from
+    the premises before the conclusion was even used). This means the argument
+    is trivially valid but the premises cannot all be true together.
+```
+
+### 18.7 Mode selection — wiring into `session.py` / `tutor.py`
+
+`is_fol_formula(f)` is true if the formula contains any `ForAll`, `Exists`, or a `Predicate` with
+`args` non-empty. Parse attempt tries `fol_english.parse()` first (if the paragraph contains
+quantifier keywords); falls back to `english.parse()`. Either producing a quantified formula or an
+arity>0 predicate selects FOL mode. Mode is stored on `State.mode: Literal["prop", "fol"]` (new
+field). `POST /api/next`'s `NextRequest` gets one new optional field: `mode: Literal["prop",
+"fol"] | None = None` (`None` = auto-detect). `session.py` gains `_detect_mode(sentences)`, called
+at parse time; everything else in `session.py` stays unchanged. FOL exercises go through
+`fol_prove()` instead of `entail()` + `distance()`.
+
+### 18.8 Out of scope within FOL (document so it is not silently missing)
+
+| Feature | Status | Reason |
+|---|---|---|
+| Equality reasoning (`=`, paramodulation) | Out of scope | Separate extension; standard resolution does not include it |
+| Function symbols in English input | Out of scope | Skolem functions are internal; user never writes `f(x)` |
+| Answer extraction (which bindings prove the goal) | Out of scope | We need satisfiability only, not witnesses |
+| Hyper-resolution, SLD/Prolog-style resolution | Out of scope | Standard binary resolution is sufficient and simpler |
+| Modal / temporal logic analogy | Out of scope | Separate logics with separate decidability profiles |
+
+We explicitly do **not** add: modal operators, temporal operators, probability, belief, or
+equality. Each would push complexity further; the trade-off against §18.11.4 is accepted as-is.
+
+### 18.9 Testing strategy — hand-crafted known-answer tests
+
+No truth-table cross-check exists for FOL; each test is a manually verified entailment or
+non-entailment.
+
+**Canonical proof tests:**
+
+- **Test A — Socrates (2-step).** Premises `∀x (Human(x) → Mortal(x))`, `Human(socrates)`;
+  conclusion `Mortal(socrates)`. Clauses: `{~Human(x), Mortal(x)}`, `{Human(socrates)}`,
+  `{~Mortal(socrates)}`. Step 1 resolves the first two via `{x↦socrates}` → `{Mortal(socrates)}`;
+  step 2 resolves that against `{~Mortal(socrates)}` → empty clause. Expected: `PROVED` in 2 steps.
+- **Test B — occurs-check failure.** `unify(x, f(x))` → `None` (must not loop).
+- **Test C — Skolemization.** `∀x ∃y Loves(x,y)` → standardize → `∀v0 ∃v1 Loves(v0,v1)` →
+  skolemize → `∀v0 Loves(v0, sk_f0(v0))` → drop → `Loves(v0, sk_f0(v0))` → clause
+  `{(True, Loves(v0, sk_f0(v0)))}`.
+- **Test D — variable capture prevention.** `∀x (P(x) ∧ ∃x Q(x))` must standardize to
+  `∀v0 (P(v0) ∧ ∃v1 Q(v1))` before Skolemization touches it.
+- **Test E — multi-argument predicate, 3-step proof.** Premises `∀x∀y (Teaches(x,y) →
+  Knows(y,x))`, `Teaches(alice,bob)`; conclusion `Knows(bob,alice)`. Clauses:
+  `{~Teaches(x,y), Knows(y,x)}`, `{Teaches(alice,bob)}`, `{~Knows(bob,alice)}`. Step 1: MGU
+  `{x↦alice, y↦bob}` → `{Knows(bob,alice)}`; step 2 → empty clause. Expected: `PROVED`.
+- **Test F — non-entailment.** Premises `∀x P(x)`; conclusion `∀x Q(x)`. Expected:
+  `BUDGET_EXHAUSTED` (not `PROVED` — P and Q are unrelated).
+- **Test G — budget exhaustion doesn't crash.** `MAX_FOL_SEARCH_WORK` set tiny (e.g. 5) on any
+  non-trivial entailment → `FolSearchResult.outcome == BUDGET_EXHAUSTED`, no exception.
+
+CNF pipeline unit tests: one per step (§18.3), using the exact examples given there. Regression:
+`pytest backend/ -x -q --tb=short` must show 0 failures before any FOL code is written, and after
+every phase.
+
+### 18.10 Budget impact — pre-implementation estimate, not a cap (STOP point)
+
+> This is an estimate, labelled as an estimate per rule 10. `budgets.toml` has no `core_fol`
+> bucket. **Adding one requires the student to say "approved, add the bucket" explicitly** — this
+> HLD merge does not do that by itself.
+
+| New module | Estimated code lines |
+|---|---|
+| `core/fol_models.py` | ~90 |
+| `core/fol_english.py` | ~220 |
+| `core/fol_cnf.py` | ~210 |
+| `core/unify.py` | ~110 |
+| `core/fol_resolve.py` | ~120 |
+| `core/fol_search.py` | ~100 |
+| Session wiring (`session.py` additions) | ~25 |
+| API schema additions | ~20 |
+| Frontend (FOL mode banner + message display) | ~60 |
+| **New core FOL total (estimate)** | **~850** |
+| New tests (estimate) | ~400 |
+
+At the time of this addendum the `core` CORE TOTAL (`core` + `core_session` + `core_m2`) stands at
+the figures printed by `python tools/loc.py` against `budgets.toml` — not restated here, per the
+single-source-of-truth rule. Adding ~850 estimated FOL lines needs a new `core_fol` bucket with its
+own cap and ceiling, sized against the measured total at the time the bucket is actually added, not
+against this estimate.
+
+### 18.11 Four critical system checks — verdict for the FOL addition
+
+**18.11.1 Decidability.** Propositional mode: fully decidable, truth tables always terminate,
+unchanged. FOL mode: semi-decidable — resolution finds a proof for a valid argument given unlimited
+budget; an invalid argument's search may run forever. Mitigation: `MAX_FOL_SEARCH_WORK` caps the
+budget; `BUDGET_EXHAUSTED` is the honest outcome, never reported as "not provable" (§18.6, §18.9
+Test F).
+
+**18.11.2 Complexity & scalability.** CNF distribution (§18.3 step 6) is the main explosion risk —
+guarded by `FolCNFExplosionError` above `MAX_FOL_CLAUSES`. Unification is O(n) per call with occurs
+check; BFS generates O(n²) clause pairs per step, the same shape as propositional search. Deep
+recursion on nested formulas is bounded by the grammar's max sentence depth (~4 via
+`MAX_SENTENCE_WORDS`) and must be tested at that length. No ML, no NLP library, no database — no
+hidden resource consumers.
+
+**18.11.3 Soundness & completeness.** Soundness: resolution is sound by construction — the MGU is
+applied to all literals in the resolvent (§18.5), the occurs check prevents circular substitutions,
+tautologies are filtered. Completeness: resolution is refutation-complete for FOL — if the clause
+set is unsatisfiable, a refutation exists, found by BFS if the budget allows; this is a fact about
+the resolution rule, not about this implementation, but the implementation must not prune
+structurally distinct clauses as "already seen" or over-filter tautologies. The propositional
+truth-table safety net does not exist for FOL — §18.9's known-answer tests are the verification
+method instead.
+
+**18.11.4 Expressive vs. computational trade-off.** Variables in clauses require unification per
+resolution step (the dominant cost in FOL provers). Quantifiers require the 8-step CNF pipeline
+versus 3 propositional steps. Multi-argument predicates need an arity check in `unify`.
+Semi-decidability is handled by the budget cap and the honest `BUDGET_EXHAUSTED` outcome. Modal
+operators, temporal operators, probability, belief and equality are explicitly not added (§18.8).
+
+### 18.12 Implementation order
+
+```
+Phase 1:  fol_models.py + tests          data structures only
+Phase 2:  fol_cnf.py steps 1–3 + tests   eliminate, push_negation, standardize_vars
+Phase 3:  fol_cnf.py steps 4–8 + tests   skolemize, drop, distribute, flatten, standardize_apart
+Phase 4:  unify.py + tests               occurs check, MGU, compose
+Phase 5:  fol_resolve.py + tests         resolution with unification
+Phase 6:  fol_english.py + tests         grammar (may run in parallel with Phases 2–5)
+Phase 7:  fol_search.py + tests          BFS, all outcomes incl. NOT_ENTAILED/BUDGET_EXHAUSTED
+Phase 8:  session.py wiring              mode detection, minimal additions
+Phase 9:  API + frontend                 expose mode, banner, messages.yaml
+Phase 10: full integration tests         Socrates, Teaches/Knows, BUDGET_EXHAUSTED distinction
+```
+
+Each phase ends with `pytest backend/ -x -q`, `ruff check`, `python tools/loc.py`, a gate report
+(≤15 lines), and a local commit — no push until the student says "approved" for that specific gate
+(CLAUDE.md GATES rule, unchanged by this addendum).
+
+### 18.13 Gate record for this addendum
+
+- [x] 7-step CNF pipeline design reviewed and merged into this HLD as §18.1–§18.9 — **pending the
+  student's "approved" on this specific doc-update gate.**
+- [ ] `core_fol` budget bucket in `budgets.toml` — separate gate, requires the student to say
+  "approved, add the bucket" explicitly; not granted by this merge.
+- [ ] Equality reasoning (`=`) confirmed out of scope (§18.8) — carried over from the design
+  review; stands unless the student says otherwise.
+- [ ] Phase 1 implementation (§18.12) — starts only once both gates above are approved.

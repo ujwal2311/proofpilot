@@ -1,6 +1,6 @@
 # CLAUDE.md — ProofPilot rules and constraints
 
-**Design: see `docs/HLD.md` v2.13 — APPROVED AND FROZEN (2026-10-12; latest change request 2026-10-25).** Any design change requires
+**Design: see `docs/HLD.md` v2.14 — APPROVED AND FROZEN (2026-10-12; latest change request 2026-10-31).** Any design change requires
 an explicit change request from the student; never alter the design unilaterally. That document is
 the single source of truth for architecture,
 grammar, algorithms, data model, API contract, budgets, milestones and test names. This file holds
@@ -50,8 +50,12 @@ must be disclosed. Therefore:
   imports**. The API is a thin 4-endpoint layer. React renders and posts — no logic.
 - Only syllabus techniques: controlled-grammar parsing, truth tables, resolution, BFS, BKT.
   No ML, no LLMs, no RL, no NLP library, no database, no Docker, no auth, no WebSockets, no cloud.
-- DO NOT BUILD: A*, set-of-support (stretch only), first-order logic or unification, accounts, a
-  database, a teacher dashboard, LLM features, Docker, free-form NLP.
+- DO NOT BUILD: A*, set-of-support (stretch only), accounts, a database, a teacher dashboard,
+  LLM features, Docker, free-form NLP.
+- First-order logic: now in scope, see HLD §18 (2026-10-31 addendum) — do not build anything
+  FOL-related beyond what that section specifies, and do not touch the frozen propositional
+  engine while doing it. The §18.10 budget bucket and §18.12 Phase 1 each still need their own
+  separate "approved" from the student before code is written.
 - Budgets are measured in **CODE lines** — blank, comment and docstring lines excluded, because
   the caps bound logic complexity and rule 9 requires the comments.
   **`budgets.toml` is the single source of truth for every cap. Never write a cap number in this
@@ -127,8 +131,9 @@ message contains the word "approved" for that specific gate. There are no carve-
 repository creation, not for CI fixes, not for "finishing" a phase that was explicitly requested.
 Committing locally is always fine; publishing is not.** If in doubt, commit and ask.
 
-`docs/HLD.md` §15 Open Questions are resolved and v2.13 is frozen. Implementation proceeds
-milestone by milestone: **M1 first and complete**, M2 only after M1 ships.
+`docs/HLD.md` §15 Open Questions are resolved and v2.14 is frozen. Implementation proceeds
+milestone by milestone: **M1 first and complete**, M2 only after M1 ships; FOL per §18 after the
+gates in §18.13 clear.
 
 ## TEMPORARY SPRINT RULE — EXPIRES AT THE `progress-v1` TAG
 

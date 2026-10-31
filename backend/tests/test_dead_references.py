@@ -68,6 +68,12 @@ PLANNED = {
     "data/heldout_paragraphs.json": "S8 -- written by the team, never by Claude",
     "docs/misconceptions.md": "S10",
     "frontend/src/TranslateStep.jsx": "deferred M2 scope (HLD v2.12 change log), not yet built",
+    "backend/src/core/fol_models.py": "HLD v2.14 S18.1 -- FOL sprint Phase 1",
+    "backend/src/core/fol_cnf.py": "HLD v2.14 S18.3 -- FOL sprint Phases 2-3",
+    "backend/src/core/unify.py": "HLD v2.14 S18.4 -- FOL sprint Phase 4",
+    "backend/src/core/fol_resolve.py": "HLD v2.14 S18.5 -- FOL sprint Phase 5",
+    "backend/src/core/fol_english.py": "HLD v2.14 S18.2 -- FOL sprint Phase 6",
+    "backend/src/core/fol_search.py": "HLD v2.14 S18.6 -- FOL sprint Phase 7",
 }
 
 # Docs write a module path relative to the package as often as to the repo root --
