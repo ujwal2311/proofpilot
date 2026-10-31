@@ -78,9 +78,16 @@ must be disclosed. Therefore:
   the bucket list so adding one fails the build. Note also that **cutting M2 no longer relieves a
   `core` overrun** — B0 moved M2 into its own bucket, so the sentence above cannot be applied to
   that bucket any more; the remedy there is to simplify or to stop and ask.
+  **ONE APPROVED EXCEPTION (student, 2026-10-31):** `core_fol` was added for the HLD §18 FOL
+  scope change, after Claude stopped and asked rather than silently absorbing it — exactly the
+  procedure this rule requires. `core_session`'s cap/ceiling were raised at the same gate to price
+  the §18.7 session-wiring addition, for the same reason `core`'s cap absorbed the M2
+  tutor.py-wiring estimate at B0. This is the one discussed, explicit exception; it does not
+  reopen the door to a quiet one.
   Every `tools/loc.py` table and every budget table in the docs must print the **combined
-  CORE TOTAL** (`core` + `core_session` + `core_m2`) beside the individual buckets, so that a
-  bucket split for sound design reasons can never present its cost as three small ones.
+  CORE TOTAL** (`core` + `core_session` + `core_m2` + `core_fol`) beside the individual buckets,
+  so that a bucket split for sound design reasons can never present its cost as separate small
+  ones.
 - Both members must be able to explain every module. Joint walkthroughs are budgeted (§13.3), and
   `docs/HLD.md` §17.11 holds the three-sentence explanation of each module.
 

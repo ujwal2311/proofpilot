@@ -2148,9 +2148,9 @@ v2.9, and `test_docs_reference_current_hld_version` now covers the referring doc
 file is superseded. Explicit change request from the student, who confirmed professor approval in
 person for this scope change. First-order logic becomes a **second mode** of the system, alongside
 the propositional engine; the propositional engine's design, code and tests are unaffected
-(§18.0). `budgets.toml` does **not** yet have a `core_fol` bucket — §18.10 is a labelled estimate,
-not a cap, and the bucket requires its own separate "approved, add the bucket" from the student
-before it is added. Implementation does not start until that gate and this one are both approved.
+(§18.0). Both gates in §18.13 are cleared (2026-10-31): the doc merge and the `core_fol` budget
+bucket are approved, and sprint mode is authorized for Phases 1–10. Implementation proceeds under
+that authorization.
 
 ### 18.0 What does not change
 
@@ -2495,11 +2495,11 @@ CNF pipeline unit tests: one per step (§18.3), using the exact examples given t
 `pytest backend/ -x -q --tb=short` must show 0 failures before any FOL code is written, and after
 every phase.
 
-### 18.10 Budget impact — pre-implementation estimate, not a cap (STOP point)
+### 18.10 Budget impact — estimate that priced a real bucket (gate cleared 2026-10-31)
 
-> This is an estimate, labelled as an estimate per rule 10. `budgets.toml` has no `core_fol`
-> bucket. **Adding one requires the student to say "approved, add the bucket" explicitly** — this
-> HLD merge does not do that by itself.
+> This table is the ESTIMATE that was used to size a cap — it is not itself the cap, and the cap
+> is never restated here afterward: see `budgets.toml` → `[core_fol]` for the live number, per
+> rule 10 and the single-source-of-truth rule.
 
 | New module | Estimated code lines |
 |---|---|
@@ -2512,14 +2512,14 @@ every phase.
 | Session wiring (`session.py` additions) | ~25 |
 | API schema additions | ~20 |
 | Frontend (FOL mode banner + message display) | ~60 |
-| **New core FOL total (estimate)** | **~850** |
 | New tests (estimate) | ~400 |
 
-At the time of this addendum the `core` CORE TOTAL (`core` + `core_session` + `core_m2`) stands at
-the figures printed by `python tools/loc.py` against `budgets.toml` — not restated here, per the
-single-source-of-truth rule. Adding ~850 estimated FOL lines needs a new `core_fol` bucket with its
-own cap and ceiling, sized against the measured total at the time the bucket is actually added, not
-against this estimate.
+**Gate cleared.** The student said "approved, add the bucket" on 2026-10-31. `budgets.toml` now
+has a `[core_fol]` bucket (the six core-module rows above, excluded from `[core]`'s pattern the
+same way the M2 modules are) and `[core_session]`'s cap/ceiling were raised by the session-wiring
+row above, the same treatment `[core]` got for the M2 tutor.py-wiring estimate at B0. The frontend
+and API-schema rows above are not separately bucketed — see the note at the end of the
+`core_fol`/`core_session` derivation in `budgets.toml` for why.
 
 ### 18.11 Four critical system checks — verdict for the FOL addition
 
@@ -2572,10 +2572,16 @@ Each phase ends with `pytest backend/ -x -q`, `ruff check`, `python tools/loc.py
 
 ### 18.13 Gate record for this addendum
 
-- [x] 7-step CNF pipeline design reviewed and merged into this HLD as §18.1–§18.9 — **pending the
-  student's "approved" on this specific doc-update gate.**
-- [ ] `core_fol` budget bucket in `budgets.toml` — separate gate, requires the student to say
-  "approved, add the bucket" explicitly; not granted by this merge.
+- [x] 7-step CNF pipeline design reviewed and merged into this HLD as §18.1–§18.9 — **approved by
+  the student, 2026-10-31.**
+- [x] `core_fol` budget bucket in `budgets.toml` — **approved, add the bucket**, 2026-10-31,
+  sized off the §18.10 estimate; `core_session`'s cap/ceiling raised the same gate for the
+  session-wiring row. See `budgets.toml` for the live numbers — not restated here.
+- [x] Sprint mode authorized for Phases 1–10, 2026-10-31, same shape as the `progress-v1`
+  temporary sprint rule: run back-to-back without a per-phase "approved," commit locally after
+  each phase, STOP only for an unrooted test failure, a design ambiguity §18 doesn't answer, or a
+  budget *ceiling* cross — report cap overruns and continue. One combined report at the end. No
+  push to remote until the student approves the final result.
 - [ ] Equality reasoning (`=`) confirmed out of scope (§18.8) — carried over from the design
   review; stands unless the student says otherwise.
 - [ ] Phase 1 implementation (§18.12) — starts only once both gates above are approved.

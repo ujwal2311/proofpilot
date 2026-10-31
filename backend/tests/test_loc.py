@@ -274,13 +274,18 @@ def test_the_number_of_capped_buckets_is_frozen() -> None:
 
     Three buckets were added in two days -- core_m2 at B0, core_session at S2 -- each for a real
     reason, and each one also made the next overrun easier to absorb. That stops here: a further
-    overrun is a STOP-and-ask, not a new row in this file. Asserted as a count so adding one
-    fails the build and has to be a deliberate, discussed change rather than a quiet commit.
+    overrun is a STOP-and-ask, not a new row in this file. Asserted as a list so adding one fails
+    the build and has to be a deliberate, discussed change rather than a quiet commit.
+
+    core_fol (2026-10-31) is the one exception the rule itself allows: Claude stopped and asked
+    before touching budgets.toml, the student said "approved, add the bucket" in chat, and
+    HLD S18.13 records the gate. Listed explicitly rather than silently grown past six.
     """
     capped = [name for name, spec in loc.load_buckets().items() if spec.get("capped", True)]
     assert sorted(capped) == [
         "api_cli",
         "core",
+        "core_fol",
         "core_m2",
         "core_session",
         "frontend",

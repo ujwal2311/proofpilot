@@ -135,6 +135,36 @@
 #    loc.py and mutate.py never run in the shipped product and add nothing to runtime
 #    complexity or the viva surface. Capping them penalised exactly the work that makes the
 #    other caps trustworthy.
+#
+#  ==========================================================================================
+#  core_fol -- ONE APPROVED EXCEPTION to "no more buckets" (student, 2026-10-31). HLD v2.14 S18
+#  ==========================================================================================
+#
+#  Added only after Claude stopped and asked, per the frozen rule in CLAUDE.md -- not a quiet
+#  commit. `core` and `core_session` were both within single digits of their ceiling before this
+#  change, for reasons unrelated to FOL, so any FOL file landing in either would have crossed a
+#  ceiling on the first module written.
+#
+#  core_fol -- the 6 new FOL modules named in HLD S18.1-S18.6, pulled out of `core`'s pattern by
+#    exclude (same mechanism B0 used for the M2 modules):
+#      fol_models ~90 · fol_english ~220 · fol_cnf ~210 · unify ~110 · fol_resolve ~120
+#      · fol_search ~100                                                      = 850 (ESTIMATE)
+#    => cap 849 (estimate, not yet measured; 1 under the ~850 sum only to avoid colliding with the
+#       unrelated pre-v2 core-cap number already in HLD S12/S15, which this guard also catches)
+#       · ceiling 934
+#
+#  core_session -- cap/ceiling raised to price the S18.7 wiring (`_detect_mode`, the `mode` field,
+#    the FOL/entail() branch in the pipeline) directly in session.py, which cannot be excluded by
+#    file pattern because it is a few lines inside an existing file, not a new one. Same treatment
+#    `core`'s cap got for the M2 tutor.py-wiring estimate at B0 (+12, folded into 854).
+#      148 (v2.11 measured) + 25 (S18.10 session-wiring estimate)             = 173
+#    => cap 173 · ceiling 191
+#
+#  Frontend (banner + message display, ~60 est.) and api_cli (mode field + schema, ~20 est.) are
+#  NOT re-baselined here: both buckets are already over their v2.10 ceiling from the original
+#  M1/M2 sprint, for reasons that predate and are unrelated to FOL (reported, not blocking, under
+#  that sprint's still-active rule). A few more lines there does not newly cross a ceiling that
+#  was already crossed; they are reported at their measured value in every gate report instead.
 
 schema = 1
 frozen = "2026-10-12"
@@ -146,6 +176,12 @@ exclude = [
     "backend/src/core/translation.py",
     "backend/src/core/formula.py",
     "backend/src/core/narrate.py",
+    "backend/src/core/fol_models.py",
+    "backend/src/core/fol_english.py",
+    "backend/src/core/fol_cnf.py",
+    "backend/src/core/unify.py",
+    "backend/src/core/fol_resolve.py",
+    "backend/src/core/fol_search.py",
 ]
 cap = 854
 ceiling = 940
@@ -153,8 +189,8 @@ ceiling = 940
 [core_session]
 label = "core (session)"
 patterns = ["backend/src/core/session.py"]
-cap = 148
-ceiling = 163
+cap = 173
+ceiling = 191
 
 [core_m2]
 label = "core (M2)"
@@ -165,6 +201,19 @@ patterns = [
 ]
 cap = 245
 ceiling = 270
+
+[core_fol]
+label = "core (FOL)"
+patterns = [
+    "backend/src/core/fol_models.py",
+    "backend/src/core/fol_english.py",
+    "backend/src/core/fol_cnf.py",
+    "backend/src/core/unify.py",
+    "backend/src/core/fol_resolve.py",
+    "backend/src/core/fol_search.py",
+]
+cap = 849
+ceiling = 934
 
 [api_cli]
 label = "api + cli"
@@ -194,7 +243,7 @@ capped = false
 # `core` is three buckets for sound design reasons, and three small caps are easy to read as
 # three small costs. The CORE TOTAL row prints the whole tree against the sum of its caps.
 [totals]
-"CORE TOTAL" = ["core", "core_session", "core_m2"]
+"CORE TOTAL" = ["core", "core_session", "core_m2", "core_fol"]
 
 # Functions allowed to exceed the length gate, each with a one-line reason. Printed by
 # `tools/loc.py` on every run, so an exemption is visible in the CI log rather than buried here.
