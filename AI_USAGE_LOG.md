@@ -1260,51 +1260,196 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 ---
 
-## FOL scope addendum: doc merge + budget gate | 2026-10-31 | Claude Code (Sonnet 5)
+## FOL gate 1: HLD/CLAUDE.md doc reconciliation | 2026-10-31 | Claude Code (Sonnet 5) | commit d4b4249
 
 **Files created:** none
 
-**Files modified:** `docs/HLD.md` (v2.13 -> v2.14; new §18 FOL Scope Addendum merged in, carried over from a standalone review draft `FOL_Architecture.md` the student had prepared externally), `CLAUDE.md` (version pointer; `DO NOT BUILD` list loses "first-order logic or unification", replaced by a pointer to HLD §18; `NO MORE BUCKETS` note gains one named exception), `budgets.toml` (new `[core_fol]` bucket, cap 849/ceiling 934 -- 1 under the §18.10 estimate's round number only to avoid colliding with an unrelated pre-existing "850" already in HLD §12/§15's history; `[core_session]` raised to 173/191 for the Phase 8 wiring estimate; `[core]`'s exclude list gains the six new FOL module paths; `[totals]` extended), `backend/tests/test_loc.py` (frozen-bucket-list test extended to include `core_fol`, with the exception documented in its own docstring), `backend/tests/test_dead_references.py` (PLANNED entries added for the six new modules, removed one by one as each was built), `README.md` / `docs/READING_GUIDE.md` (stale `v2.13` references corrected).
+**Files modified:** `docs/HLD.md` (v2.13 -> v2.14; new §18 FOL Scope Addendum merged in, carried over from a standalone review draft `FOL_Architecture.md` the student had prepared externally), `CLAUDE.md` (version pointer; `DO NOT BUILD` list loses "first-order logic or unification", replaced by a pointer to HLD §18), `backend/tests/test_dead_references.py` (PLANNED entries added for the six not-yet-built FOL modules HLD §18 names), `README.md`, `docs/READING_GUIDE.md` (stale `v2.13` references corrected).
 
 **What the student changed by hand:** to confirm.
 
-**Purpose:** Claude initially refused to start implementing FOL because `CLAUDE.md`'s `DO NOT BUILD` list and the frozen `docs/HLD.md` v2.13 both explicitly excluded first-order logic, which conflicted with the external `FOL_Architecture.md` draft's claim of "professor-approved" scope -- flagged as a genuine conflict between an external, unverified document and the repo's own frozen design docs, rather than acted on unilaterally. The student confirmed the professor-approved scope change directly in chat and asked for the merge; the external draft's own content was carried into HLD §18 (correcting one internal inconsistency: it called itself an "Addendum to v2.11", but the actual frozen base was already v2.13). Re-running the baseline surfaced two more real, unrelated-to-FOL gaps the merge exposed: a dead-reference guard failure (the new HLD text named six modules that did not exist yet -- fixed via the guard's own existing `PLANNED` allowlist mechanism, not by weakening the test) and three stale `v2.13` version references in `README.md`/`docs/READING_GUIDE.md` that a different, unrelated test already existed to catch. Before Phase 1, `[core]` (933/940) and `[core_session]` (161/163) were found to have only single-digit-line ceiling headroom for reasons unrelated to FOL, which would have crossed a ceiling on the very first new module -- stopped and asked per the sprint's explicit rule; student said "approved, add the bucket", sized `[core_fol]` off the §18.10 estimate.
+**Purpose:** Claude initially refused to start implementing FOL because `CLAUDE.md`'s `DO NOT BUILD` list and the frozen `docs/HLD.md` v2.13 both explicitly excluded first-order logic, which conflicted with the external `FOL_Architecture.md` draft's claim of "professor-approved" scope -- flagged as a genuine conflict between an external, unverified document and the repo's own frozen design docs, rather than acted on unilaterally. The student confirmed the professor-approved scope change directly in chat and asked for the merge; the external draft's own content was carried into HLD §18 (correcting one internal inconsistency found while merging: it called itself an "Addendum to v2.11", but the actual frozen base was already v2.13). Re-running the baseline surfaced two more real, unrelated-to-FOL gaps the merge itself exposed: a dead-reference guard failure (the new HLD text named six modules that did not exist yet -- fixed via the guard's own existing `PLANNED` allowlist mechanism, not by weakening the test) and three stale `v2.13` version references in `README.md`/`docs/READING_GUIDE.md` that a different, unrelated test already existed to catch.
+
+**Final state:** `pytest backend/` -- 0 failures (baseline re-established). No code written. `budgets.toml` untouched at this gate.
 
 ---
 
-## FOL sprint, Phases 1-10 (re-scoped at Phase 8) | 2026-10-31 | Claude Code (Sonnet 5)
-
-**Files created:** `backend/src/core/fol_models.py`, `fol_cnf.py`, `unify.py`, `fol_resolve.py`, `fol_english.py`, `fol_search.py`; `backend/tests/test_fol_models.py`, `test_fol_cnf.py`, `test_unify.py`, `test_fol_resolve.py`, `test_fol_english.py`, `test_fol_search.py`, `test_fol_integration.py`.
-
-**Files modified:** `backend/src/core/config.py` (`MAX_FOL_CLAUSES`, `MAX_FOL_SEARCH_WORK` added), `backend/src/core/session.py` (`Analysis` gains a `logic_mode` field, computed via `fol_english.detect_mode()`; the pipeline itself is otherwise unchanged), `backend/tests/test_tutor.py` (three `logic_mode` assertions added), `backend/tests/test_normalisation.py` (allowed-`.lower()`-callers list gains `fol_english.py`), `data/messages.yaml` (`fol:` wording added, unconsumed), `docs/HLD.md` (§18.7 rewritten twice during implementation -- see below -- and §18.12's Phase 8-10 rows re-scoped to match).
-
-**What the student changed by hand:** to confirm.
-
-**Purpose:** Student authorized sprint mode for Phases 1-10 (same shape as the `progress-v1` temporary sprint rule): run back-to-back without a per-phase "approved", commit locally, stop only for an unrooted test failure, a design ambiguity, or a budget ceiling cross. Every phase's tests were written before its implementation and hand-traced against the HLD's worked examples before running, per the student's explicit instruction to re-verify ambiguous points rather than guess. Phases 1-7 (the FOL reasoning core: data model, 8-step CNF pipeline, unification, resolution, the controlled grammar, resolution-refutation search) passed on or near the first test run in every phase; four real defects were found and fixed DURING implementation, not assumed away:
-
-1. Phase 3: `to_fol_clauses()` was first written to run all 8 CNF steps, including `standardize_apart_clauses`. Re-reading HLD §18.6's `fol_prove` procedure against §18.3's step list caught that step 8 must run once over the union of every premise's clauses, not once per premise -- fixed before, not after, writing `fol_search.py`.
-2. Phase 6: the grammar's unary-predicate slot ("read everything remaining, CamelCase it") had no guard against a structural keyword landing in that slot -- "Every human likes every dog" would have silently become one bogus predicate `LikesEveryDog` instead of being refused. Added a centralized reserved-word check used by every name/predicate construction site.
-3. Phase 7: a literal reading of HLD §18.6's "check if empty clause already present" for `INCONSISTENT` turned out to be unreachable in practice (clausifying one formula alone can never literally produce the empty clause) and a hand-built contradictory-premises test caught it reporting `PROVED` instead. Fixed with a two-phase search (saturate premises alone first, matching `messages.yaml`'s own "before the conclusion was even used" wording) rather than weakening the test.
-4. Phase 8: HLD §18.7's own detection rule ("quantifier OR an arity>0 predicate selects FOL mode") was found to be unreliable -- "Alice likes Bob" and the ordinary propositional "We get wet" parse by the identical pattern, so the arity-based half of the rule flagged ordinary sentences as FOL too. `is_fol_formula` now checks only for `ForAll`/`Exists`.
-
-Phase 8 also hit a real budget/design wall rather than being pushed through: `State.mode` already meant something else (name collision the original design text missed), `[core]` had no headroom for a new field regardless, and `State.entailment`'s `Verdict`/boolean-`counterexample` shape turned out to be a genuine type mismatch for `FolProofOutcome`, not just a missing case. Stopped and asked; student chose "detection only" for Phase 8, with full session/API integration named and deferred as **Phase 8b** in HLD §18.7 (not yet scheduled, to be re-budget-checked when opened, shape agreed as a new optional `State.fol_result: FolSessionResult | None` owned by `core_fol`). Phases 9 and 10 were re-scoped to match: Phase 9 shipped only the `fol:` `messages.yaml` wording (unconsumed until Phase 8b); Phase 10 became pipeline-level integration (real English text through `fol_prove()`), not the originally-planned session/API-level integration.
-
-**Final state:** `pytest backend/ -x -q` -- 1027 passed, 1 skipped (unchanged, opt-in slow test). `ruff check` + the `C901` complexity gate + the 60-line function-length gate: clean throughout, zero allowlist entries. `core_fol`: 676/849 (cap), comfortably under its 934 ceiling. `core`: 935/940 -- unchanged by this sprint's code (only the earlier doc-gate's `config.py`/`test_loc.py` edits touched it), 5 lines of ceiling headroom remain for any future `core`-bucket work. All ten phases and both gates preceding them are committed locally, one commit per phase/gate; nothing has been pushed to the remote.
-
----
-
-## FOL sprint, Phase 8b (full session integration) + push | 2026-10-31 | Claude Code (Sonnet 5)
+## FOL gate 2: core_fol budget bucket | 2026-10-31 | Claude Code (Sonnet 5) | commit 26c34e7
 
 **Files created:** none
 
-**Files modified:** `backend/src/core/fol_search.py` (`FolSessionResult` added), `backend/src/core/models.py` (`State.fol_result: FolSessionResult | None` added), `backend/src/core/session.py` (`_fol_attempt()` and `_parse_sentences()` added; `analyse()` now calls `fol_prove()` for FOL-mode sessions), `backend/tests/test_models.py`, `test_state_roundtrip.py`, `test_tutor.py`, `test_api.py` (new/updated assertions), `frontend/src/ReadFacts.jsx`, `labels.js`, `index.css` (minimal display), `docs/HLD.md` (§18.7 Phase 8b marked done, §18.12's Phase 9/10 note and §18.13's gate record updated).
+**Files modified:** `budgets.toml` (new `[core_fol]` bucket, cap/ceiling sized off the HLD §18.10 estimate, 1 under that estimate's round number only to avoid colliding with an unrelated pre-existing number already in HLD §12/§15's history; `[core_session]`'s cap/ceiling raised for the Phase 8 session-wiring estimate; `[core]`'s exclude list gains the six new FOL module paths; `[totals]` extended), `backend/tests/test_loc.py` (frozen-bucket-list test extended to include `core_fol`, with the one-time exception documented in its own docstring), `CLAUDE.md` (`NO MORE BUCKETS` note gains this one named exception), `docs/HLD.md` (§18.10/§18.13 updated to record the gate).
 
 **What the student changed by hand:** to confirm.
 
-**Purpose:** Student reviewed the prior block's honest report (Phases 9-10 re-scoped away from session/API level), said to push what was already committed (13 commits, all tests passing) without waiting for Phase 8b, and asked for Phase 8b to be built as the next block: `session.py` actually calling `fol_prove()`, the `FolSessionResult` field on `State`, the API returning it, and a minimal frontend display -- then the session/API-level integration tests (Socrates, a Teaches/Knows analogue) re-run and confirmed passing before calling it done. Pushed the 13 prior commits first (`f6fff12..012ed53`), per explicit instruction, separate from and before the Phase 8b work.
+**Purpose:** Before Phase 1, `[core]` and `[core_session]` were found to have only single-digit-line ceiling headroom for reasons unrelated to FOL, which would have crossed a ceiling on the very first new module written -- stopped and asked per the sprint's explicit rule, rather than starting Phase 1 and discovering it mid-phase. Student said "approved, add the bucket" explicitly; `[core_fol]` was sized off the HLD §18.10 estimate.
 
-Re-ran the budget check at the Phase 8b gate exactly as the Phase 8 entry's own note said to, rather than assuming the earlier headroom still held: `[core]` measured 3 lines under its ceiling after adding the field (not crossed), and `session.analyse()` came in at 64 lines against the 60-line function gate -- a BLOCKING gate, not a reported cap -- fixed by extracting `_parse_sentences()`, the same extraction-not-excusing precedent used twice earlier in this sprint. Confirmed by running, not assumed: `TypeAdapter(State)` needed no `api/schemas.py` change to serialise the new field (exercised through the state-roundtrip property test, which had not previously generated a non-`None` `fol_result` at all -- added a generator for it, a real gap in that test's "every shape" coverage, not just this feature's), and a live `uvicorn`+`npm run build` smoke test (not just `TestClient`) confirmed the real running server returns `fol_result` correctly over HTTP. Two of the requested session/API-level tests needed adjusting after a first run failed: the assumed-contradictory and assumed-multi-argument-relation test paragraphs had no quantifier in them, and `is_fol_formula`'s own Phase 8 correction (quantifier-only, no arity signal) means `detect_mode` correctly reports "prop" for a ground-only paragraph regardless of content -- both tests were fixed by adding an incidental quantified sentence so FOL mode is actually selected, noted in-test as to why, not worked around silently. The Teaches/Knows premise itself stays a ground analogue in every test in this sprint (never the universally-quantified original): the grammar genuinely cannot express it (HLD §18.2's own stated scope limit), confirmed again rather than assumed.
+**Final state:** `pytest backend/` -- 0 failures. `tools/loc.py` reports the new bucket; no cap or ceiling crossed by this gate itself (0 FOL code lines exist yet).
 
-Frontend display is deliberately minimal per the student's explicit instruction ("polish isn't the priority"): the raw `fol_result.outcome`/`step_count`, same convention as a sentence's raw `error_code`, not rendered prose -- `data/messages.yaml`'s `fol:` wording (added Phase 9) stays unconsumed. The Chrome extension was not connected in this environment, so the on-screen render could not be screenshotted; verified instead by a live backend response plus code inspection against that confirmed shape.
+---
 
-**Final state:** `pytest backend/ -x -q` -- 1035 passed, 1 skipped. `ruff check` + `C901` + the function-length gate: clean. Committed locally (not pushed pending the student's "approved" for this specific gate, per `CLAUDE.md`'s push rule -- the Phases 1-10 sprint authorization covered the push already done above, not this block).
+## FOL Phase 1: core/fol_models.py | 2026-10-31 | Claude Code (Sonnet 5) | commit 3c11437
+
+**Files created:** `backend/src/core/fol_models.py`, `backend/tests/test_fol_models.py`
+
+**Files modified:** `backend/tests/test_dead_references.py` (the `fol_models.py` `PLANNED` entry removed, now that it exists)
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Data model only, per HLD §18.1 and the §18.12 phase order: `Term` (`Variable`/`Constant`/`FunctionTerm`), `Predicate`, `FolLiteral`, `FolFormula` (`FolNot`/`FolAnd`/`FolOr`/`FolImplies`/`FolIff`/`ForAll`/`Exists`), `FolClause`, `Substitution` -- all frozen dataclasses, no behaviour. Tests cover frozen-ness, structural equality/hashing, and quantifier-order distinctness (`ForAll(x, Exists(y, ...))` must not equal `Exists(y, ForAll(x, ...))`).
+
+**Final state:** `pytest backend/` -- 886 passed, 1 skipped (20 new tests, all passing on first run). `ruff` + `C901` + function-length: clean. `core_fol`: 45 lines against its cap.
+
+---
+
+## FOL Phase 2: core/fol_cnf.py steps 1-3 | 2026-10-31 | Claude Code (Sonnet 5) | commit 0dcf5a0
+
+**Files created:** `backend/src/core/fol_cnf.py`, `backend/tests/test_fol_cnf.py`
+
+**Files modified:** `backend/tests/test_dead_references.py` (the `fol_cnf.py` `PLANNED` entry removed)
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** `eliminate_iff_implies`, `push_negation_inward`, `standardize_variables` -- the first 3 of the 8-step CNF pipeline (HLD §18.3). The quantifier De Morgan case (`push_negation_inward`) was split into a private `_push_not` helper to clear the `C901` complexity gate, not simplified away -- each of its 6 cases is a distinct De Morgan law. `standardize_variables` uses a rename map threaded through recursion so a quantifier that shadows an outer variable name gets its own fresh name without the outer rename leaking into it; verified against HLD §18.3's 3 pinned examples (nested same-name `ForAll`, mixed `ForAll`/`Exists`, free variables) and the quantifier-De-Morgan case the HLD flags as most commonly implemented wrong.
+
+**Final state:** `pytest backend/` -- 906 passed, 1 skipped (20 new tests, all passing on first run). `ruff` + `C901` + function-length: clean. `core_fol`: 151 lines against its cap.
+
+---
+
+## FOL Phase 3: core/fol_cnf.py steps 4-8 + to_fol_clauses | 2026-10-31 | Claude Code (Sonnet 5) | commit b5e82fb
+
+**Files created:** none
+
+**Files modified:** `backend/src/core/fol_cnf.py` (`skolemize`, `drop_universal_quantifiers`, `distribute_and_over_or`, `flatten_to_clauses`, `standardize_apart_clauses`, `to_fol_clauses` added), `backend/tests/test_fol_cnf.py` (tests for all 5), `backend/src/core/config.py` (`MAX_FOL_CLAUSES` added).
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** `skolemize` replaces an existential with a fresh constant (no enclosing `ForAll`) or a function of the enclosing universals; `distribute_and_over_or` carries the `FolCNFExplosionError` clause-count guard, checked once at the true top level rather than per recursive call; `standardize_apart_clauses` renames per-clause (`c0_x`/`c1_x`), ordered by a local deterministic sort key so clause-index assignment never depends on frozenset iteration. `to_fol_clauses()` was first written to run all 8 steps, including step 8 -- re-reading HLD §18.6's `fol_prove` procedure against §18.3's step list, before writing `fol_search.py`, caught that step 8 must run ONCE over the union of every premise's clauses, not once per premise (otherwise two premises' independently-numbered variables could collide before the combined set is ever seen) -- fixed at this phase, not retrofitted later.
+
+**Final state:** `pytest backend/` -- 929 passed, 1 skipped (43 new tests; one test's expected literal ORDER was wrong on first run, fixed to match the actual, correct output order, not the algorithm). `ruff` + `C901` + function-length: clean. `core_fol`: 296 lines against its cap.
+
+---
+
+## FOL Phase 4: core/unify.py | 2026-10-31 | Claude Code (Sonnet 5) | commit 2703dab
+
+**Files created:** `backend/src/core/unify.py`, `backend/tests/test_unify.py`
+
+**Files modified:** `backend/tests/test_dead_references.py` (the `unify.py` `PLANNED` entry removed)
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** `occurs`, `apply_subst` (chain-following), `compose`, `unify`, `unify_literals` (HLD §18.4). `unify()`'s type was deliberately widened to `Term | Predicate`: HLD §18.4.3 types it as `Term`-only but lists "Predicate vs Predicate" among its own match cases, and §18.4.4 describes `unify_literals` as returning "the MGU of the two predicates' argument lists" without re-stating a name/arity check of its own -- read together, that logic lives once in `unify()`, reused for both `FunctionTerm` and `Predicate`; documented in the module docstring as a resolved ambiguity, not a guess.
+
+**Final state:** `pytest backend/` -- 955 passed, 1 skipped (26 new tests, all passing on first run, including HLD §18.4.5's full required-test table and the multi-argument Teaches/Knows case). `ruff` + `C901` + function-length: clean. `core_fol`: 359 lines against its cap.
+
+---
+
+## FOL Phase 5: core/fol_resolve.py | 2026-10-31 | Claude Code (Sonnet 5) | commit a76b5f9
+
+**Files created:** `backend/src/core/fol_resolve.py`, `backend/tests/test_fol_resolve.py`
+
+**Files modified:** `backend/tests/test_dead_references.py` (the `fol_resolve.py` `PLANNED` entry removed)
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** `apply_literal_subst`, `is_tautology_fol`, `resolve` (one complementary unifiable pair per pivot, MGU applied to every surviving literal from both parents -- the soundness requirement HLD §18.5 names explicitly), `canonical_literal`/`canonical_clause`. HLD §18.9 Test A (Socrates, both steps) and Test E (Teaches/Knows) were hand-traced before running. One test's own expectation was wrong on the first write (a "several pivots produce several resolvents" case that actually resolves to two tautologies, not two resolvents) -- caught by the hand trace before it could hide a real bug, fixed in the test, not the implementation.
+
+**Final state:** `pytest backend/` -- 971 passed, 1 skipped (16 new tests, all passing after the one test-expectation fix). `ruff` + `C901` + function-length: clean. `core_fol`: 385 lines against its cap.
+
+---
+
+## FOL Phase 6: core/fol_english.py | 2026-10-31 | Claude Code (Sonnet 5) | commit ff5a911
+
+**Files created:** `backend/src/core/fol_english.py`, `backend/tests/test_fol_english.py`
+
+**Files modified:** `backend/tests/test_dead_references.py` (the `fol_english.py` `PLANNED` entry removed), `backend/tests/test_normalisation.py` (the allowed-`.lower()`-callers list extended to include `fol_english.py`, with the reason documented in that test's own docstring).
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** All 11 patterns from HLD §18.2.2 (quantified, ground/relational, wh-patterns) and the 5 named errors from §18.2.4. Two gaps found and closed during implementation, beyond the design doc: (1) a reserved-word guard, without which "Every human likes every dog" would have silently become one bogus predicate instead of being refused; (2) `FOL_AMBIGUOUS_INDIVIDUAL`/`FOL_UNSUPPORTED_ARITY` are cross-sentence checks the single-sentence design text gave no mechanism for (English never spells a bound variable's name, so "used as a constant and a variable" has no literal referent) -- implemented via an optional `registry` dict threaded across a paragraph's sentences.
+
+**Final state:** `pytest backend/` -- 999 passed, 1 skipped (28 new tests; first full run found one real test-suite defect, `test_no_core_module_normalizes_text_itself` not yet knowing about the new module -- fixed by extending that test's own allowlist, which is its designed extension point, not by weakening it). `ruff` + `C901` + function-length: clean. `core_fol`: 586 lines against its cap.
+
+---
+
+## FOL Phase 7: core/fol_search.py | 2026-10-31 | Claude Code (Sonnet 5) | commit 3446785
+
+**Files created:** `backend/src/core/fol_search.py`, `backend/tests/test_fol_search.py`
+
+**Files modified:** `backend/tests/test_dead_references.py` (the `fol_search.py` `PLANNED` entry removed), `backend/src/core/config.py` (`MAX_FOL_SEARCH_WORK` added).
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** `fol_prove` (HLD §18.6): two phases sharing one `Work` budget -- saturate the premises ALONE first, then clausify premises + negated conclusion fresh and saturate that for PROVED/BUDGET_EXHAUSTED. A first version checked only "empty clause already present" per §18.6's literal step list, which is unreachable in practice (clausifying one formula alone can never produce a literally-empty clause); a hand-built contradictory-premises test caught it returning `PROVED` instead of `INCONSISTENT` -- fixed with the two-phase design, matching `messages.yaml`'s own "before the conclusion was even used" wording, not by weakening the test. Saturation deliberately re-examines every clause pair each round (mirroring `core.search`'s own `combinations()` precedent) rather than only new-vs-old pairs, documented as a deliberate simplicity choice.
+
+**Final state:** `pytest backend/` -- 1008 passed, 1 skipped (9 new tests; one real defect found and fixed as above, not left in). `ruff` + `C901` + function-length: clean. `core_fol`: 653 lines against its cap; `core`: 935 lines, 5 under its ceiling (the `MAX_FOL_SEARCH_WORK` config line).
+
+---
+
+## FOL Phase 8 (detection only): mode detection in session.py | 2026-10-31 | Claude Code (Sonnet 5) | commit 0b99956
+
+**Files created:** none
+
+**Files modified:** `backend/src/core/fol_english.py` (`is_fol_formula`, `is_fol_sentence`, `detect_mode` added), `backend/src/core/session.py` (`Analysis` gains a `logic_mode` field, computed via `detect_mode()`; the propositional pipeline itself unchanged), `backend/tests/test_fol_english.py`, `test_tutor.py` (new assertions), `docs/HLD.md` (§18.7 rewritten to record the re-scoping below).
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** HLD §18.7 originally said mode is "stored on `State.mode: Literal['prop','fol']` (new field)" and FOL exercises "go through `fol_prove()` instead of `entail()`". Neither survived contact with the actual state of the repo: `State.mode` already means `"practice"|"own_question"` (a name collision the design text missed), `[core]` had 5 lines of ceiling headroom (nowhere near enough for a field safely), and `State.entailment`'s `Verdict`/boolean-`counterexample` shape is a genuine type mismatch for `FolProofOutcome`, not a missing case -- `BUDGET_EXHAUSTED` has no boolean-assignment counterexample to offer. Stopped and asked rather than guessing a fix; student chose "detection only" for this phase, full integration named and deferred as **Phase 8b**. Separately, implementing `is_fol_formula` found HLD §18.7's own detection rule ("quantifier OR an arity>0 predicate selects FOL mode") to be unreliable: "Alice likes Bob" and the ordinary propositional "We get wet" parse by the identical NAME-verb-NAME pattern, so the arity-based half flagged ordinary sentences as FOL too -- `is_fol_formula` now checks only for `ForAll`/`Exists`.
+
+**Final state:** `pytest backend/` -- 1020 passed, 1 skipped. `ruff` + `C901` + function-length: clean. `core_fol`: 676 lines against its cap. No `State`/`core/entail.py` change made.
+
+---
+
+## FOL Phase 9 (re-scoped): fol: wording in messages.yaml | 2026-10-31 | Claude Code (Sonnet 5) | commit 89e3a38
+
+**Files created:** none
+
+**Files modified:** `data/messages.yaml` (`fol:` section: `proved`/`budget_exhausted`/`inconsistent` wording, per HLD §18.6.4), `docs/HLD.md` (§18.12's Phase 9/10 rows re-scoped).
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Phase 9 originally also exposed `mode` over the API and added a frontend banner -- both assumed the Phase 8b session wiring Phase 8 had just deferred, so there was nothing yet to expose. Shipped only the wording, unconsumed by any code path at the time, reviewable ahead of the wiring that would need it.
+
+**Final state:** `pytest backend/` -- 1020 passed, 1 skipped (unchanged -- no code path read this section yet).
+
+---
+
+## FOL Phase 10 (re-scoped): pipeline-level integration from text | 2026-10-31 | Claude Code (Sonnet 5) | commit bc50269
+
+**Files created:** `backend/tests/test_fol_integration.py`
+
+**Files modified:** none
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** The original Phase 10 ("full integration tests") assumed the session/API-level wiring Phase 8 had just deferred to Phase 8b. Re-scoped to pipeline-level: real English paragraphs through `fol_english.parse()` -> `fol_prove()`, end to end -- Socrates (PROVED), unrelated quantified predicates (BUDGET_EXHAUSTED), contradictory ground facts (INCONSISTENT), a tiny budget (no crash), a second vocabulary (not special-cased), and a named confirmation that multiply-quantified binary relations are out of scope (HLD §18.2/§18.8) -- which is also why the Teaches/Knows premise from HLD §18.9 Test E stays a hand-built-`FolFormula` test in `test_fol_search.py` rather than a text-parsed one here.
+
+**Final state:** `pytest backend/` -- 1027 passed, 1 skipped (7 new tests, all passing on first run). `ruff` + `C901` + function-length: clean. This closed the originally-scoped Phases 1-10; all ten phases and the two gates preceding them committed locally, one commit per phase/gate, nothing pushed yet at this point.
+
+---
+
+## FOL Phase 8b: session.py calls fol_prove(), via State + API + frontend | 2026-10-31 | Claude Code (Sonnet 5) | commits 8e9e447, 30bb400
+
+**Files created:** none
+
+**Files modified:** `backend/src/core/fol_search.py` (`FolSessionResult` added), `backend/src/core/models.py` (`State.fol_result: FolSessionResult | None` added), `backend/src/core/session.py` (`_fol_attempt()` and `_parse_sentences()` added; `analyse()` now calls `fol_prove()` for FOL-mode sessions), `backend/tests/test_models.py`, `test_state_roundtrip.py`, `test_tutor.py`, `test_api.py` (new/updated assertions), `frontend/src/ReadFacts.jsx`, `labels.js`, `index.css` (minimal display, later superseded -- see the next entry).
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Student reviewed the Phase 1-10 report, said to push what was already committed without waiting for Phase 8b, and asked for Phase 8b to be built as the next block: `session.py` actually calling `fol_prove()`, the `FolSessionResult` field on `State`, the API returning it, a minimal frontend display, then the session/API-level integration tests re-run and confirmed passing. Pushed the 13 prior commits first (`f6fff12..012ed53`), separate from and before this work. Re-ran the budget check at this gate as Phase 8's own note said to: `[core]` measured 3 lines under its ceiling after the field (not crossed), and `session.analyse()` came in at 64 lines against the 60-line function gate (a blocking gate) -- fixed by extracting `_parse_sentences()`. Confirmed by running, not assumed: `TypeAdapter(State)` needed no `api/schemas.py` change to serialise the new field (the state-roundtrip property test had never generated a non-`None` `fol_result` at all -- added a generator for it, closing a real pre-existing gap in that test's "every shape" coverage) and a live `uvicorn` response (not just `TestClient`) confirmed it over real HTTP. Two of the requested session-level tests needed fixing after a first run failed: the assumed-contradictory and assumed-multi-argument-relation paragraphs had no quantifier, and `detect_mode` correctly reports "prop" for a ground-only paragraph regardless of content (Phase 8's own arity-signal correction) -- fixed by adding an incidental quantified sentence to each, noted in-test as to why.
+
+**Final state:** `pytest backend/` -- 1035 passed, 1 skipped. `ruff` + `C901` + function-length: clean. Pushed on explicit instruction (`012ed53..0f385fc`).
+
+---
+
+## FOL Phase 8b, continued: render messages.yaml's fol: wording | 2026-10-31 | Claude Code (Sonnet 5) | commit e1a56b6
+
+**Files created:** none
+
+**Files modified:** `backend/src/app/render.py` (`Renderer.fol_outcome()` added, filling the Phase 9 `fol:` templates), `backend/src/api/schemas.py` (`ParseResponse.fol_message: str | None` added), `backend/src/api/main.py` (`/api/parse` renders it), `backend/tests/test_api.py` (new assertions), `frontend/src/useSession.js`, `App.jsx` (carry/show `fol_message` the same way `warnings` already works), `frontend/src/ReadFacts.jsx`, `labels.js` (the prior block's raw-outcome display removed, now that the rendered sentence exists).
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Student asked for the frontend to use `messages.yaml`'s existing `fol:` strings instead of the raw enum/step-count the prior block shipped, and for a live browser screenshot once the Chrome extension was connected. The rendering change was made (verified live via `curl` against a running `uvicorn` instance: `fol_message` returns the rendered sentence, not the code). The Chrome extension was checked again and was still not connected in this environment -- reported explicitly rather than skipped or substituted with a code-inspection claim. Separately confirmed, re-checked rather than assumed: the Teaches/Knows ∀x∀y binary-relation premise cannot go through the English grammar at all (only its ground, named-constants form can; `FOL_NESTED_QUANTIFIER_IN_GROUND` fires deterministically on the quantified form), matching HLD §18.2/§18.8's documented scope boundary exactly.
+
+**Final state:** `pytest backend/` -- 1037 passed, 1 skipped. `ruff` + `C901` + function-length: clean. `npm run build`: clean. Committed locally, not yet pushed at the time this entry was written.

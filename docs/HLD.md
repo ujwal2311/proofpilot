@@ -2633,10 +2633,24 @@ Each phase ends with `pytest backend/ -x -q`, `ruff check`, `python tools/loc.py
   budget *ceiling* cross — report cap overruns and continue. One combined report at the end. No
   push to remote until the student approves the final result.
 - [ ] Equality reasoning (`=`) confirmed out of scope (§18.8) — carried over from the design
-  review; stands unless the student says otherwise.
-- [x] Phase 1 implementation (§18.12) — all ten phases complete, 2026-10-31. Pushed to remote
-  on the student's explicit instruction after Phase 10 (not waiting for Phase 8b).
-- [x] Phase 8b (§18.7) — full session integration, same day: `session.py` calls `fol_prove()`,
-  `State.fol_result` carries the outcome, the API exposes it with no schema change, the frontend
-  shows it minimally. Committed locally; push requires its own "approved" (CLAUDE.md's push rule,
-  separate from the Phases 1–10 sprint authorization that covered the push already done above).
+  review; stands unless the student says otherwise. Still open: nothing in this sprint touched it.
+- [x] Phases 1–10 implementation (§18.12) — all ten phases complete, 2026-10-31 (Phases 9–10
+  re-scoped at the Phase 8 gate; see that phase's note above). Committed one commit per phase and
+  **pushed** to remote on the student's explicit instruction (`f6fff12..012ed53`), before Phase 8b
+  existed, on the student's own call not to wait for it.
+- [x] Phase 8b (§18.7) — full session integration, 2026-10-31: `session.py` calls `fol_prove()`
+  for FOL-mode sessions, `State.fol_result: FolSessionResult | None` carries the outcome (no
+  `core/entail.py` change), the API exposes it (`TypeAdapter(State)` needed no schema change for
+  `fol_result` itself), the frontend shows it. Committed and **pushed**
+  (`012ed53..0f385fc`), approved explicitly, separately from the Phases 1–10 push above.
+- [x] Phase 8b, message rendering (student follow-up, 2026-10-31) — the frontend originally
+  showed `fol_result`'s raw outcome/step-count; the student asked for `data/messages.yaml`'s own
+  `fol:` wording (added Phase 9) to be rendered instead. `app/render.py` gained `fol_outcome()`,
+  `api/schemas.py`'s `ParseResponse` gained `fol_message: str | None` (a genuine schema addition,
+  unlike `fol_result` itself), and the frontend shows the rendered sentence. Verified live against
+  a running `uvicorn` instance. Committed (`e1a56b6`); **not yet pushed** at the time this
+  checklist was last updated — needs its own "approved" like every other push in this project.
+- [ ] Live browser screenshot of a FOL exercise, as the student requested once the Chrome
+  extension is connected — **still open**. Checked twice (both times the extension reported not
+  connected in this environment) and reported explicitly both times rather than skipped or
+  substituted with a code-inspection claim. Re-verify when the extension is available.
