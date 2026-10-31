@@ -170,6 +170,11 @@ def test_parse_renders_a_warning_through_messages_yaml(client) -> None:
     assert body["warnings"], "a conclusion naming an unseen fact must warn"
     # Rendered, not raw: the client receives a sentence, never a code with a colon in it.
     assert "CONCLUSION_FACT_UNSEEN" not in body["warnings"][0]
+    # Regression: facts.py's warning detail used to carry its own "appears in no premise" suffix,
+    # which the {phrase} template slot already says in different words ("which no premise does"),
+    # so the rendered sentence read as two concatenated templates -- "the bus is late appears in
+    # no premise, which no premise does". One mention only, now.
+    assert body["warnings"][0].count("no premise") == 1
 
 
 def test_parse_applies_merges_and_never_infers_them(client) -> None:

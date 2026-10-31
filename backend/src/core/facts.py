@@ -228,7 +228,7 @@ def extract(phrases, conclusion=(), merges=(), enforce_limit: bool = False) -> E
         if p.text not in set(phrases) and symbol_of[p.id] not in from_paragraph:
             # A warning, never an error: usually a typo, but also exactly what a
             # "does not follow" exercise looks like (HLD v2.7 A6).
-            warnings.append(f"CONCLUSION_FACT_UNSEEN: {p.text!r} appears in no premise")
+            warnings.append(f"CONCLUSION_FACT_UNSEEN: {p.text!r}")
 
     if len(facts) > MAX_FACTS:
         if enforce_limit:

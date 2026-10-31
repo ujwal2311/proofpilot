@@ -387,6 +387,16 @@ def test_conclusion_fact_absent_from_the_paragraph_warns_by_name() -> None:
     assert len(result.facts) == 2, "the fact is still extracted -- the warning does not drop it"
 
 
+def test_conclusion_fact_unseen_detail_carries_only_the_phrase() -> None:
+    # Regression: the detail used to be "'we are late' appears in no premise", which duplicated
+    # data/messages.yaml's CONCLUSION_FACT_UNSEEN template -- that template already says "which
+    # no premise does", so the rendered sentence concatenated the two. The detail after the code
+    # and ": " must be nothing but the repr'd phrase.
+    result = extract(["the bus comes"], conclusion=["we are late"])
+    (warning,) = result.warnings
+    assert warning == "CONCLUSION_FACT_UNSEEN: 'we are late'"
+
+
 def test_conclusion_reusing_a_paragraph_fact_does_not_warn() -> None:
     assert extract(["we walk"], conclusion=["we walk"]).warnings == ()
     # And a stem-equivalent restatement counts as seen, since it is the same fact.
