@@ -142,11 +142,14 @@ def test_no_core_module_normalizes_text_itself() -> None:
                   `.strip()` with no argument -- tidying whitespace
       allowed     `.strip("~")` and friends WITH an argument -- removing a known logic marker
 
-    Named exceptions, so adding a fourth is a decision rather than a habit:
+    Named exceptions, so adding one is a decision rather than a habit:
       `english.py` owns normalization · `facts.py` lowercases a phrase for its canonical key ·
-      `logic.py` upper-cases a propositional SYMBOL, which is its documented job.
+      `logic.py` upper-cases a propositional SYMBOL, which is its documented job ·
+      `fol_english.py` (HLD section 18.2, FOL sprint Phase 6) is english.py's FOL counterpart --
+      a second, independent grammar reusing english.py's Unicode folding but needing its own
+      `.lower()` for its own tokenizer, exactly english.py's role for the FOL pipeline.
     """
-    allowed = {"english.py", "facts.py", "logic.py"}
+    allowed = {"english.py", "facts.py", "logic.py", "fol_english.py"}
     folding = ("lower", "casefold")
     stripping = ("strip", "lstrip", "rstrip")
     offenders = {}
