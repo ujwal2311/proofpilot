@@ -2472,15 +2472,22 @@ assignment at all). Stop-and-ask at the gate, student's call:
   for `ForAll`/`Exists` -- a quantifier word is unambiguous (it is exactly what
   `QUANTIFIER_UNSUPPORTED` already refuses, so its presence can never legitimately mean
   "propositional") -- and every HLD section 18.9 worked example that needs FOL mode has one.
-- **Phase 8b (separate gate, not yet scheduled): full session integration.** `session.py`
-  actually calling `fol_prove()` for FOL-mode sessions, and a result type for `State` that carries
-  `FolProofOutcome` without retrofitting it into `Entailment`/`Verdict`. The shape to use when
-  that gate opens: a new OPTIONAL field on `State`, e.g. `fol_result: FolSessionResult | None`,
-  where `FolSessionResult` is its own small type owned by `core_fol` (not `core/entail.py`) --
-  keeps the type boundary clean and keeps as much of the new surface as possible inside
-  `core_fol`'s own budget rather than `core`'s. **Re-run the budget check when this gate opens --
-  do not assume this entry's headroom numbers still apply.** No `NextRequest.mode` API field and
-  no `fol_prove()` call exist until this gate is explicitly opened by the student.
+- **Phase 8b (done, 2026-10-31, same day the student opened the gate): full session
+  integration.** `session.py`'s `analyse()` now calls `fol_prove()` for FOL-mode sessions, via a
+  new `_fol_attempt()` helper. `State` gained exactly the agreed shape: `fol_result:
+  FolSessionResult | None`, with `FolSessionResult` (outcome + step count only, no clause/`Term`
+  trace -- that needs a renderer, which is its own scope) owned by `core_fol`'s `fol_search.py`,
+  not `core/entail.py`. Re-running the budget check at this gate (as this entry said to) found
+  `[core]` a few lines under its ceiling after the field -- not crossed; see `budgets.toml` for
+  the live numbers, not restated here -- and `session.analyse()` over the 60-line function gate
+  at 64, fixed by extracting
+  `_parse_sentences()` (blocking gate, not a reported cap). **No `NextRequest.mode` API field was
+  needed**: `api/schemas.py`'s `TypeAdapter(State)` already serialises any new core dataclass
+  field generically, confirmed by exercising `FolSessionResult`/`FolProofOutcome` through the
+  state-roundtrip property test and a live `/api/parse` call. The frontend shows the raw
+  `fol_result.outcome`/`step_count` in `ReadFacts.jsx`, the same convention a sentence's raw
+  `error_code` already uses -- a code, not invented prose; the `fol:` wording in
+  `data/messages.yaml` (§18.6.4) stays unconsumed, a later polish pass.
 
 ### 18.8 Out of scope within FOL (document so it is not silently missing)
 
@@ -2604,7 +2611,10 @@ wiring this gate explicitly deferred. Phase 9 ships only the `fol:` wording in `
 pipeline-level: real English paragraphs through `fol_english.parse()` → `fol_cnf.to_fol_clauses()`
 → `fol_search.fol_prove()`, end to end -- proving the FOL engine built in Phases 1–7 actually
 works from text, which is real integration coverage Phase 7's tests (hand-built `FolFormula`
-trees, not parsed text) did not give. Not wired into `State`/the API; that is Phase 8b's gate.
+trees, not parsed text) did not give. At the time this note was written, wiring into `State`/the
+API was deferred to Phase 8b -- that gate has since been opened and closed (§18.7); the
+session/API-level equivalents of these same tests (Socrates, a ground Teaches/Knows analogue,
+unrelated predicates, contradictory facts) live in `test_tutor.py` and `test_api.py`.
 
 Each phase ends with `pytest backend/ -x -q`, `ruff check`, `python tools/loc.py`, a gate report
 (≤15 lines), and a local commit — no push until the student says "approved" for that specific gate
@@ -2624,4 +2634,9 @@ Each phase ends with `pytest backend/ -x -q`, `ruff check`, `python tools/loc.py
   push to remote until the student approves the final result.
 - [ ] Equality reasoning (`=`) confirmed out of scope (§18.8) — carried over from the design
   review; stands unless the student says otherwise.
-- [ ] Phase 1 implementation (§18.12) — starts only once both gates above are approved.
+- [x] Phase 1 implementation (§18.12) — all ten phases complete, 2026-10-31. Pushed to remote
+  on the student's explicit instruction after Phase 10 (not waiting for Phase 8b).
+- [x] Phase 8b (§18.7) — full session integration, same day: `session.py` calls `fol_prove()`,
+  `State.fol_result` carries the outcome, the API exposes it with no schema change, the frontend
+  shows it minimally. Committed locally; push requires its own "approved" (CLAUDE.md's push rule,
+  separate from the Phases 1–10 sprint authorization that covered the push already done above).
