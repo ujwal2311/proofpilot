@@ -23,6 +23,7 @@ from src.core.cnf import conversion_steps, goal_clauses, premise_clauses
 from src.core.english import ErrorCode, Not, ParseError, parse_sentence, phrases_of, prepare
 from src.core.entail import Entailment, Verdict, check
 from src.core.facts import extract
+from src.core.fol_english import detect_mode
 from src.core.logic import Clause, canonical
 from src.core.models import ClauseRec, Fact, MergeChoice, SentenceRec, Skill, State, Translation
 from src.core.relevance import Relevance, filter_clauses
@@ -49,6 +50,10 @@ class Analysis:
     # of invariant that breaks silently. A clause two sentences both produce keeps the FIRST.
     source_of: dict[Clause, str] = field(default_factory=dict)
     conversions: dict[str, tuple] = field(default_factory=dict)  # str -> tuple[ConversionStep, ...]
+    # "fol" if any sentence needs FOL mode, else "prop" (HLD S18.7, Phase 8 scope). Informational
+    # only -- nothing below reads this yet; the pipeline keeps running entail()+search()
+    # unconditionally until the separately-gated Phase 8b wires fol_prove() in.
+    logic_mode: str = "prop"
 
 
 def _one(conclusion: str) -> list[str]:
@@ -75,7 +80,9 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
     # The conclusion goes through the SAME splitter as the paragraph. Passing it raw left its
     # trailing full stop attached, so "we get wet." and "we get wet" became two different facts
     # and the rain example stopped entailing -- a silent wrong answer, not a crash.
-    for index, text in enumerate([*prepare(paragraph), *_one(conclusion)], start=1):
+    sentence_texts = [*prepare(paragraph), *_one(conclusion)]
+    logic_mode = detect_mode(sentence_texts)
+    for index, text in enumerate(sentence_texts, start=1):
         try:
             trees.append(parse_sentence(text))
             records.append(SentenceRec(f"s{index}", text, "ok"))
@@ -85,7 +92,7 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
 
     if trees[-1] is None:
         # Nothing to decide the paragraph against, and inventing a verdict would be a guess.
-        return Analysis(tuple(records), (), (), (), None, None, ())
+        return Analysis(tuple(records), (), (), (), None, None, (), logic_mode=logic_mode)
 
     premises = [tree for tree in trees[:-1] if tree is not None]
     found = extract(
@@ -138,6 +145,7 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
         found.warnings + entailment.warnings,
         source_of,
         conversions,
+        logic_mode,
     )
 
 

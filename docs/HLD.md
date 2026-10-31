@@ -2441,16 +2441,46 @@ fol:
     is trivially valid but the premises cannot all be true together.
 ```
 
-### 18.7 Mode selection — wiring into `session.py` / `tutor.py`
+### 18.7 Mode selection — revised at the Phase 8 budget gate, 2026-10-31
 
-`is_fol_formula(f)` is true if the formula contains any `ForAll`, `Exists`, or a `Predicate` with
-`args` non-empty. Parse attempt tries `fol_english.parse()` first (if the paragraph contains
-quantifier keywords); falls back to `english.parse()`. Either producing a quantified formula or an
-arity>0 predicate selects FOL mode. Mode is stored on `State.mode: Literal["prop", "fol"]` (new
-field). `POST /api/next`'s `NextRequest` gets one new optional field: `mode: Literal["prop",
-"fol"] | None = None` (`None` = auto-detect). `session.py` gains `_detect_mode(sentences)`, called
-at parse time; everything else in `session.py` stays unchanged. FOL exercises go through
-`fol_prove()` instead of `entail()` + `distance()`.
+**Superseded.** This section originally said mode is "stored on `State.mode: Literal['prop',
+'fol']` (new field)" and that FOL exercises "go through `fol_prove()` instead of `entail()` +
+`distance()`". Neither survived contact with the actual budget: `State.mode` already means
+`"practice" | "own_question"` (core/models.py), a name collision the original design text missed
+entirely, and `[core]` had 5 lines of ceiling headroom left when Phase 8 started -- not enough to
+add a field safely even under a different name. Worse than the name clash: `State.entailment`
+holds an `Entailment` (`core/entail.py`) whose `Verdict` has exactly `ENTAILED` / `NOT_ENTAILED` /
+`INCONSISTENT_PREMISES` and a `counterexample: dict[str, bool]` boolean assignment -- a shape
+`FolSearchResult`'s `PROVED` / `BUDGET_EXHAUSTED` / `INCONSISTENT` genuinely does not fit (no
+boolean-assignment counterexample exists for `BUDGET_EXHAUSTED`, and a FOL model isn't a boolean
+assignment at all). Stop-and-ask at the gate, student's call:
+
+- **Phase 8 (this gate): detection only.** `is_fol_formula(f)` / `is_fol_sentence(text)` /
+  `detect_mode(sentences)` live in `core/fol_english.py` -- inside `core_fol`'s own budget, not
+  `core`'s. `session.py`'s `analyse()` calls `detect_mode()` and records the result on `Analysis`
+  (a `session.py`-local dataclass, `core_session` bucket, not `State`), purely informational.
+  **The pipeline itself is unchanged**: every exercise, FOL-flavoured or not, still runs
+  `entail()` + `search()`. A FOL sentence reaching that pipeline is refused per-sentence by
+  `english.py`'s existing `QUANTIFIER_UNSUPPORTED` check, exactly as before this sprint -- that is
+  not a regression, it is the honest "not wired up yet" state, named rather than hidden.
+  **One more correction, found while implementing `is_fol_formula`:** this section's "quantified
+  formula OR an arity>0 predicate selects FOL mode" is only half right. An arity>0 GROUND
+  predicate with no quantifier is not a reliable signal -- "Alice likes Bob" parses by the exact
+  same NAME-verb-NAME pattern as the ordinary propositional sentence "We get wet", and section
+  18.2's grammar deliberately never uses capitalization to tell a name from an ordinary word, so
+  there is no way to tell the two apart without guessing. `is_fol_formula` therefore checks only
+  for `ForAll`/`Exists` -- a quantifier word is unambiguous (it is exactly what
+  `QUANTIFIER_UNSUPPORTED` already refuses, so its presence can never legitimately mean
+  "propositional") -- and every HLD section 18.9 worked example that needs FOL mode has one.
+- **Phase 8b (separate gate, not yet scheduled): full session integration.** `session.py`
+  actually calling `fol_prove()` for FOL-mode sessions, and a result type for `State` that carries
+  `FolProofOutcome` without retrofitting it into `Entailment`/`Verdict`. The shape to use when
+  that gate opens: a new OPTIONAL field on `State`, e.g. `fol_result: FolSessionResult | None`,
+  where `FolSessionResult` is its own small type owned by `core_fol` (not `core/entail.py`) --
+  keeps the type boundary clean and keeps as much of the new surface as possible inside
+  `core_fol`'s own budget rather than `core`'s. **Re-run the budget check when this gate opens --
+  do not assume this entry's headroom numbers still apply.** No `NextRequest.mode` API field and
+  no `fol_prove()` call exist until this gate is explicitly opened by the student.
 
 ### 18.8 Out of scope within FOL (document so it is not silently missing)
 

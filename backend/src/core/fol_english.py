@@ -51,8 +51,10 @@ from src.core.fol_models import (
     Exists,
     FolAnd,
     FolFormula,
+    FolIff,
     FolImplies,
     FolNot,
+    FolOr,
     ForAll,
     Predicate,
     Variable,
@@ -327,3 +329,52 @@ def parse(sentence: str, registry: Registry | None = None) -> FolFormula:
     if tokens[0] == "if":
         return _parse_if(tokens[1:], registry, sentence)
     return _parse_ground(tokens, registry, sentence)
+
+
+# --------------------------------------------------------------------------------- mode detection
+
+
+def is_fol_formula(f: FolFormula) -> bool:
+    """True if `f` contains any ForAll/Exists -- the only FOL signal this grammar can give
+    without guessing.
+
+    HLD section 18.7 originally also triggered on any Predicate with one or more arguments
+    ("Alice likes Bob" alone, no quantifier). Implementing that revealed it is not a reliable
+    signal at all: "We get wet" parses, by the exact same ground-relational pattern, into the
+    equally well-formed Get(we, wet) -- this grammar deliberately parses by sentence POSITION,
+    never by capitalization (section 18.2's own choice, to avoid guessing from a signal that
+    does not reliably distinguish a name from an ordinary word). An arity>0 predicate is
+    therefore just as likely to be an ordinary propositional sentence as a FOL one, and nothing
+    in HLD section 18.9's worked examples needs it: every one that requires FOL mode has a
+    quantifier in at least one premise. A quantifier word, by contrast, is unambiguous -- it is
+    also exactly what core.english's QUANTIFIER_UNSUPPORTED refuses, so its presence can never
+    legitimately mean "propositional"."""
+    match f:
+        case Predicate():
+            return False
+        case FolNot(body):
+            return is_fol_formula(body)
+        case FolAnd(items) | FolOr(items):
+            return any(is_fol_formula(item) for item in items)
+        case FolImplies(antecedent, consequent) | FolIff(antecedent, consequent):
+            return is_fol_formula(antecedent) or is_fol_formula(consequent)
+        case ForAll() | Exists():
+            return True
+    raise TypeError(f"not a FOL formula node: {f!r}")
+
+
+def is_fol_sentence(sentence: str) -> bool:
+    """True if `sentence` would need FOL mode. A sentence this grammar cannot parse at all is
+    NOT a FOL signal -- it is core.english's problem to refuse or accept, same as today."""
+    try:
+        formula = parse(sentence)
+    except FolParseError:
+        return False
+    return is_fol_formula(formula)
+
+
+def detect_mode(sentences: list[str]) -> str:
+    """ "fol" if any sentence needs FOL mode, else "prop" (HLD section 18.7, Phase 8 scope: this
+    function exists and is callable; `session.py`'s pipeline does not yet act on its result --
+    see HLD section 18.7's Phase 8b note for the deferred, separately-gated remainder)."""
+    return "fol" if any(is_fol_sentence(s) for s in sentences) else "prop"

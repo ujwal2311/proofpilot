@@ -7,7 +7,7 @@ like "Every human likes every dog" from silently becoming one bogus CamelCased p
 """
 
 import pytest
-from src.core.fol_english import FolErrorCode, FolParseError, parse
+from src.core.fol_english import FolErrorCode, FolParseError, detect_mode, is_fol_formula, parse
 from src.core.fol_models import (
     Constant,
     Exists,
@@ -224,3 +224,52 @@ def test_individual_names_are_lowercased() -> None:
     result = parse("Socrates is a human")
     (arg,) = result.args
     assert arg == Constant("socrates")
+
+
+# -------------------------------------------------------------------------------- mode detection
+
+
+def test_is_fol_formula_true_for_a_quantifier() -> None:
+    assert is_fol_formula(parse("Every human is mortal")) is True
+
+
+def test_is_fol_formula_false_for_a_ground_unary_predicate() -> None:
+    # A ground fact with no quantifier is not a reliable FOL signal (see is_fol_formula's own
+    # docstring): "Socrates is a human" and an ordinary propositional sentence are equally
+    # plausible readings of the same ground-predicate shape, without a quantifier to disambiguate.
+    assert is_fol_formula(parse("Socrates is a human")) is False
+
+
+def test_is_fol_formula_false_for_a_ground_binary_relation() -> None:
+    # "Alice likes Bob" parses the identical way "We get wet" does (NAME verb NAME) -- neither
+    # can be told apart from the other without guessing from capitalization, which this grammar
+    # deliberately never does (section 18.2).
+    assert is_fol_formula(parse("Alice likes Bob")) is False
+
+
+def test_is_fol_formula_false_for_a_zero_arity_predicate() -> None:
+    assert is_fol_formula(Predicate("Raining", ())) is False
+
+
+def test_is_fol_formula_true_for_a_quantifier_nested_under_connectives() -> None:
+    nested = FolAnd((Predicate("P", ()), ForAll(Variable("x"), Predicate("Q", (Variable("x"),)))))
+    assert is_fol_formula(nested) is True
+
+
+def test_detect_mode_is_fol_if_any_sentence_has_a_quantifier() -> None:
+    assert detect_mode(["It rains.", "Every human is mortal."]) == "fol"
+
+
+def test_detect_mode_is_prop_for_ground_relational_sentences_with_no_quantifier() -> None:
+    # The case Phase 8 found during implementation: "We get wet" parses as the equally valid
+    # Get(we, wet), so an arity-based signal would have flagged this paragraph "fol" too.
+    assert detect_mode(["It rains.", "We get wet."]) == "prop"
+
+
+def test_detect_mode_is_prop_for_an_ordinary_ground_fact_paragraph() -> None:
+    assert detect_mode(["Alice likes Bob.", "Socrates is a human."]) == "prop"
+
+
+def test_detect_mode_prop_for_a_sentence_that_fails_to_parse_at_all() -> None:
+    # A parse failure is core.english's problem to refuse, not a FOL signal (module docstring).
+    assert detect_mode(["Colorless green ideas sleep furiously today somehow."]) == "prop"

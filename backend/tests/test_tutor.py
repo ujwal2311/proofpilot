@@ -153,6 +153,23 @@ def test_a_conclusion_that_fails_to_parse_is_reported_without_an_entailment() ->
     assert found.entailment is None and found.relevance is None
 
 
+def test_logic_mode_is_fol_when_any_sentence_needs_it() -> None:
+    # HLD S18.7, Phase 8 scope: detected and recorded, but the pipeline above still ran the
+    # unchanged propositional path -- QUANTIFIER_UNSUPPORTED above is proof it is not acted on.
+    found = session.analyse("It rains. Every student passes. We get wet.", RAIN_GOAL)
+    assert found.logic_mode == "fol"
+
+
+def test_logic_mode_is_fol_even_when_only_the_conclusion_needs_it() -> None:
+    found = session.analyse(RAIN, "Every student passes.")
+    assert found.logic_mode == "fol"
+
+
+def test_logic_mode_is_prop_for_an_ordinary_paragraph() -> None:
+    found = session.analyse(RAIN, RAIN_GOAL)
+    assert found.logic_mode == "prop"
+
+
 def test_inconsistent_premises_halt_before_relevance() -> None:
     # Scenario (g), and the reason section 7 fixes the order: with a contradiction the refutation
     # can live entirely in the unreachable component, so filtering could delete the only proof.
