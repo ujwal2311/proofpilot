@@ -108,3 +108,11 @@ MAX_CLAUSE_LITERALS = 6
 # Generous relative to the bounded grammar (MAX_SENTENCE_WORDS, MAX_SENTENCES), provisional until
 # the FOL grammar and held-out paragraphs give a real worst case to measure against.
 MAX_FOL_CLAUSES = 500
+
+# FOL resolution search budget (HLD section 18.6), the Work allowance fol_prove spends one unit
+# per GENERATED resolvent, same accounting style as MAX_SEARCH_WORK above. DESIGN DECISION, not a
+# measurement: no FOL exercises have run yet. Set well below MAX_SEARCH_WORK because FOL's
+# per-round algorithm re-examines every clause pair each level rather than only new-vs-old pairs
+# (core.fol_search's own simplicity choice, documented there) -- a few thousand covers the
+# hand-worked examples (HLD section 18.9) many times over while still bounding a runaway input.
+MAX_FOL_SEARCH_WORK = 3_000
