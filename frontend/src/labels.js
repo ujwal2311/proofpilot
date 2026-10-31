@@ -10,14 +10,14 @@
 // does not belong here.
 export const UI = {
   title: "ProofPilot",
-  subtitle: "step-level feedback for propositional logic",
+  subtitle: "step-level feedback for propositional logic — plus a first-order verdict for quantified arguments",
 
   stages: { facts: "Read & Facts", translate: "Translate", prove: "Prove", explain: "Explanation" },
 
   // Start screen
   startHeading: "Prove something",
   startSub:
-    "Read an argument, check the facts it found, then build the proof yourself — ProofPilot tells you exactly where a step goes wrong instead of just marking it wrong.",
+    "Read an argument, check the facts it found, then build the proof yourself — ProofPilot tells you exactly where a step goes wrong instead of just marking it wrong. An argument using a quantifier (\"every\", \"some\", \"no\") is checked directly by first-order resolution and shown a verdict instead.",
   practiceTitle: "Practice",
   practiceBody: "A ready-made argument from the exercise bank. Good for a first look.",
   practiceButton: "Start practising",
