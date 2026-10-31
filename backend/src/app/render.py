@@ -17,6 +17,7 @@ working and not. `app.data.load_messages` checks the whole table at startup so i
 from dataclasses import dataclass
 
 from src.core.entail import Entailment, Verdict
+from src.core.fol_search import FolSessionResult
 from src.core.logic import Clause, Diagnosis, canonical
 from src.core.models import ClauseRec, Fact, Skill, State
 from src.core.tutor import Hint
@@ -77,6 +78,14 @@ class Renderer:
 
     def error(self, code: str, sentence: str = "") -> str:
         return self.text["error"][code].format(sentence=sentence)
+
+    def fol_outcome(self, result: FolSessionResult) -> str:
+        """What to say about a FOL-mode session's result (HLD S18.6.4, S18.7 Phase 8b).
+
+        `budget_exhausted`/`inconsistent` ignore `{steps}` -- their templates do not use it --
+        the same way `claim`/`error` ignore values their own templates have no placeholder for.
+        """
+        return self.text["fol"][result.outcome.value].format(steps=result.step_count)
 
     def warning(self, raw: str) -> str:
         """Core emits `CODE: detail`; the code selects the wording and the detail fills it."""

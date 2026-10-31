@@ -37,9 +37,6 @@ export const UI = {
   sentencesHeading: "The paragraph",
   conclusionHeading: "The claimed conclusion",
   factsHeading: "Facts the system extracted",
-  // HLD S18.7 Phase 8b, minimal: a label only, same as factsHeading above -- the value next to
-  // it is a raw code (state.fol_result.outcome), not a sentence this file would be inventing.
-  folResultLabel: "First-order logic result:",
   factsHelp: "Check these before you prove anything. Every phrase grouped under one letter is being treated as the same fact.",
   mergeSame: "Same fact",
   mergeOpposite: "Opposites",

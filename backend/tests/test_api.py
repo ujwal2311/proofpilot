@@ -113,8 +113,8 @@ def test_parse_keeps_a_refused_sentence_with_its_code(client) -> None:
 
 def test_parse_carries_a_fol_result_through_the_wire(client) -> None:
     # HLD S18.7 Phase 8b, through the real API -- not calling fol_prove() or session.analyse()
-    # directly. TypeAdapter(State) picks up State.fol_result automatically; no schema change in
-    # api/schemas.py was needed for this to appear in the response.
+    # directly. TypeAdapter(State) picks up State.fol_result automatically -- no schema change
+    # was needed for THAT to appear in the response, only for the rendered `fol_message` below.
     body = client.post(
         "/api/parse",
         json={
@@ -126,6 +126,29 @@ def test_parse_carries_a_fol_result_through_the_wire(client) -> None:
     assert fol_result is not None
     assert fol_result["outcome"] == "proved"
     assert isinstance(fol_result["step_count"], int)
+
+
+def test_parse_fol_message_is_rendered_from_messages_yaml_not_the_raw_code(client) -> None:
+    body = client.post(
+        "/api/parse",
+        json={
+            "paragraph": "Every human is mortal. Socrates is a human.",
+            "conclusion": "Socrates is mortal.",
+        },
+    ).json()
+    # The rendered sentence, same wording data/messages.yaml's fol.proved template carries --
+    # not the raw "proved" code a client would otherwise have to translate itself.
+    assert "Valid" in body["fol_message"]
+    assert "step" in body["fol_message"]
+    assert "proved" not in body["fol_message"]
+
+
+def test_parse_fol_message_is_null_when_fol_result_is_null(client) -> None:
+    body = client.post(
+        "/api/parse",
+        json={"paragraph": "If it rains then we get wet. It rains.", "conclusion": "We get wet."},
+    ).json()
+    assert body["fol_message"] is None
 
 
 def test_parse_fol_result_is_null_for_an_ordinary_session(client) -> None:

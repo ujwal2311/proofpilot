@@ -224,6 +224,9 @@ class ParseResponse(_Body):
     state: dict
     warnings: list[str] = []
     error: str | None = None
+    # Rendered from data/messages.yaml's `fol:` section (HLD S18.6.4, S18.7 Phase 8b) -- None
+    # unless `state.fol_result` is set, same shape as `warnings` above.
+    fol_message: str | None = None
 
 
 class ActResponse(_Body):

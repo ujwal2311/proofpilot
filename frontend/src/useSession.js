@@ -21,6 +21,7 @@ export function useSession() {
   const [done, setDone] = useState(false);
   const [started, setStarted] = useState(false); // has the student chosen practice or own-question yet
   const [warnings, setWarnings] = useState([]);
+  const [folMessage, setFolMessage] = useState(null); // rendered text, or null (HLD S18.7 Phase 8b)
   const [clauseEnglish, setClauseEnglish] = useState({}); // {clause id: rendered phrase text}
 
   const run = useCallback(async (work, { keepFeedback = false } = {}) => {
@@ -70,6 +71,7 @@ export function useSession() {
         setStarted(true);
         const answer = await api.parse(paragraph, conclusion, merges);
         setWarnings(answer.warnings ?? []);
+        setFolMessage(answer.fol_message ?? null);
         setClauseEnglish(answer.clause_english ?? {});
         return keep(answer.state);
       }),
@@ -114,6 +116,7 @@ export function useSession() {
     setState(null);
     setFeedback(null);
     setWarnings([]);
+    setFolMessage(null);
     setClauseEnglish({});
     setStarted(false);
   }, []);
@@ -126,6 +129,7 @@ export function useSession() {
     done,
     started,
     warnings,
+    folMessage,
     clauseEnglish,
     nextExercise,
     parse,

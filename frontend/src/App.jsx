@@ -27,6 +27,7 @@ export default function App() {
     done,
     started,
     warnings,
+    folMessage,
     clauseEnglish,
     nextExercise,
     parse,
@@ -130,6 +131,7 @@ export default function App() {
           ))}
         </ul>
       ) : null}
+      {folMessage ? <p className="fol-result">{folMessage}</p> : null}
       <Feedback feedback={feedback} problem={problem} />
 
       {showEditableFacts ? (

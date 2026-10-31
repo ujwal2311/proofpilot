@@ -225,6 +225,7 @@ def parse(body: ParseRequest, request: Request) -> dict:
         "state": dumped,
         "clause_english": clause_english_map(fresh),
         "warnings": [say.warning(raw) for raw in found.warnings],
+        "fol_message": say.fol_outcome(fresh.fol_result) if fresh.fol_result else None,
         "error": None,
     }
 
