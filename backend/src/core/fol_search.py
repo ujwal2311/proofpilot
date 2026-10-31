@@ -53,6 +53,25 @@ class FolSearchResult:
     clauses: frozenset[FolClause]
 
 
+@dataclass(frozen=True)
+class FolSessionResult:
+    """What a FOL-mode session shows the student (HLD section 18.7, Phase 8b).
+
+    Deliberately NOT the full clause trace: `FolSearchResult.clauses`/`proof_steps` hold
+    `FolClause`/`Term` objects, which have no renderer yet (building one is its own scope, not a
+    two-line add). `step_count` is enough to say "found in N steps" without one. Frozen and
+    JSON-plain (an enum and an int) so it can sit on `State` and cross the API via the same
+    `TypeAdapter(State)` every other core dataclass already does, no schema of its own required.
+    """
+
+    outcome: FolProofOutcome
+    step_count: int
+
+    @staticmethod
+    def of(result: FolSearchResult) -> "FolSessionResult":
+        return FolSessionResult(result.outcome, len(result.proof_steps))
+
+
 def _clausify_all(premises: list[FolFormula], conclusion: FolFormula) -> frozenset[FolClause]:
     """Clausify every premise and the negated conclusion SEPARATELY, then standardize apart ONCE
     over their union -- see core.fol_cnf.to_fol_clauses's own docstring for why running

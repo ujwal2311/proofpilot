@@ -23,7 +23,9 @@ from src.core.cnf import conversion_steps, goal_clauses, premise_clauses
 from src.core.english import ErrorCode, Not, ParseError, parse_sentence, phrases_of, prepare
 from src.core.entail import Entailment, Verdict, check
 from src.core.facts import extract
-from src.core.fol_english import detect_mode
+from src.core.fol_english import FolParseError, detect_mode
+from src.core.fol_english import parse as fol_parse
+from src.core.fol_search import FolSessionResult, fol_prove
 from src.core.logic import Clause, canonical
 from src.core.models import ClauseRec, Fact, MergeChoice, SentenceRec, Skill, State, Translation
 from src.core.relevance import Relevance, filter_clauses
@@ -50,10 +52,30 @@ class Analysis:
     # of invariant that breaks silently. A clause two sentences both produce keeps the FIRST.
     source_of: dict[Clause, str] = field(default_factory=dict)
     conversions: dict[str, tuple] = field(default_factory=dict)  # str -> tuple[ConversionStep, ...]
-    # "fol" if any sentence needs FOL mode, else "prop" (HLD S18.7, Phase 8 scope). Informational
-    # only -- nothing below reads this yet; the pipeline keeps running entail()+search()
-    # unconditionally until the separately-gated Phase 8b wires fol_prove() in.
+    # "fol" if any sentence needs FOL mode, else "prop" (HLD S18.7). The propositional pipeline
+    # above runs unconditionally either way -- a FOL sentence still shows QUANTIFIER_UNSUPPORTED
+    # on its SentenceRec, exactly as before Phase 8b; `fol_result` below is the separate FOL
+    # verdict, computed independently of whether the propositional parse succeeded.
     logic_mode: str = "prop"
+    fol_result: FolSessionResult | None = None
+
+
+def _fol_attempt(premise_texts: list[str], conclusion_text: str) -> FolSessionResult | None:
+    """Run the FOL pipeline end to end on this paragraph, or None if any sentence does not parse
+    under the FOL grammar (HLD section 18.7, Phase 8b). A parse failure here is reported as "no
+    FOL result" -- never a crash, and never a guessed verdict (CLAUDE.md principle 2).
+
+    One registry shared across every sentence, exactly as a real paragraph needs (section 18.2's
+    cross-sentence contract) -- a fresh one per call, since this runs once per `analyse()` call
+    and nothing persists a registry across paragraphs.
+    """
+    registry: dict = {}
+    try:
+        premises = [fol_parse(text, registry) for text in premise_texts]
+        goal = fol_parse(conclusion_text, registry)
+    except FolParseError:
+        return None
+    return FolSessionResult.of(fol_prove(premises, goal))
 
 
 def _one(conclusion: str) -> list[str]:
@@ -68,20 +90,11 @@ def _one(conclusion: str) -> list[str]:
     return found
 
 
-def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = ()) -> Analysis:
-    """Run the section 7 ordering once. The conclusion is the LAST sentence record.
-
-    A sentence that fails to parse is kept with its error code rather than dropped, so the Read
-    screen can show which sentence was refused and why -- and the others still parse. A paragraph
-    is a list of attempts, not a transaction.
-    """
+def _parse_sentences(sentence_texts: list[str]) -> tuple[list[SentenceRec], list[object]]:
+    """Parse every sentence, keeping a refused one with its error code rather than dropping it --
+    the Read screen shows which sentence failed and why, and the others still parse."""
     records: list[SentenceRec] = []
     trees: list[object] = []
-    # The conclusion goes through the SAME splitter as the paragraph. Passing it raw left its
-    # trailing full stop attached, so "we get wet." and "we get wet" became two different facts
-    # and the rain example stopped entailing -- a silent wrong answer, not a crash.
-    sentence_texts = [*prepare(paragraph), *_one(conclusion)]
-    logic_mode = detect_mode(sentence_texts)
     for index, text in enumerate(sentence_texts, start=1):
         try:
             trees.append(parse_sentence(text))
@@ -89,10 +102,32 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
         except ParseError as refused:
             trees.append(None)
             records.append(SentenceRec(f"s{index}", text, "error", refused.code.value))
+    return records, trees
+
+
+def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = ()) -> Analysis:
+    """Run the section 7 ordering once. The conclusion is the LAST sentence record.
+
+    A sentence that fails to parse is kept with its error code rather than dropped, so the Read
+    screen can show which sentence was refused and why -- and the others still parse. A paragraph
+    is a list of attempts, not a transaction.
+    """
+    # The conclusion goes through the SAME splitter as the paragraph. Passing it raw left its
+    # trailing full stop attached, so "we get wet." and "we get wet" became two different facts
+    # and the rain example stopped entailing -- a silent wrong answer, not a crash.
+    sentence_texts = [*prepare(paragraph), *_one(conclusion)]
+    logic_mode = detect_mode(sentence_texts)
+    fol_result = (
+        _fol_attempt(sentence_texts[:-1], sentence_texts[-1]) if logic_mode == "fol" else None
+    )
+    records, trees = _parse_sentences(sentence_texts)
 
     if trees[-1] is None:
-        # Nothing to decide the paragraph against, and inventing a verdict would be a guess.
-        return Analysis(tuple(records), (), (), (), None, None, (), logic_mode=logic_mode)
+        # Nothing to decide the PROPOSITIONAL pipeline against -- but fol_result above was
+        # computed independently, so a FOL verdict can still exist here.
+        return Analysis(
+            tuple(records), (), (), (), None, None, (), logic_mode=logic_mode, fol_result=fol_result
+        )
 
     premises = [tree for tree in trees[:-1] if tree is not None]
     found = extract(
@@ -146,6 +181,7 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
         source_of,
         conversions,
         logic_mode,
+        fol_result,
     )
 
 
@@ -210,6 +246,7 @@ def state_of(
         # edge (v2.11). An earlier version kept a `_STATUS` table here to do it.
         entailment=found.entailment,
         conversions=found.conversions,
+        fol_result=found.fol_result,
     )
 
 

@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from src.core.entail import Entailment
+from src.core.fol_search import FolSessionResult
 
 
 class Skill(Enum):
@@ -170,3 +171,6 @@ class State:
     # sentence, not clause: one sentence's conversion can produce several clauses that all share
     # the same trace. Absent (or empty) for a sentence whose conversion needed no law at all.
     conversions: dict[str, tuple[ConversionStep, ...]] = field(default_factory=dict)
+    # HLD S18.7 Phase 8b. Owned by core_fol (FolSessionResult lives in fol_search.py), not a
+    # second Verdict -- PROVED/BUDGET_EXHAUSTED/INCONSISTENT do not fit Entailment's shape.
+    fol_result: FolSessionResult | None = None

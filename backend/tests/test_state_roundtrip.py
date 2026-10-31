@@ -25,6 +25,7 @@ import pytest
 from src.api.schemas import STATE, dump_state, load_state
 from src.core import config
 from src.core.entail import Entailment, Verdict
+from src.core.fol_search import FolProofOutcome, FolSessionResult
 from src.core.models import ClauseRec, Fact, MergeChoice, SentenceRec, Skill, State, Translation
 
 CASES = 200
@@ -70,6 +71,13 @@ def _entailment(rng: random.Random) -> Entailment | None:
     return Entailment(verdict, row, warnings)
 
 
+def _fol_result(rng: random.Random) -> FolSessionResult | None:
+    """None most of the time (propositional sessions), every FolProofOutcome the rest."""
+    if rng.random() < 0.7:
+        return None
+    return FolSessionResult(rng.choice(list(FolProofOutcome)), rng.randint(0, 20))
+
+
 def random_state(rng: random.Random) -> State:
     """A session of a randomly chosen SHAPE -- not a realistic one, a structurally varied one.
 
@@ -108,6 +116,7 @@ def random_state(rng: random.Random) -> State:
         done_ids=tuple(f"ex-{rng.randint(1, 12):02d}" for _ in range(rng.randint(0, 4))),
         solved=rng.random() < 0.3,
         entailment=_entailment(rng),
+        fol_result=_fol_result(rng),
     )
 
 

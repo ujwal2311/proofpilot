@@ -111,6 +111,31 @@ def test_parse_keeps_a_refused_sentence_with_its_code(client) -> None:
     assert ("error", "QUANTIFIER_UNSUPPORTED") in statuses
 
 
+def test_parse_carries_a_fol_result_through_the_wire(client) -> None:
+    # HLD S18.7 Phase 8b, through the real API -- not calling fol_prove() or session.analyse()
+    # directly. TypeAdapter(State) picks up State.fol_result automatically; no schema change in
+    # api/schemas.py was needed for this to appear in the response.
+    body = client.post(
+        "/api/parse",
+        json={
+            "paragraph": "Every human is mortal. Socrates is a human.",
+            "conclusion": "Socrates is mortal.",
+        },
+    ).json()
+    fol_result = body["state"]["fol_result"]
+    assert fol_result is not None
+    assert fol_result["outcome"] == "proved"
+    assert isinstance(fol_result["step_count"], int)
+
+
+def test_parse_fol_result_is_null_for_an_ordinary_session(client) -> None:
+    body = client.post(
+        "/api/parse",
+        json={"paragraph": "If it rains then we get wet. It rains.", "conclusion": "We get wet."},
+    ).json()
+    assert body["state"]["fol_result"] is None
+
+
 def test_parse_renders_a_warning_through_messages_yaml(client) -> None:
     body = client.post(
         "/api/parse",

@@ -33,6 +33,7 @@ from src.app.data import load_policy
 from src.core import search, session, tutor
 from src.core.bkt import BktParams, is_done
 from src.core.entail import Entailment, Verdict
+from src.core.fol_search import FolProofOutcome
 from src.core.logic import Clause, Code, canonical
 from src.core.models import ClauseRec, Fact, MergeChoice, Skill, State, Translation
 
@@ -168,6 +169,70 @@ def test_logic_mode_is_fol_even_when_only_the_conclusion_needs_it() -> None:
 def test_logic_mode_is_prop_for_an_ordinary_paragraph() -> None:
     found = session.analyse(RAIN, RAIN_GOAL)
     assert found.logic_mode == "prop"
+
+
+# ==================================================== FOL Phase 8b: session.analyse() end to end
+
+
+def test_fol_result_is_proved_for_socrates_through_session_analyse() -> None:
+    # HLD S18.9 Test A, through the real session pipeline (not a direct fol_prove() call).
+    found = session.analyse("Every human is mortal. Socrates is a human.", "Socrates is mortal.")
+    assert found.logic_mode == "fol"
+    assert found.fol_result is not None
+    assert found.fol_result.outcome is FolProofOutcome.PROVED
+    # The propositional pipeline still ran unconditionally (Phase 8's own rule): "Every human is
+    # mortal" has no equivalent propositional reading and is refused under that grammar, exactly
+    # as before Phase 8b -- the FOL result exists ALONGSIDE that, not instead of it.
+    statuses = {rec.text: (rec.status, rec.error_code) for rec in found.sentences}
+    assert statuses["Every human is mortal"] == ("error", "QUANTIFIER_UNSUPPORTED")
+
+
+def test_fol_result_is_proved_for_a_ground_multi_argument_relation_through_session() -> None:
+    # The grammar cannot express the UNIVERSALLY-quantified Teaches/Knows premise from HLD S18.9
+    # Test E as English text (multiply-quantified binary relations are out of scope, confirmed in
+    # test_fol_integration.py); this is its ground analogue. "Every human is mortal" is included
+    # purely so `detect_mode` sees a quantifier at all -- is_fol_formula deliberately does not
+    # treat an arity>0 ground predicate alone as a FOL signal (HLD S18.7's own correction) -- and
+    # is irrelevant to, but does not block, deriving Bob knows Alice.
+    found = session.analyse(
+        "Every human is mortal. Alice teaches Bob. If Alice teaches Bob then Bob knows Alice.",
+        "Bob knows Alice.",
+    )
+    assert found.logic_mode == "fol"
+    assert found.fol_result is not None
+    assert found.fol_result.outcome is FolProofOutcome.PROVED
+
+
+def test_fol_result_is_budget_exhausted_for_unrelated_predicates_through_session() -> None:
+    found = session.analyse("Every bird flies.", "Every fish flies.")
+    assert found.fol_result is not None
+    assert found.fol_result.outcome is FolProofOutcome.BUDGET_EXHAUSTED
+
+
+def test_fol_result_is_inconsistent_through_session() -> None:
+    # A quantifier is needed for detect_mode to see "fol" at all (same reason as the test above);
+    # the actual contradiction is the two ground facts about Socrates, found at fol_prove's
+    # premises-alone phase before the quantified premise or the conclusion are even used.
+    found = session.analyse(
+        "Every human is mortal. Socrates is a human. Socrates is not a human.",
+        "Socrates is mortal.",
+    )
+    assert found.fol_result is not None
+    assert found.fol_result.outcome is FolProofOutcome.INCONSISTENT
+
+
+def test_fol_result_is_none_when_logic_mode_is_prop() -> None:
+    found = session.analyse(RAIN, RAIN_GOAL)
+    assert found.fol_result is None
+
+
+def test_fol_result_survives_state_of() -> None:
+    # The field session.analyse() computes must actually reach the State a client receives.
+    paragraph, conclusion = "Every human is mortal. Socrates is a human.", "Socrates is mortal."
+    found = session.analyse(paragraph, conclusion)
+    state = session.state_of(found, paragraph=paragraph, conclusion=conclusion)
+    assert state.fol_result is not None
+    assert state.fol_result.outcome is FolProofOutcome.PROVED
 
 
 def test_inconsistent_premises_halt_before_relevance() -> None:
