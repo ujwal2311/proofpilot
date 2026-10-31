@@ -2592,9 +2592,19 @@ Phase 5:  fol_resolve.py + tests         resolution with unification
 Phase 6:  fol_english.py + tests         grammar (may run in parallel with Phases 2–5)
 Phase 7:  fol_search.py + tests          BFS, all outcomes incl. NOT_ENTAILED/BUDGET_EXHAUSTED
 Phase 8:  session.py wiring              mode detection, minimal additions
-Phase 9:  API + frontend                 expose mode, banner, messages.yaml
-Phase 10: full integration tests         Socrates, Teaches/Knows, BUDGET_EXHAUSTED distinction
+Phase 9:  messages.yaml only              fol: wording, unconsumed until Phase 8b
+Phase 10: pipeline-level integration     English text through fol_prove(), not through State/API
 ```
+
+**Phases 9 and 10 re-scoped at the same Phase 8 gate, for the same reason (§18.7).** The original
+text had Phase 9 expose `mode` over the API and add a frontend banner, and Phase 10 run
+"full integration tests" through the student-facing session -- both assume the Phase 8b session
+wiring this gate explicitly deferred. Phase 9 ships only the `fol:` wording in `messages.yaml`
+(data, unconsumed, reviewable ahead of the wiring that will need it). Phase 10 becomes
+pipeline-level: real English paragraphs through `fol_english.parse()` → `fol_cnf.to_fol_clauses()`
+→ `fol_search.fol_prove()`, end to end -- proving the FOL engine built in Phases 1–7 actually
+works from text, which is real integration coverage Phase 7's tests (hand-built `FolFormula`
+trees, not parsed text) did not give. Not wired into `State`/the API; that is Phase 8b's gate.
 
 Each phase ends with `pytest backend/ -x -q`, `ruff check`, `python tools/loc.py`, a gate report
 (≤15 lines), and a local commit — no push until the student says "approved" for that specific gate

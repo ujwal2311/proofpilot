@@ -147,3 +147,19 @@ api:
   BAD_DATA_FILE: "The server's own data files are invalid, so it refused to answer. This needs fixing by the team."
   INTERNAL_ERROR: "Something went wrong on the server. Nothing you did caused it, and nothing was saved."
   NOT_IMPLEMENTED: "That part of ProofPilot is not built yet."
+
+# ------------------------------------------------- FOL outcomes (HLD section 18.6.4, Phase 8b)
+# NOT consumed by any code path yet -- session.py never calls fol_prove() until the Phase 8b
+# gate opens (HLD section 18.7). Written now, alongside the FolProofOutcome values it will one
+# day render, so the wording exists and is reviewable before the wiring that needs it, rather
+# than invented under a later gate's time pressure. {steps} is filled by the edge.
+fol:
+  proved: "Valid -- the empty clause was derived in {steps} step(s)."
+  budget_exhausted: >
+    No proof was found within the search budget. This does NOT mean the argument is invalid --
+    first-order logic is only semi-decidable, so a valid argument may require more steps than the
+    system's budget allows. Try simplifying your premises.
+  inconsistent: >
+    The premises alone are contradictory (the empty clause was derived from the premises before
+    the conclusion was even used). This means the argument is trivially valid but the premises
+    cannot all be true together.
