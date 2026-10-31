@@ -34,6 +34,12 @@ export const UI = {
   back: "← Back",
 
   // Read & Facts
+  // HLD S18.7 Phase 8b: the propositional grammar (below) and the FOL grammar (the verdict
+  // banner above this screen) are two INDEPENDENT readings of the same paragraph -- a sentence
+  // can fail one and pass the other. Without this line, "Every human is mortal" tagged
+  // QUANTIFIER_UNSUPPORTED right under a "Valid" FOL verdict reads as a contradiction.
+  folModeNote:
+    "This argument is being read as first-order logic; the list below is the simpler propositional reading, and its unsupported-quantifier notices don't apply to the proof above.",
   sentencesHeading: "The paragraph",
   conclusionHeading: "The claimed conclusion",
   factsHeading: "Facts the system extracted",

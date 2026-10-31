@@ -247,6 +247,7 @@ def state_of(
         entailment=found.entailment,
         conversions=found.conversions,
         fol_result=found.fol_result,
+        logic_mode=found.logic_mode,
     )
 
 

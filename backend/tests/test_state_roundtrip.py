@@ -117,6 +117,7 @@ def random_state(rng: random.Random) -> State:
         solved=rng.random() < 0.3,
         entailment=_entailment(rng),
         fol_result=_fol_result(rng),
+        logic_mode=rng.choice(("prop", "fol")),
     )
 
 

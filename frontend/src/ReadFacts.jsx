@@ -34,6 +34,7 @@ export function ReadFacts({ state, pending, onMerge, onConfirm, readOnly = false
 
   return (
     <section>
+      {state.logic_mode === "fol" ? <p className="fol-mode-note">{UI.folModeNote}</p> : null}
       <h2>{UI.sentencesHeading}</h2>
       <ol className="sentences">
         {state.sentences.slice(0, -1).map((sentence) => (

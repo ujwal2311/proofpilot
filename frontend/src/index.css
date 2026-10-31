@@ -389,6 +389,12 @@ main > section h2:first-child {
   border-radius: 4px;
 }
 
+.fol-mode-note {
+  font-style: italic;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
 .facts {
   list-style: none;
   padding: 0;

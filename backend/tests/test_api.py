@@ -128,6 +128,20 @@ def test_parse_carries_a_fol_result_through_the_wire(client) -> None:
     assert isinstance(fol_result["step_count"], int)
 
 
+def test_parse_carries_logic_mode_through_the_wire(client) -> None:
+    # Regression: logic_mode lived only on Analysis (session.py-local) and never reached State,
+    # so state.logic_mode was always undefined on the client -- the ReadFacts.jsx framing note
+    # that depends on it could never have shown. Confirmed over the real API, not session.analyse().
+    body = client.post(
+        "/api/parse",
+        json={
+            "paragraph": "Every human is mortal. Socrates is a human.",
+            "conclusion": "Socrates is mortal.",
+        },
+    ).json()
+    assert body["state"]["logic_mode"] == "fol"
+
+
 def test_parse_fol_message_is_rendered_from_messages_yaml_not_the_raw_code(client) -> None:
     body = client.post(
         "/api/parse",

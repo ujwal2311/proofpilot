@@ -174,3 +174,7 @@ class State:
     # HLD S18.7 Phase 8b. Owned by core_fol (FolSessionResult lives in fol_search.py), not a
     # second Verdict -- PROVED/BUDGET_EXHAUSTED/INCONSISTENT do not fit Entailment's shape.
     fol_result: FolSessionResult | None = None
+    # "fol" | "prop" (HLD S18.7). The client's only way to know the sentences below were read by
+    # a DIFFERENT grammar than fol_result was proved against -- without it, a QUANTIFIER_UNSUPPORTED
+    # tag next to a PROVED verdict reads as a contradiction instead of two independent readings.
+    logic_mode: str = "prop"

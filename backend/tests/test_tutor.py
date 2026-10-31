@@ -235,6 +235,17 @@ def test_fol_result_survives_state_of() -> None:
     assert state.fol_result.outcome is FolProofOutcome.PROVED
 
 
+def test_logic_mode_survives_state_of() -> None:
+    # Regression: logic_mode lived only on Analysis (session.py-local) through Phase 8 and the
+    # first Phase 8b block -- State never carried it, so a frontend reading state.logic_mode
+    # always saw undefined. The FOL-mode framing note in ReadFacts.jsx depends on this field
+    # actually reaching State, not just Analysis.
+    paragraph, conclusion = "Every human is mortal. Socrates is a human.", "Socrates is mortal."
+    found = session.analyse(paragraph, conclusion)
+    state = session.state_of(found, paragraph=paragraph, conclusion=conclusion)
+    assert state.logic_mode == "fol"
+
+
 def test_inconsistent_premises_halt_before_relevance() -> None:
     # Scenario (g), and the reason section 7 fixes the order: with a contradiction the refutation
     # can live entirely in the unreachable component, so filtering could delete the only proof.

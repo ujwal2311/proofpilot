@@ -101,6 +101,7 @@ def test_state_matches_the_hld_data_model() -> None:
         "entailment",
         "conversions",
         "fol_result",
+        "logic_mode",
     }
 
 
