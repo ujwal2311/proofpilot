@@ -2632,8 +2632,8 @@ Each phase ends with `pytest backend/ -x -q`, `ruff check`, `python tools/loc.py
   each phase, STOP only for an unrooted test failure, a design ambiguity §18 doesn't answer, or a
   budget *ceiling* cross — report cap overruns and continue. One combined report at the end. No
   push to remote until the student approves the final result.
-- [ ] Equality reasoning (`=`) confirmed out of scope (§18.8) — carried over from the design
-  review; stands unless the student says otherwise. Still open: nothing in this sprint touched it.
+- [x] Equality reasoning (`=`) confirmed out of scope (§18.8) — carried over from the design
+  review; student confirmed explicitly, 2026-10-31: stays out of scope, no change needed.
 - [x] Phases 1–10 implementation (§18.12) — all ten phases complete, 2026-10-31 (Phases 9–10
   re-scoped at the Phase 8 gate; see that phase's note above). Committed one commit per phase and
   **pushed** to remote on the student's explicit instruction (`f6fff12..012ed53`), before Phase 8b
