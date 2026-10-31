@@ -99,3 +99,12 @@ RANDOM_SEED = 20261012
 # refusing a body built to make the server do unbounded work.
 MAX_BOARD_CLAUSES = 20
 MAX_CLAUSE_LITERALS = 6
+
+# FOL CNF distribution guard (HLD section 18.3 step 6, 18.11.2). DESIGN DECISION, not a
+# measurement: no empirical run exists yet, because the FOL grammar (core.fol_english) has not
+# been built. Unlike the propositional grammar -- flat, so CNF is bounded at 25 clauses -- a FOL
+# formula can nest quantifiers deeply enough that distribute_and_over_or blows up exponentially,
+# so the bound exists to fail loudly and fast rather than let one paragraph hang a request.
+# Generous relative to the bounded grammar (MAX_SENTENCE_WORDS, MAX_SENTENCES), provisional until
+# the FOL grammar and held-out paragraphs give a real worst case to measure against.
+MAX_FOL_CLAUSES = 500

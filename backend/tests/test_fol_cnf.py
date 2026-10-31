@@ -9,7 +9,18 @@ examples the design review already hand-verified -- re-deriving new ones risks t
 different (and possibly also wrong) expectation than the one that was checked.
 """
 
-from src.core.fol_cnf import eliminate_iff_implies, push_negation_inward, standardize_variables
+import pytest
+from src.core.fol_cnf import (
+    distribute_and_over_or,
+    drop_universal_quantifiers,
+    eliminate_iff_implies,
+    flatten_to_clauses,
+    push_negation_inward,
+    skolemize,
+    standardize_apart_clauses,
+    standardize_variables,
+    to_fol_clauses,
+)
 from src.core.fol_models import (
     Constant,
     Exists,
@@ -19,6 +30,7 @@ from src.core.fol_models import (
     FolNot,
     FolOr,
     ForAll,
+    FunctionTerm,
     Predicate,
     Variable,
 )
@@ -161,3 +173,174 @@ def test_standardize_preserves_a_constant_argument_unchanged() -> None:
     f = ForAll(x, FolImplies(Predicate("Human", (x,)), Predicate("Mortal", (x,))))
     result = standardize_variables(FolAnd((f, Predicate("Human", (socrates,)))))
     assert Predicate("Human", (socrates,)) in result.items
+
+
+# -------------------------------------------------------------------------------- step 4: skolemize
+
+
+def test_exists_with_no_enclosing_forall_becomes_a_skolem_constant() -> None:
+    # HLD section 18.3 required test 1: Exists(y, P(y)) -> P[y -> c_sk0].
+    assert skolemize(Exists(y, P(y))) == P(Constant("sk_c0"))
+
+
+def test_exists_under_one_forall_becomes_a_function_of_it() -> None:
+    # HLD section 18.3 required test 2: forall x exists y R(x,y) -> forall x R(x, sk_f0(x)).
+    r_xy = Predicate("R", (x, y))
+    expected = ForAll(x, Predicate("R", (x, FunctionTerm("sk_f0", (x,)))))
+    assert skolemize(ForAll(x, Exists(y, r_xy))) == expected
+
+
+def test_exists_under_two_foralls_is_a_function_of_both() -> None:
+    # HLD section 18.3 required test 3: forall x forall z exists y R(x,z,y) -> sk_f0(x,z).
+    r_xzy = Predicate("R", (x, z, y))
+    f = ForAll(x, ForAll(z, Exists(y, r_xzy)))
+    expected = ForAll(x, ForAll(z, Predicate("R", (x, z, FunctionTerm("sk_f0", (x, z))))))
+    assert skolemize(f) == expected
+
+
+def test_skolemize_increments_the_counter_across_several_existentials() -> None:
+    f = FolAnd((Exists(x, P(x)), Exists(y, Q(y))))
+    result = skolemize(f)
+    assert result == FolAnd((P(Constant("sk_c0")), Q(Constant("sk_c1"))))
+
+
+def test_skolemize_is_idempotent_on_a_formula_with_no_exists() -> None:
+    f = ForAll(x, P(x))
+    assert skolemize(f) == f
+
+
+# ------------------------------------------------------------- step 5: drop_universal_quantifiers
+
+
+def test_drop_strips_a_single_forall() -> None:
+    assert drop_universal_quantifiers(ForAll(x, P(x))) == P(x)
+
+
+def test_drop_strips_nested_foralls() -> None:
+    assert drop_universal_quantifiers(ForAll(x, ForAll(y, Predicate("R", (x, y))))) == Predicate(
+        "R", (x, y)
+    )
+
+
+def test_drop_recurses_through_connectives_around_quantifiers() -> None:
+    f = FolAnd((ForAll(x, P(x)), ForAll(y, Q(y))))
+    assert drop_universal_quantifiers(f) == FolAnd((P(x), Q(y)))
+
+
+def test_drop_leaves_a_bare_predicate_unchanged() -> None:
+    assert drop_universal_quantifiers(P(x)) == P(x)
+
+
+# ----------------------------------------------------------------- step 6: distribute_and_over_or
+
+
+def test_distribute_pushes_or_under_and() -> None:
+    # (P & Q) | R  ->  (R | P) & (R | Q) -- same construction order core.cnf.distribute() uses:
+    # the non-And branch (`rest`) comes first because it is what the loop already had in hand.
+    f = FolOr((FolAnd((P(x), Q(x))), Predicate("R", (x,))))
+    r = Predicate("R", (x,))
+    assert distribute_and_over_or(f) == FolAnd((FolOr((r, P(x))), FolOr((r, Q(x)))))
+
+
+def test_distribute_leaves_an_already_flat_disjunction_unchanged() -> None:
+    f = FolOr((P(x), Q(x)))
+    assert distribute_and_over_or(f) == f
+
+
+def test_distribute_raises_over_the_clause_explosion_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    import src.core.fol_cnf as fol_cnf
+
+    monkeypatch.setattr(fol_cnf, "MAX_FOL_CLAUSES", 2)
+    f = FolOr((FolAnd((P(x), Q(x), Predicate("R", (x,)))), Predicate("S", (x,))))
+    with pytest.raises(fol_cnf.FolCNFExplosionError):
+        distribute_and_over_or(f)
+
+
+# --------------------------------------------------------------------- step 7: flatten_to_clauses
+
+
+def test_flatten_splits_a_conjunction_into_one_clause_per_disjunction() -> None:
+    f = FolAnd((FolOr((P(x), Q(x))), Predicate("R", (x,))))
+    clauses = flatten_to_clauses(f)
+    assert frozenset({(True, P(x)), (True, Q(x))}) in clauses
+    assert frozenset({(True, Predicate("R", (x,)))}) in clauses
+    assert len(clauses) == 2
+
+
+def test_flatten_a_bare_negated_predicate_is_one_unit_clause() -> None:
+    clauses = flatten_to_clauses(FolNot(P(x)))
+    assert clauses == frozenset({frozenset({(False, P(x))})})
+
+
+def test_flatten_rejects_a_node_that_is_not_a_literal() -> None:
+    with pytest.raises(TypeError):
+        flatten_to_clauses(FolOr((ForAll(x, P(x)), Q(x))))
+
+
+# ------------------------------------------------------------- step 8: standardize_apart_clauses
+
+
+def test_standardize_apart_gives_two_clauses_sharing_a_name_distinct_suffixes() -> None:
+    # HLD section 18.3 step 8's own example: {(True, P(x))} and {(False, P(x))} must end up with
+    # DIFFERENT renamings of x, even though each clause only ever saw one name.
+    clause_a = frozenset({(True, P(x))})
+    clause_b = frozenset({(False, P(x))})
+    result = standardize_apart_clauses(frozenset({clause_a, clause_b}))
+    assert len(result) == 2
+    renamed_vars = {term.name for clause in result for _, pred in clause for term in pred.args}
+    assert len(renamed_vars) == 2, f"expected two distinct renamings of x, got {renamed_vars}"
+
+
+def test_standardize_apart_keeps_a_ground_clause_unchanged() -> None:
+    ground = frozenset({(True, Predicate("Teaches", (Constant("alice"), Constant("bob"))))})
+    assert standardize_apart_clauses(frozenset({ground})) == frozenset({ground})
+
+
+def test_standardize_apart_renames_both_variables_in_one_clause_consistently() -> None:
+    # A single clause with two literals sharing a variable must keep sharing it after renaming --
+    # only the NAME changes, not whether two occurrences are the same variable.
+    shared = frozenset({(True, P(x)), (False, Q(x))})
+    (result,) = standardize_apart_clauses(frozenset({shared}))
+    names = {term.name for _, pred in result for term in pred.args}
+    assert len(names) == 1
+
+
+def test_standardize_apart_is_deterministic_across_repeated_calls() -> None:
+    clauses = frozenset({frozenset({(True, P(x))}), frozenset({(False, Predicate("Q", (y,)))})})
+    assert standardize_apart_clauses(clauses) == standardize_apart_clauses(clauses)
+
+
+# --------------------------------------------------------------------------- to_fol_clauses
+
+
+def test_to_fol_clauses_socrates_premise() -> None:
+    # HLD section 18.9 Test A: forall x (Human(x) -> Mortal(x)) clausifies to
+    # {~Human(x), Mortal(x)}.
+    human, mortal = Predicate("Human", (x,)), Predicate("Mortal", (x,))
+    f = ForAll(x, FolImplies(human, mortal))
+    (clause,) = to_fol_clauses(f)
+    literals = {(polarity, pred.name) for polarity, pred in clause}
+    assert literals == {(False, "Human"), (True, "Mortal")}
+
+
+def test_to_fol_clauses_ground_fact_is_a_unit_clause() -> None:
+    fact = Predicate("Human", (Constant("socrates"),))
+    assert to_fol_clauses(fact) == frozenset({frozenset({(True, fact)})})
+
+
+def test_to_fol_clauses_does_not_standardize_apart() -> None:
+    # Deliberately NOT globally unique yet -- that is fol_prove's job (HLD section 18.6 step 3),
+    # run once over every premise's clauses combined, not once per premise here. The variable
+    # is standardize_variables' plain "v0", never standardize_apart_clauses' "c0_v0".
+    f = ForAll(x, P(x))
+    (clause,) = to_fol_clauses(f)
+    ((_, pred),) = clause
+    assert pred.args == (Variable("v0"),)
+
+
+def test_to_fol_clauses_existential_produces_a_skolem_constant() -> None:
+    (clause,) = to_fol_clauses(Exists(x, P(x)))
+    ((polarity, pred),) = clause
+    assert polarity is True
+    assert isinstance(pred.args[0], Constant)
+    assert pred.args[0].name.startswith("sk_c")
