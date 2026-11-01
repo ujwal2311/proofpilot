@@ -14,6 +14,7 @@ from src.core.fol_models import (
     FolAnd,
     FolImplies,
     FolNot,
+    FolOr,
     ForAll,
     Predicate,
     Variable,
@@ -117,6 +118,75 @@ def test_name_is_a_y() -> None:
 
 def test_name_is_not_a_y() -> None:
     assert parse("Tweety is not a penguin") == FolNot(Predicate("Penguin", (Constant("tweety"),)))
+
+
+# -------------------------------------------------- bare intransitive ground predicate (2026-11-02,
+# -------------------------------------------------- student-authorized grammar extension, exact scope)
+
+
+def test_name_bare_verb_is_a_unary_predicate() -> None:
+    # "NAME VERBs" with no "is" and no object -- same shape as "NAME is a Y", just without the
+    # copula. Needed for paragraphs like "Ravi studies" (CAT-2 worked example, 2026-11-02).
+    assert parse("Ravi studies") == Predicate("Studies", (Constant("ravi"),))
+
+
+def test_name_bare_verb_negation_stays_out_of_scope() -> None:
+    # "not" is a reserved structural word (section 18.2's own guard) -- "Ravi does not study" is
+    # refused rather than silently read as a two-argument relation to a constant named "not".
+    # Explicitly out of scope: the authorization was for the positive bare-verb form only.
+    with pytest.raises(FolParseError) as excinfo:
+        parse("Ravi does not study")
+    assert excinfo.value.code is FolErrorCode.FOL_UNKNOWN_PATTERN
+
+
+# ------------------------------------------------------------ ground disjunction (2026-11-02, same
+# ------------------------------------------------------------ student-authorized extension)
+
+
+def test_ground_or_between_two_ground_sentences() -> None:
+    result = parse("Ravi studies or Ravi is lucky")
+    assert result == FolOr(
+        (
+            Predicate("Studies", (Constant("ravi"),)),
+            Predicate("Lucky", (Constant("ravi"),)),
+        )
+    )
+
+
+def test_ground_or_composes_with_the_existing_and_pattern_on_either_side() -> None:
+    # "A and B" on the left of "or" still parses via the existing relational-and pattern --
+    # the "or" split is a thin wrapper, not a second grammar.
+    result = parse("Alice likes Bob and Carol or Dave is happy")
+    likes = FolAnd(
+        (
+            Predicate("Likes", (Constant("alice"), Constant("bob"))),
+            Predicate("Likes", (Constant("alice"), Constant("carol"))),
+        )
+    )
+    assert result == FolOr((likes, Predicate("Happy", (Constant("dave"),))))
+
+
+def test_ground_or_twice_is_refused_as_ambiguous() -> None:
+    # No precedence guessed between two "or"s, same discipline as the propositional grammar's
+    # own refusal of a mixed/repeated connective in one clause.
+    with pytest.raises(FolParseError) as excinfo:
+        parse("Ravi studies or Ravi is lucky or Ravi is rich")
+    assert excinfo.value.code is FolErrorCode.FOL_UNKNOWN_PATTERN
+
+
+def test_ground_or_is_not_a_fol_mode_signal_on_its_own() -> None:
+    # Two ground facts joined by "or" still have no quantifier -- HLD S18.7's own rule (an
+    # arity>0 ground predicate alone never selects FOL mode) extends unchanged to FolOr.
+    assert is_fol_formula(parse("Ravi studies or Ravi is lucky")) is False
+
+
+def test_ground_or_shares_the_registry_across_both_sides() -> None:
+    # The cross-sentence checks (here, FOL_AMBIGUOUS_INDIVIDUAL) must see both sides of the "or",
+    # not just one -- same registry, one parse call. "studies" is a predicate on the left and a
+    # constant on the right: the same written word used both ways, section 18.2's own trigger.
+    with pytest.raises(FolParseError) as excinfo:
+        parse("Ravi studies or Studies is a person")
+    assert excinfo.value.code is FolErrorCode.FOL_AMBIGUOUS_INDIVIDUAL
 
 
 # ----------------------------------------------------------------------------------- wh-patterns

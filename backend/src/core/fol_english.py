@@ -6,10 +6,13 @@ named code and no attempt to guess a meaning. No NLP library: pure token scan, s
 the propositional grammar, reusing its Unicode normalization (not its AST -- Predicate has typed
 term arguments where Atom has a raw phrase, so the two type unions stay separate per HLD S18.1).
 
-SUPPORTED PATTERNS (HLD section 18.2.2):
+SUPPORTED PATTERNS (HLD section 18.2.2; the two "2026-11-02" rows are a student-authorized
+extension, same bounded-grammar discipline, scoped to exactly these two forms):
   Quantified : "Every X is a Y" / "Every X is not a Y" / "Some X is a Y" / "No X is a Y" /
                "All X that Y are Z"
-  Ground     : "NAME Rs NAME" / "NAME Rs NAME and NAME" / "NAME is a Y" / "NAME is not a Y"
+  Ground     : "NAME Rs NAME" / "NAME Rs NAME and NAME" / "NAME is a Y" / "NAME is not a Y" /
+               "NAME VERBs" (bare intransitive, no object, 2026-11-02) /
+               "A or B" where A, B are each a ground pattern above (2026-11-02)
   Wh         : "If X is a Y then X is a Z" / "If NAME Rs NAME then NAME Rs NAME"
 
 GRAMMAR LIMITATIONS, stated rather than hidden (HLD section 18.2's own out-of-scope note, plus
@@ -27,6 +30,13 @@ two more this implementation adds explicitly):
     example; disambiguating it from a copula without guessing would need more grammar than the
     bounded design budgets for.
   - Equality ("equals", "is the same as") is refused by name (FOL_UNSUPPORTED_ARITY), never parsed.
+  - The bare-intransitive ground form ("Ravi studies") has no negation -- "Ravi does not study"
+    is refused ("not" is reserved), same as "is"/"is not" being the only negation this grammar
+    ever parses. The 2026-11-02 authorization was for the positive form only.
+  - "A or B" accepts at most ONE "or" per ground sentence -- a second one is refused rather than
+    guessing a precedence between them, the same discipline core.english's `_junction` already
+    applies to a mixed "and"/"or". Only ground sentences may appear on either side; a quantified
+    clause joined by "or" is out of scope (never requested, never implemented).
   - Every name/predicate/relation slot is checked against the reserved-word list below (added
     during implementation, not in the original design note): without it, a malformed sentence
     like "Every human likes every dog" would silently CamelCase "likes every dog" into one bogus
@@ -84,7 +94,7 @@ class FolParseError(Exception):
 
 _QUANTIFIERS = ("every", "all", "some", "no")
 _RESERVED = frozenset(
-    {"every", "all", "some", "no", "and", "that", "if", "then", "is", "not", "a", "an", "are"}
+    {"every", "all", "some", "no", "and", "or", "that", "if", "then", "is", "not", "a", "an", "are"}
 )
 _EQUALITY_MARKERS = (("equals",), ("is", "the", "same", "as"))
 
@@ -230,6 +240,17 @@ def _parse_quantified(tokens: list[str], registry: Registry, sentence: str) -> F
 
 
 def _parse_ground(tokens: list[str], registry: Registry, sentence: str) -> FolFormula:
+    """ "NAME is a Y" / "NAME is not a Y" / "NAME Rs NAME(s)" / "NAME VERBs" (bare intransitive,
+    2026-11-02) / "A or B" where A and B are each one of the above (2026-11-02) -- a thin split,
+    not a second grammar: each side is just this same function called again.
+    """
+    if tokens.count("or") > 1:
+        raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
+    if "or" in tokens:
+        split = tokens.index("or")
+        left = _parse_ground(tokens[:split], registry, sentence)
+        right = _parse_ground(tokens[split + 1 :], registry, sentence)
+        return FolOr((left, right))
     if len(tokens) < 2:
         raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
     c1 = _constant(tokens[0], registry, sentence)
@@ -240,6 +261,8 @@ def _parse_ground(tokens: list[str], registry: Registry, sentence: str) -> FolFo
             raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
         pred = _predicate(pred_words, (c1,), registry, sentence)
         return FolNot(pred) if negated else pred
+    if len(rest) == 1:
+        return _predicate(rest, (c1,), registry, sentence)
     return _parse_relation(c1, rest, registry, sentence)
 
 

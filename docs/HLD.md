@@ -2235,6 +2235,8 @@ regex + token scan.
 | `"NAME Rs NAME and NAME"` | `FolAnd(R(c1, c2), R(c1, c3))` | "Alice likes Bob and Carol" |
 | `"NAME is a Y"` | `Y(name)` | "Socrates is a human" → `Human(socrates)` |
 | `"NAME is not a Y"` | `FolNot(Y(name))` | "Tweety is not a penguin" |
+| `"NAME VERBs"` (bare intransitive, no object; 2026-11-02) | `V(name)` | "Ravi studies" → `Studies(ravi)` — positive only, no negated form |
+| `"A or B"`, A and B each a ground pattern above (2026-11-02) | `FolOr(A, B)` | "Ravi studies or Ravi is lucky" → `FolOr(Studies(ravi), Lucky(ravi))` — at most one `or` per sentence, refused if more |
 
 **Wh-patterns** (for "for all" paraphrases):
 
