@@ -247,7 +247,8 @@ def required_messages() -> dict[str, set[str]]:
         "productivity": set(_VALID_SPLITS),
         "hint": {f"HINT_{n}" for n in (1, 2, 3)}
         | {f"HINT_NOT_FOLLOW_{n}" for n in (1, 2, 3)}
-        | {"HINT_FALLBACK", "HINT_UNAVAILABLE"},
+        | {f"HINT_FOL_FOLLOWS_{n}" for n in (1, 2, 3)}
+        | {"HINT_FALLBACK", "HINT_UNAVAILABLE", "HINT_FOL_UNKNOWN"},
         "claim": set(_CLAIM_OUTCOMES),
         "confirm": {"FACTS_CONFIRMED", "MERGE_RESET"},
         "error": {code.value for code in ErrorCode},

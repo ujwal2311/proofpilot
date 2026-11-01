@@ -178,6 +178,63 @@ def test_parse_fol_result_is_null_for_an_ordinary_session(client) -> None:
     assert body["state"]["fol_result"] is None
 
 
+def _fol_board(client, paragraph: str, conclusion: str) -> dict:
+    """A FOL-mode session's state, confirmed to the Prove stage -- the own-question analogue of
+    the `board` fixture, which only drives the practice bank."""
+    parsed = client.post("/api/parse", json={"paragraph": paragraph, "conclusion": conclusion})
+    state = parsed.json()["state"]
+    assert state["logic_mode"] == "fol", state
+    confirmed = client.post(ACT, json={"state": state, "action": {"type": "confirm_facts"}})
+    assert confirmed.status_code == 200, confirmed.json()
+    return confirmed.json()["state"]
+
+
+# ------------------------------------------------------------- FOL-aware hint/claim (follow-up to
+# ------------------------------------------------------------- the Facts-panel fix, 2026-11-01):
+# `claim_not_provable`/`hint` used to consult ONLY the propositional verdict, so an argument the
+# FOL engine proved valid could still have "does not follow" scored as CORRECT. Student-specified
+# mapping: PROVED/INCONSISTENT -> the claim is wrong (it follows); BUDGET_EXHAUSTED -> unscored,
+# never treated as evidence of non-entailment (HLD S18.11.1, semi-decidability).
+
+
+def test_claim_not_provable_is_rejected_for_a_proved_fol_argument(client) -> None:
+    # The propositional kb here is too sparse to entail the goal at all (the quantified premise
+    # contributes no clause), so a propositional-only check would have ACCEPTED "does not follow"
+    # -- wrong, since the FOL engine proved the argument valid.
+    state = _fol_board(client, "Every human is mortal. Socrates is a human.", "Socrates is mortal.")
+    claim = client.post(ACT, json={"state": state, "action": {"type": "claim_not_provable"}}).json()
+    assert claim["code"] == "CLAIM_REJECTED"
+    assert claim["extras"]["accepted"] is False
+
+
+def test_claim_not_provable_is_unscored_when_the_fol_budget_is_exhausted(client) -> None:
+    state = _fol_board(client, "Every bird flies. Tweety is a bird.", "Tweety is yellow.")
+    assert state["fol_result"]["outcome"] == "budget_exhausted"
+    claim = client.post(ACT, json={"state": state, "action": {"type": "claim_not_provable"}}).json()
+    assert claim["code"] == "CLAIM_UNKNOWN"
+    assert claim["extras"]["accepted"] is None
+    assert claim["state"]["mastery"] == state["mastery"], (
+        "a genuinely unknown outcome must not score"
+    )
+
+
+def test_hint_tells_the_student_a_proved_fol_argument_follows(client) -> None:
+    state = _fol_board(client, "Every human is mortal. Socrates is a human.", "Socrates is mortal.")
+    assert hint(client, state).json()["code"] == "HINT_FOL_FOLLOWS_1"
+
+
+def test_hint_is_honest_when_the_fol_budget_is_exhausted(client) -> None:
+    state = _fol_board(client, "Every bird flies. Tweety is a bird.", "Tweety is yellow.")
+    assert hint(client, state).json()["code"] == "HINT_FOL_UNKNOWN"
+
+
+def test_claim_and_hint_are_unaffected_for_an_ordinary_propositional_session(client, board) -> None:
+    # Regression: the FOL dispatch must never fire for a prop-mode session (ex-01, from the bank).
+    claim = client.post(ACT, json={"state": board, "action": {"type": "claim_not_provable"}}).json()
+    assert claim["code"] == "CLAIM_REJECTED"  # matches test_act_routes_each_action_type
+    assert hint(client, board).json()["code"] == "HINT_1"
+
+
 def test_parse_renders_a_warning_through_messages_yaml(client) -> None:
     body = client.post(
         "/api/parse",

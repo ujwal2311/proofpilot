@@ -46,6 +46,14 @@ hint:
   HINT_NOT_FOLLOW_1: "before proving, check whether the conclusion really follows."
   HINT_NOT_FOLLOW_2: "look for a situation where every premise is true and the conclusion is false."
   HINT_NOT_FOLLOW_3: "it does not follow. Say so."
+  # FOL-mode hints (HLD S18.7's Facts-panel fix, follow-up 2026-11-01): the first-order engine
+  # already decided whether the argument follows, so these never escalate a METHOD the way the
+  # propositional ladder above does -- there is no exposed proof trace to walk toward (HLD S18.8,
+  # answer extraction out of scope), only the verdict itself.
+  HINT_FOL_FOLLOWS_1: "this argument is valid under first-order logic -- check your assumption that it doesn't follow."
+  HINT_FOL_FOLLOWS_2: "the first-order engine proved the premises entail the conclusion."
+  HINT_FOL_FOLLOWS_3: "it follows. Reconsider a \"does not follow\" claim."
+  HINT_FOL_UNKNOWN: "the search budget ran out before a proof was found. The system genuinely does not know whether this follows, so this hint is not scored either way."
 
 # ----------------------------------------------------------------------- claims (sections 8, 9)
 claim:

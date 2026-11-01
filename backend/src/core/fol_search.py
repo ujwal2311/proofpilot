@@ -72,6 +72,32 @@ class FolSessionResult:
         return FolSessionResult(result.outcome, len(result.proof_steps))
 
 
+def fol_claim_accepted(outcome: FolProofOutcome) -> bool | None:
+    """Whether a "does not follow" claim is correct, from the FOL verdict alone (2026-11-01
+    Facts-panel-fix follow-up: the Prove screen's claim action used to consult only the
+    propositional verdict, so an argument this module had already proved valid could still score
+    "does not follow" as correct).
+
+    NEVER returns True: resolution is only semi-decidable (module docstring above), so a failed
+    search is never positive evidence of non-entailment -- `None` means "do not score this",
+    not "it follows". PROVED and INCONSISTENT both mean the argument is valid (INCONSISTENT
+    trivially, ex falso quodlibet), so the claim is wrong either way.
+    """
+    return None if outcome is FolProofOutcome.BUDGET_EXHAUSTED else False
+
+
+def fol_hint_code(outcome: FolProofOutcome, level: int) -> str:
+    """The hint code for a FOL-mode exercise at `level` (1-3, validated at the API boundary).
+
+    BUDGET_EXHAUSTED never varies by level: the system genuinely does not know, and an escalating
+    "HINT_2"/"HINT_3" wording would imply a certainty it does not have -- same discipline as
+    `fol_claim_accepted` above.
+    """
+    if outcome is FolProofOutcome.BUDGET_EXHAUSTED:
+        return "HINT_FOL_UNKNOWN"
+    return f"HINT_FOL_FOLLOWS_{level}"
+
+
 def _clausify_all(premises: list[FolFormula], conclusion: FolFormula) -> frozenset[FolClause]:
     """Clausify every premise and the negated conclusion SEPARATELY, then standardize apart ONCE
     over their union -- see core.fol_cnf.to_fol_clauses's own docstring for why running

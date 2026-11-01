@@ -18,7 +18,13 @@ from src.core.fol_models import (
     Predicate,
     Variable,
 )
-from src.core.fol_search import EMPTY_CLAUSE, FolProofOutcome, fol_prove
+from src.core.fol_search import (
+    EMPTY_CLAUSE,
+    FolProofOutcome,
+    fol_claim_accepted,
+    fol_hint_code,
+    fol_prove,
+)
 
 x, y = Variable("x"), Variable("y")
 socrates, alice, bob = Constant("socrates"), Constant("alice"), Constant("bob")
@@ -125,3 +131,54 @@ def test_multiple_premises_with_no_conclusion_relation_combine_without_crashing(
     premises = [human(socrates), FolAnd((human(alice), mortal(bob)))]
     result = fol_prove(premises, mortal(socrates))
     assert result.outcome in (FolProofOutcome.PROVED, FolProofOutcome.BUDGET_EXHAUSTED)
+
+
+# ------------------------------------------- FOL-aware hint/claim dispatch (Facts-panel fix,
+# ------------------------------------------- follow-up: the Prove screen was still misleading)
+
+# Written before the implementation (CLAUDE.md rule 1), after the student specified the mapping
+# directly: resolution is only semi-decidable (HLD S18.11.1), so a failed search is NEVER evidence
+# of non-entailment. Neither function may ever treat BUDGET_EXHAUSTED as "does not follow".
+
+
+def test_fol_claim_accepted_is_false_when_proved() -> None:
+    # The argument follows, so claiming it does not follow is wrong.
+    assert fol_claim_accepted(FolProofOutcome.PROVED) is False
+
+
+def test_fol_claim_accepted_is_false_when_inconsistent() -> None:
+    # Trivially valid (ex falso quodlibet) -- still wrong to claim it does not follow.
+    assert fol_claim_accepted(FolProofOutcome.INCONSISTENT) is False
+
+
+def test_fol_claim_accepted_is_none_when_budget_exhausted() -> None:
+    # Genuinely unknown -- `None` means "do not score this", never "it follows".
+    assert fol_claim_accepted(FolProofOutcome.BUDGET_EXHAUSTED) is None
+
+
+def test_fol_claim_accepted_never_returns_true() -> None:
+    # The one invariant that matters: no FOL outcome may ever make "does not follow" correct.
+    assert all(fol_claim_accepted(outcome) is not True for outcome in FolProofOutcome)
+
+
+def test_fol_hint_code_follows_for_proved() -> None:
+    assert [fol_hint_code(FolProofOutcome.PROVED, level) for level in (1, 2, 3)] == [
+        "HINT_FOL_FOLLOWS_1",
+        "HINT_FOL_FOLLOWS_2",
+        "HINT_FOL_FOLLOWS_3",
+    ]
+
+
+def test_fol_hint_code_follows_for_inconsistent() -> None:
+    assert [fol_hint_code(FolProofOutcome.INCONSISTENT, level) for level in (1, 2, 3)] == [
+        "HINT_FOL_FOLLOWS_1",
+        "HINT_FOL_FOLLOWS_2",
+        "HINT_FOL_FOLLOWS_3",
+    ]
+
+
+def test_fol_hint_code_is_honest_about_not_knowing_at_every_level() -> None:
+    # Nothing varies by level when the system itself does not know -- escalating "HINT_2"/"HINT_3"
+    # wording would imply a certainty the engine does not have.
+    for level in (1, 2, 3):
+        assert fol_hint_code(FolProofOutcome.BUDGET_EXHAUSTED, level) == "HINT_FOL_UNKNOWN"

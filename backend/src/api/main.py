@@ -40,6 +40,7 @@ from src.core import search, session, tutor
 from src.core.bkt import is_done
 from src.core.english import ParseError
 from src.core.entail import Verdict
+from src.core.fol_search import fol_claim_accepted, fol_hint_code
 from src.core.logic import diagnose, normalize_literal
 from src.core.tutor import FactsNotConfirmed, TransitionError
 
@@ -287,9 +288,24 @@ def _step(state, action) -> dict:
     }
 
 
+def _is_fol(state) -> bool:
+    """Whether this session's verdict should come from the FOL engine, not the truth table.
+
+    2026-11-01 Facts-panel-fix follow-up: the Prove screen's hint and claim actions used to
+    consult ONLY `_verdict_of` (propositional), so an argument this project's own FOL engine had
+    already proved valid could still have "does not follow" hinted toward and scored as correct.
+    `fol_result` can be `None` even in FOL mode (a sentence failed the FOL grammar, S18.7's
+    `_fol_attempt`) -- in which case there is nothing FOL-side to defer to.
+    """
+    return state.logic_mode == "fol" and state.fol_result is not None
+
+
 def _hint(state, action) -> dict:
     board = _board(state)
-    plan = tutor.plan_hint(board.clauses(), _verdict_of(state), action.level)
+    if _is_fol(state):
+        plan = tutor.Hint(fol_hint_code(state.fol_result.outcome, action.level), action.level)
+    else:
+        plan = tutor.plan_hint(board.clauses(), _verdict_of(state), action.level)
     charged = _score(session.record_hint(state), "hint", False)
     return {
         "code": plan.code,
@@ -301,7 +317,21 @@ def _hint(state, action) -> dict:
 
 
 def _claim(state, _action) -> dict:
-    accepted = _verdict_of(state) is not Verdict.ENTAILED
+    accepted = (
+        fol_claim_accepted(state.fol_result.outcome)
+        if _is_fol(state)
+        else _verdict_of(state) is not Verdict.ENTAILED
+    )
+    if accepted is None:
+        # BUDGET_EXHAUSTED: genuinely unknown, so nothing is scored (never silently absorbed into
+        # either CLAIM_ACCEPTED or CLAIM_REJECTED, which would both be a guess).
+        return {
+            "code": "CLAIM_UNKNOWN",
+            "message": runtime().render.fol_outcome(state.fol_result),
+            "state": schemas.dump_state(state),
+            "clause_english": clause_english_map(state),
+            "extras": {"accepted": None, "counterexample": None},
+        }
     code, message = runtime().render.claim(accepted)
     after = _score(state, f"claim_not_provable.{code}", state.hint_level > 0)
     counterexample = state.entailment.counterexample if state.entailment else None

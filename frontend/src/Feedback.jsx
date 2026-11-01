@@ -15,6 +15,11 @@ const TONE = {
   HINT_NOT_FOLLOW_1: "hint",
   HINT_NOT_FOLLOW_2: "hint",
   HINT_NOT_FOLLOW_3: "hint",
+  HINT_FOL_FOLLOWS_1: "hint",
+  HINT_FOL_FOLLOWS_2: "hint",
+  HINT_FOL_FOLLOWS_3: "hint",
+  HINT_FOL_UNKNOWN: "hint",
+  CLAIM_UNKNOWN: "hint",
 };
 
 export function Feedback({ feedback, problem }) {
