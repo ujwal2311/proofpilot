@@ -40,6 +40,7 @@ export function ReadFacts({ state, pending, onMerge, onConfirm, readOnly = false
         {state.sentences.slice(0, -1).map((sentence) => (
           <li key={sentence.id} className={sentence.status}>
             {sentence.text}
+            {sentence.fol_reading ? <code className="fol-reading"> {sentence.fol_reading}</code> : null}
             {sentence.error_code ? <code> {sentence.error_code}</code> : null}
           </li>
         ))}

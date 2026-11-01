@@ -54,6 +54,7 @@ def _sentence(rng: random.Random, index: int) -> SentenceRec:
         error_code=None if ok else rng.choice(("UNPARSEABLE", "AMBIGUOUS_AND_OR", "TOO_LONG")),
         formula=rng.choice((None, "A -> B")),
         symbols=tuple(rng.sample(SYMBOLS, rng.randint(0, 3))),
+        fol_reading=rng.choice((None, "∀x (Human(x) → Mortal(x))")),
     )
 
 

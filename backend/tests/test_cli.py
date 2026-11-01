@@ -251,15 +251,18 @@ def _facts(text: str) -> list[str]:
 
 
 def test_an_unparseable_own_question_is_refused_not_guessed(tmp_path: Path, capsys) -> None:
-    # Refused before the Facts screen ever opens, so there is nothing to confirm.
+    # Refused before the Facts screen ever opens, so there is nothing to confirm. Mixed
+    # "and"/"or" with no bracketing word is refused by BOTH grammars -- a quantified sentence like
+    # "Every student passes." no longer does, since HLD S18.7's Facts-panel fix shows it as
+    # understood (not refused) once FOL mode recognizes it.
     out = run(
-        "Every student passes.\nThe class ends.\n",
+        "It rains and it is cold or it is windy.\nWe get wet.\n",
         "--own",
         tmp_path=tmp_path,
         capsys=capsys,
         confirmed=False,
     )
-    assert TEXT["error"]["QUANTIFIER_UNSUPPORTED"] in out, "the refusal must carry its hint"
+    assert TEXT["error"]["AMBIGUOUS_AND_OR"] in out, "the refusal must carry its hint"
     assert TEXT["cli"]["unplayable"] in out
     assert TEXT["cli"]["board"] not in out, "a refused exercise must not lay out a board"
 

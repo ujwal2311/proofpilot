@@ -101,14 +101,19 @@ def test_parse_runs_the_whole_pipeline_and_returns_a_session(client) -> None:
 
 def test_parse_keeps_a_refused_sentence_with_its_code(client) -> None:
     # Per-sentence errors are 200 with a code inside the session, not an HTTP error: a refused
-    # sentence is teaching content (section 8, section 3.4).
+    # sentence is teaching content (section 8, section 3.4). Mixed "and"/"or" with no bracketing
+    # word is refused by BOTH grammars -- "Every student passes." would no longer do, since FOL
+    # mode now shows that one "ok" (HLD S18.7's Facts-panel fix, test_fol_message... below).
     body = client.post(
         "/api/parse",
-        json={"paragraph": "It rains. Every student passes.", "conclusion": "We get wet."},
+        json={
+            "paragraph": "It rains. It rains and it is cold or it is windy.",
+            "conclusion": "We get wet.",
+        },
     )
     assert body.status_code == 200
     statuses = [(s["status"], s["error_code"]) for s in body.json()["state"]["sentences"]]
-    assert ("error", "QUANTIFIER_UNSUPPORTED") in statuses
+    assert ("error", "AMBIGUOUS_AND_OR") in statuses
 
 
 def test_parse_carries_a_fol_result_through_the_wire(client) -> None:

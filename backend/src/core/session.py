@@ -23,7 +23,7 @@ from src.core.cnf import conversion_steps, goal_clauses, premise_clauses
 from src.core.english import ErrorCode, Not, ParseError, parse_sentence, phrases_of, prepare
 from src.core.entail import Entailment, Verdict, check
 from src.core.facts import extract
-from src.core.fol_english import FolParseError, detect_mode
+from src.core.fol_english import FolParseError, detect_mode, display_readings
 from src.core.fol_english import parse as fol_parse
 from src.core.fol_search import FolSessionResult, fol_prove
 from src.core.logic import Clause, canonical
@@ -53,9 +53,10 @@ class Analysis:
     source_of: dict[Clause, str] = field(default_factory=dict)
     conversions: dict[str, tuple] = field(default_factory=dict)  # str -> tuple[ConversionStep, ...]
     # "fol" if any sentence needs FOL mode, else "prop" (HLD S18.7). The propositional pipeline
-    # above runs unconditionally either way -- a FOL sentence still shows QUANTIFIER_UNSUPPORTED
-    # on its SentenceRec, exactly as before Phase 8b; `fol_result` below is the separate FOL
-    # verdict, computed independently of whether the propositional parse succeeded.
+    # above still runs unconditionally either way, for the Prove board's sake -- but in FOL mode
+    # its own refusal (e.g. QUANTIFIER_UNSUPPORTED) is never shown for a sentence FOL understood
+    # (S18.7's Facts-panel fix); `fol_result` below is the separate FOL verdict, computed
+    # independently of whether the propositional parse succeeded.
     logic_mode: str = "prop"
     fol_result: FolSessionResult | None = None
 
@@ -90,18 +91,28 @@ def _one(conclusion: str) -> list[str]:
     return found
 
 
-def _parse_sentences(sentence_texts: list[str]) -> tuple[list[SentenceRec], list[object]]:
+def _parse_sentences(texts: list[str], mode: str) -> tuple[list[SentenceRec], list[object]]:
     """Parse every sentence, keeping a refused one with its error code rather than dropping it --
-    the Read screen shows which sentence failed and why, and the others still parse."""
+    the Read screen shows which sentence failed and why, and the others still parse.
+
+    The propositional tree is still built unconditionally (the Prove board's clauses still come
+    only from it, S18.0) -- but in FOL mode, a sentence FOL already understood never shows
+    `parse_sentence`'s own refusal on screen (HLD S18.7's Facts-panel fix): reporting a sentence
+    as wrong because ONE of its two independent readings failed is exactly the guess CLAUDE.md
+    principle 2 forbids.
+    """
+    readings = display_readings(texts) if mode == "fol" else None
     records: list[SentenceRec] = []
     trees: list[object] = []
-    for index, text in enumerate(sentence_texts, start=1):
+    for index, text in enumerate(texts, start=1):
+        reading = readings[index - 1] if readings else None
         try:
             trees.append(parse_sentence(text))
-            records.append(SentenceRec(f"s{index}", text, "ok"))
+            records.append(SentenceRec(f"s{index}", text, "ok", fol_reading=reading))
         except ParseError as refused:
             trees.append(None)
-            records.append(SentenceRec(f"s{index}", text, "error", refused.code.value))
+            status, code = ("ok", None) if reading else ("error", refused.code.value)
+            records.append(SentenceRec(f"s{index}", text, status, code, fol_reading=reading))
     return records, trees
 
 
@@ -120,7 +131,7 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
     fol_result = (
         _fol_attempt(sentence_texts[:-1], sentence_texts[-1]) if logic_mode == "fol" else None
     )
-    records, trees = _parse_sentences(sentence_texts)
+    records, trees = _parse_sentences(sentence_texts, logic_mode)
 
     if trees[-1] is None:
         # Nothing to decide the PROPOSITIONAL pipeline against -- but fol_result above was

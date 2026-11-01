@@ -141,22 +141,29 @@ def test_a_long_paragraph_with_distractors_keeps_the_distractors_visible() -> No
 
 def test_one_unparseable_sentence_does_not_stop_the_others() -> None:
     # Scenario (e): errors are per-sentence. A paragraph is a list of attempts, not a transaction.
-    found = session.analyse("It rains. Every student passes. We get wet.", RAIN_GOAL)
+    # Mixed "and"/"or" with no bracketing word is refused by BOTH grammars, so this is a real
+    # failure -- not S18.7's Facts-panel fix, which only suppresses a propositional refusal for a
+    # sentence FOL itself understood (see test_fol_result_is_proved_for_socrates... below).
+    found = session.analyse(
+        "It rains. It rains and it is cold or it is windy. We get wet.", RAIN_GOAL
+    )
     statuses = [(rec.status, rec.error_code) for rec in found.sentences]
-    assert ("error", "QUANTIFIER_UNSUPPORTED") in statuses
+    assert ("error", "AMBIGUOUS_AND_OR") in statuses
     assert statuses.count(("ok", None)) == 3
 
 
 def test_a_conclusion_that_fails_to_parse_is_reported_without_an_entailment() -> None:
-    # There is nothing to decide against, so inventing a verdict would be a guess.
-    found = session.analyse(RAIN, "Every student passes.")
+    # There is nothing to decide against, so inventing a verdict would be a guess. Same
+    # dual-refused sentence as the test above, so this is a real failure, not S18.7's fix.
+    found = session.analyse(RAIN, "It rains and it is cold or it is windy")
     assert found.sentences[-1].status == "error"
     assert found.entailment is None and found.relevance is None
 
 
 def test_logic_mode_is_fol_when_any_sentence_needs_it() -> None:
-    # HLD S18.7, Phase 8 scope: detected and recorded, but the pipeline above still ran the
-    # unchanged propositional path -- QUANTIFIER_UNSUPPORTED above is proof it is not acted on.
+    # HLD S18.7, Phase 8 scope: detected and recorded. Acted on since the Phase 8b Facts-panel fix
+    # -- a FOL-understood sentence shows "ok", not QUANTIFIER_UNSUPPORTED, in FOL mode (see
+    # test_fol_result_is_proved_for_socrates_through_session_analyse below).
     found = session.analyse("It rains. Every student passes. We get wet.", RAIN_GOAL)
     assert found.logic_mode == "fol"
 
@@ -180,11 +187,42 @@ def test_fol_result_is_proved_for_socrates_through_session_analyse() -> None:
     assert found.logic_mode == "fol"
     assert found.fol_result is not None
     assert found.fol_result.outcome is FolProofOutcome.PROVED
-    # The propositional pipeline still ran unconditionally (Phase 8's own rule): "Every human is
-    # mortal" has no equivalent propositional reading and is refused under that grammar, exactly
-    # as before Phase 8b -- the FOL result exists ALONGSIDE that, not instead of it.
-    statuses = {rec.text: (rec.status, rec.error_code) for rec in found.sentences}
-    assert statuses["Every human is mortal"] == ("error", "QUANTIFIER_UNSUPPORTED")
+    # S18.7's Facts-panel fix: the propositional pipeline still ran unconditionally (Phase 8's own
+    # rule -- "Every human is mortal" still has no propositional tree, so it still contributes no
+    # clause to the Prove board), but its refusal is never SHOWN for a sentence FOL understood.
+    # The FOL result exists ALONGSIDE the (here, empty) propositional reading, not instead of it.
+    statuses = {rec.text: (rec.status, rec.error_code, rec.fol_reading) for rec in found.sentences}
+    assert statuses["Every human is mortal"] == ("ok", None, "∀x (Human(x) → Mortal(x))")
+
+
+# Every pattern HLD S18.2's grammar table lists (the 5 quantified, the 4 ground/relational, the
+# 2 wh-paraphrases), paired with an unrelated quantified sentence so `detect_mode` sees "fol" even
+# for the 4 ground patterns that carry no quantifier of their own (S18.7's `is_fol_formula` never
+# treats an arity>0 ground predicate alone as a FOL signal). Disjoint vocabulary throughout, so no
+# case accidentally trips FOL_AMBIGUOUS_INDIVIDUAL/FOL_UNSUPPORTED_ARITY against another.
+_GRAMMAR_TABLE = [
+    ("Every human is mortal", "∀x (Human(x) → Mortal(x))"),
+    ("Every reptile is not a mammal", "∀x (Reptile(x) → ¬Mammal(x))"),
+    ("Some student studies", "∃x (Student(x) ∧ Studies(x))"),
+    ("No cat is a dog", "∀x (Cat(x) → ¬Dog(x))"),
+    ("All students that study pass", "∀x (Students(x) ∧ Study(x) → Pass(x))"),
+    ("Alice likes Bob", "Likes(alice, bob)"),
+    ("Alice likes Bob and Carol", "Likes(alice, bob) ∧ Likes(alice, carol)"),
+    ("Socrates is a human", "Human(socrates)"),
+    ("Tweety is not a penguin", "¬Penguin(tweety)"),
+    ("If Alice is a human then Alice is mortal", "∀x (Human(x) → Mortal(x))"),
+    ("If Alice likes Bob then Carol likes Dave", "Likes(alice, bob) → Likes(carol, dave)"),
+]
+
+
+@pytest.mark.parametrize("sentence,reading", _GRAMMAR_TABLE)
+def test_every_fol_grammar_pattern_shows_ok_not_a_propositional_error(
+    sentence: str, reading: str
+) -> None:
+    found = session.analyse(f"Every creature exists. {sentence}.", "Zeta is good.")
+    assert found.logic_mode == "fol"
+    rec = next(r for r in found.sentences if r.text == sentence)
+    assert (rec.status, rec.error_code, rec.fol_reading) == ("ok", None, reading)
 
 
 def test_fol_result_is_proved_for_a_ground_multi_argument_relation_through_session() -> None:

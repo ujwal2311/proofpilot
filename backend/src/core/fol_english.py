@@ -378,3 +378,50 @@ def detect_mode(sentences: list[str]) -> str:
     function exists and is callable; `session.py`'s pipeline does not yet act on its result --
     see HLD section 18.7's Phase 8b note for the deferred, separately-gated remainder)."""
     return "fol" if any(is_fol_sentence(s) for s in sentences) else "prop"
+
+
+# ----------------------------------------------------------------------- display (Facts panel)
+
+
+def render(f: FolFormula) -> str:
+    """The reading `parse()` built from one sentence, in the symbols a logic course already
+    uses -- shown back to the student instead of core.english's refusal (HLD section 18.7's
+    Facts-panel fix: a sentence FOL understood must never be reported as propositionally wrong).
+    `parse()` never produces a `FunctionTerm` (Skolemization is a CNF-pipeline step, run only
+    after a proof attempt starts), so every argument here is a bare `Variable`/`Constant` name.
+    """
+    match f:
+        case Predicate(name, args):
+            return f"{name}({', '.join(a.name for a in args)})" if args else name
+        case FolNot(body):
+            return f"¬{render(body)}"
+        case FolAnd(items):
+            return " ∧ ".join(render(item) for item in items)
+        case FolOr(items):
+            return " ∨ ".join(render(item) for item in items)
+        case FolImplies(antecedent, consequent):
+            return f"{render(antecedent)} → {render(consequent)}"
+        case FolIff(left, right):
+            return f"{render(left)} ↔ {render(right)}"
+        case ForAll(var, body):
+            return f"∀{var.name} ({render(body)})"
+        case Exists(var, body):
+            return f"∃{var.name} ({render(body)})"
+    raise TypeError(f"not a FOL formula node: {f!r}")
+
+
+def display_readings(sentence_texts: list[str]) -> list[str | None]:
+    """Each sentence's FOL reading, rendered, or `None` if it does not parse alone -- used ONLY
+    so `core.session` can decide which grammar's refusal (if either) a sentence shows on the
+    Facts screen. One registry shared across every sentence, same cross-sentence contract as
+    `parse()`, but continuing past a failure instead of raising -- display must still cover
+    sentence 3 even when sentence 1 was refused.
+    """
+    registry: Registry = {}
+    readings: list[str | None] = []
+    for text in sentence_texts:
+        try:
+            readings.append(render(parse(text, registry)))
+        except FolParseError:
+            readings.append(None)
+    return readings

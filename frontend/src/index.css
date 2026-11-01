@@ -377,6 +377,10 @@ main > section h2:first-child {
   color: var(--bad);
 }
 
+.fol-reading {
+  color: var(--muted);
+}
+
 .conclusion {
   font-size: 1.05rem;
   font-weight: 600;

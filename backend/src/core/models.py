@@ -105,6 +105,10 @@ class SentenceRec:
     error_code: str | None = None
     formula: str | None = None
     symbols: tuple[str, ...] = ()
+    # The FOL grammar's own reading of this sentence, rendered, when one exists (HLD S18.7's
+    # Facts-panel fix) -- NOT `formula` above, which is the M2 Translate target and whose
+    # all-None check in `enter_stage` would misfire if a FOL reading used that field instead.
+    fol_reading: str | None = None
 
 
 @dataclass(frozen=True)
