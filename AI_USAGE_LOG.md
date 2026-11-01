@@ -1483,3 +1483,50 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 **Budget note:** `core_session` grew from 188 to 191 code lines -- exactly at its ceiling (191), not over it; `core` grew from 938 to 939 (ceiling 940); `core (FOL)` grew from 683 to 711 (cap 849). No bucket crossed a ceiling it was not already over before this change. `frontend` (already over its ceiling before this change, reported-not-blocking) grew by 4 lines.
 
 **Final state:** `pytest backend/` -- 1051 passed, 1 skipped, both hash seeds. `ruff check` + `ruff format --check`: clean. `npm run build`: clean. Committed locally (`00c3e36`), **not pushed** -- the student's message did not contain "approved" for this gate (CLAUDE.md's absolute push rule, back in force since the `progress-v1` tag).
+
+---
+
+## FOL-aware hint/claim dispatch (Prove-screen follow-up) | 2026-11-01 | Claude Code (Sonnet 5) | commit 3e05d0d
+
+**Files created:** none
+
+**Files modified:** `backend/src/core/fol_search.py` (`fol_claim_accepted()`, `fol_hint_code()`), `backend/src/api/main.py` (`_hint`/`_claim` dispatch, `_is_fol` helper), `backend/src/app/data.py` (`required_messages()`'s hint set), `data/messages.yaml` (`HINT_FOL_FOLLOWS_1/2/3`, `HINT_FOL_UNKNOWN`), `frontend/src/Feedback.jsx` (`TONE` map), `backend/tests/test_fol_search.py`, `backend/tests/test_api.py`.
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Student's own screenshot of a Socrates-style exercise showed `HINT_NOT_FOLLOW_1` ("check whether the conclusion really follows") directly under a "Valid -- proved in 3 steps" FOL banner -- the Prove screen's hint/claim logic consulted only the propositional verdict, never `fol_result`, so clicking "Does not follow" would have scored `CLAIM_ACCEPTED` (correct) for an argument the FOL engine had already proved. Student specified the mapping directly (PROVED/INCONSISTENT -> wrong to claim it doesn't follow; BUDGET_EXHAUSTED -> unscored), after I flagged that their initial spec named a `NOT_ENTAILED` FOL outcome that doesn't exist in `FolProofOutcome` (checked against the actual enum before implementing, not assumed). Per the student's explicit budget instruction (see the entry below), the FOL-aware logic lives entirely in `core_fol`/`api_cli` -- `tutor.py` and `session.py` are untouched, and `core`/`core_session` measure identical before and after. Verified live: Socrates (PROVED) now hints "this argument is valid..." and rejects "does not follow"; an unrelated-predicates exercise (BUDGET_EXHAUSTED) hints and claims honestly with mastery left unscored; an ordinary propositional exercise unaffected.
+
+**Budget note:** `core`/`core_session` untouched (939/940, 191/191 -- zero headroom was available, zero was used). `core (FOL)` grew 711 -> 717 lines (cap 849). `api_cli`/`frontend` grew inside their already-over-ceiling, reported-not-blocking status at the time (see the next entry for why that status itself turned out to be wrong).
+
+**Final state:** `pytest backend/` -- 1063 passed, 1 skipped, both hash seeds. `ruff` + format: clean. Committed locally (`3e05d0d`), not pushed.
+
+---
+
+## FOL grammar extension: bare intransitive verb + ground "or" | 2026-11-01 | Claude Code (Sonnet 5) | commit 21384a5
+
+**Files created:** none
+
+**Files modified:** `backend/src/core/fol_english.py` (`_parse_ground`, `_RESERVED`), `backend/tests/test_fol_english.py`, `docs/HLD.md` (S18.2's pattern table).
+
+**What the student changed by hand:** to confirm.
+
+**Purpose:** Student pasted a real CAT-2 worked example ("All students who study pass the exam...") to use as the web demo. Verified against the live grammar (not assumed) which exact sentences failed and why: "who" needs "that" (trivial reword), and two genuine gaps with no workaround -- a bare intransitive ground verb ("Ravi studies", no "is", no object) and ground-level disjunction ("A or B" between two facts) were simply absent from HLD S18.2's pattern table. Student authorized exactly these two, nothing broader. Implemented as a thin recursive split inside `_parse_ground` (each side of "or" is the same function called again, so it composes with the existing "and" pattern for free) plus a `len(rest) == 1` case for the bare verb. Also discovered, debugging the worked example end-to-end, that the grammar's documented no-stemming rule ("students"/"student", "study"/"studies") blocks the example even after the grammar fix, until every predicate word is spelled identically across every sentence -- not a bug, the pre-existing, intentional design principle biting on a real paragraph. The reworded example proves successfully: `PROVED`, 22 saturation steps.
+
+**Budget note:** `core_fol` grew 717 -> 726 lines (cap 849, 123 lines of headroom remaining). `core`/`core_session` untouched.
+
+**Final state:** `pytest backend/` -- 1070 passed, 1 skipped, both hash seeds. `ruff` + format: clean. Committed locally (`21384a5`), not pushed.
+
+---
+
+## Open item, logged not deferred indefinitely: `tools/loc.py`'s stale default | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Finding (not yet acted on):** `git tag --list progress-v1` confirms the tag exists (2026-10-13) and is an ancestor of `HEAD` (43 commits behind) -- its own message states "Per CLAUDE.md's TEMPORARY SPRINT RULE, this tag ends the sprint's commit-and-push..." CLAUDE.md's TEMPORARY SPRINT RULE section, including its "bucket caps are REPORTED, not blocking" override, is therefore structurally expired and has been for every commit since. `tools/loc.py` still prints "Caps are REPORTED, not blocking (sprint rule, expires at `progress-v1`)" unconditionally unless `--strict` is passed -- the CODE was never updated to match the tag's own existence, so CI (which runs `python tools/loc.py` with no `--strict`) has been silently non-blocking on ceilings since 2026-10-13 regardless of the written rule.
+
+**Concrete consequence found 2026-11-02:** `api_cli` (958 lines, ceiling 713 -- 245 over) and `frontend` (1553 lines, ceiling 866 -- 687 over) are both live frozen-rule violations under the correct (strict) reading, not neutral pre-existing facts as earlier entries in this log assumed.
+
+**Decision (student, 2026-11-02):** §18.14 (FOL proof trace display) is authorized to add to both buckets anyway, as a recorded one-time exception, same precedent as `core_fol`'s own exception at the Phase 8 gate -- not a silent absorption, and not blocking tonight's work. Two concrete post-Wednesday-demo tasks, named so they are not lost:
+
+  1. Flip `tools/loc.py`'s default from reported-to `--strict`-by-default (an explicit flag restores the old lenient behaviour if ever needed again), so CI actually enforces the written rule instead of a stale sprint override.
+  2. Bring `api_cli` and `frontend` back under their ceilings -- by simplification, not by raising the caps (CLAUDE.md's frozen OVERRUN POLICY: caps are never raised).
+
+Neither task blocks §18.14; both are scheduled after the Wednesday demo, not indefinitely deferred.

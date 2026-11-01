@@ -2660,3 +2660,106 @@ Each phase ends with `pytest backend/ -x -q`, `ruff check`, `python tools/loc.py
   (`QUANTIFIER_UNSUPPORTED`, unchanged), and the FOL result rendered from `messages.yaml` --
   "Valid -- the empty clause was derived in 3 step(s)." -- not a raw code, alongside the
   pre-existing, independent CONCLUSION_FACT_UNSEEN warning firing correctly on the same exercise.
+
+## 18.14 FOL proof trace display (2026-11-02, student-authorized)
+
+**Status:** approved, 2026-11-02. The FOL verdict (`fol_message`) was a one-line outcome with no
+visible derivation -- `FolSearchResult.proof_steps` already computes the full resolution trace
+inside `fol_prove()`, but `FolSessionResult.of()` discarded it (deliberate at Phase 8b: "building
+one is its own scope"). This section is that scope.
+
+This section followed two earlier 2026-11-02 fixes, same day: the Facts-panel fix (a FOL-understood
+sentence no longer shows the propositional grammar's refusal, S18.7) and the FOL-aware hint/claim
+dispatch (the Prove screen's hint ladder and `claim_not_provable` now consult `fol_result`, not
+only the propositional verdict, so a proved FOL argument can no longer be hinted toward or scored
+as "does not follow"). Both shipped first; see `AI_USAGE_LOG.md` for their own entries.
+
+### 18.14.1 Data: `FolSessionResult` gains the trace, same shape `fol_prove()` already produces
+
+```python
+@dataclass(frozen=True)
+class FolSessionResult:
+    outcome: FolProofOutcome
+    step_count: int
+    proof_steps: tuple[FolProofStep, ...] = ()   # NEW. FolProofStep = (a, b, resolvent): FolClause triple
+```
+
+No new type invented -- `FolProofStep` is the exact tuple shape `_resolve_round`/`_saturate`
+already build. `FolSessionResult.of()` becomes `FolSessionResult(result.outcome,
+len(result.proof_steps), tuple(result.proof_steps))`.
+
+**Invariant, stated and tested, every outcome:** `step_count == len(proof_steps)`. Holds by
+construction (both read from the same source in `.of()`), asserted explicitly rather than left
+implicit.
+
+**Outcome-by-outcome, what `proof_steps` holds and what the renderer must say about it:**
+
+| Outcome | `proof_steps` | What the renderer shows |
+|---|---|---|
+| `PROVED` | The real derivation, ending in a step whose resolvent is `EMPTY_CLAUSE` | The full step table, captioned as a completed proof (ends in `□`) |
+| `INCONSISTENT`, found immediately (empty clause already in the clausified premises) | `()` -- empty | No step table; the clause list alone, captioned "the premises contradict each other directly, before any resolution" |
+| `INCONSISTENT`, found by saturating the premises alone | The real derivation among premise clauses only (never touches the negated goal) | The step table, captioned "derived from the premises alone -- the conclusion was never used" |
+| `BUDGET_EXHAUSTED` | Partial steps tried before the budget ran out -- never reaches `EMPTY_CLAUSE` | The step table **explicitly captioned as incomplete/inconclusive** -- reusing `fol:budget_exhausted`'s wording, never presented as a completed proof |
+
+### 18.14.2 Rendering: `app/render.py` only, `core_fol` stays data-only
+
+`core_fol` owns clause/term/substitution *structure* only -- no English, no labels. A new
+`Renderer.fol_proof_trace(result: FolSessionResult) -> FolTrace` method does the labeling (`F1`,
+`F2`, ... in derivation order) and clause→text rendering, extending `fol_english.render()`'s style
+to the post-CNF clause shape.
+
+**Skolem-term fallback, explicit, not silent:** a clause's `Predicate` args are
+`Variable | Constant | FunctionTerm` (post-Skolemization), but `fol_english.render()` only ever
+sees pre-Skolemization formulas and only knows `Variable`/`Constant`. The new term renderer handles
+all three: `FunctionTerm(name, args)` → `name(arg, ...)` recursively (e.g. `sk_f0(x)`) -- never a
+crash. Whenever a rendered trace contains one, `FolTrace.has_unrendered_terms: bool` is set, and
+the UI shows one footnote: *"Some terms above (sk_f0, ...) are internal values the system
+introduced to prove this -- they weren't in your original sentences."* The worked examples
+currently in scope have no `∃`, so this may never fire in practice -- it is still a deliberate,
+stated case, not an unhandled one waiting to surface mid-demo.
+
+### 18.14.3 API: no `State` schema change, same mechanism as `fol_result` itself
+
+`TypeAdapter(State)` serializes the new `proof_steps` field generically -- confirmed at Phase 8b
+for `fol_result` itself. The rendered `FolTrace` is edge presentation, not domain state, so
+`ParseResponse` gains `fol_trace: FolTraceSchema | None`, the same pattern `fol_message` already
+set.
+
+### 18.14.4 Frontend: new, small, FOL-specific view -- not a reuse of `Explanation.jsx`
+
+`Explanation.jsx` is not data-shape-compatible (propositional `ClauseRec` string literals vs. FOL
+`Predicate`/`Term` objects; `origin: "derived"` specifically means the student clicked Resolve,
+which has no FOL equivalent; `state.conversions` holds CNF-law steps, a different kind of step
+than resolution). New `FolExplanation.jsx`, shown on the Explanation tab when
+`state.logic_mode === "fol"` (same conditional pattern `folModeNote` already uses), reusing the
+*same CSS classes* so it reads as one system. Structure: clause legend + ordered step list,
+captioned per 18.14.1's table.
+
+### 18.14.5 Explicitly out of scope
+
+- No interactive step entry -- read-only, the student never resolves a FOL step themselves
+  (declined explicitly, 2026-11-02).
+- No hint ladder over FOL steps -- `fol_hint_code()`'s existing outcome-level hints are unchanged.
+- **Per-step unifier annotation (the worked example's own "Unifier" column) is DEFERRED, not
+  attempted** (student instruction, 2026-11-02): the budget exception in 18.14.6 covers exactly
+  the render method, the `ParseResponse` field, and `FolExplanation.jsx` -- adding this on top
+  without a separate ask would quietly grow an already-granted exception. The resolvent itself
+  already reflects the substitution; a future, separately-authorized pass can add the unifier text
+  explicitly if wanted.
+- Skolem-term English naming (e.g. inferring "the mother of x" from context) -- out of scope; the
+  raw term plus the footnote (18.14.2) is the whole treatment.
+
+### 18.14.6 Budget -- exception recorded, same precedent as `core_fol`
+
+Checked before any code, 2026-11-02: `progress-v1` (2026-10-13) is confirmed an ancestor of
+`HEAD`; the TEMPORARY SPRINT RULE's "caps reported, not blocking" override is therefore expired,
+and `api_cli`/`frontend` are both live ceiling violations, not neutral facts --
+`tools/loc.py`'s own "reported, not blocking" message is stale tooling, not evidence otherwise
+(tracked as a named open item, `AI_USAGE_LOG.md`, 2026-11-02, scheduled post-demo, not blocking
+that night's work). The measured figures live in `AI_USAGE_LOG.md`'s 2026-11-02 entry, not
+restated here (`budgets.toml` is the single source for the caps themselves, v2.10 item 5).
+
+**Student-authorized, one-time exception (2026-11-02), same shape as `core_fol`'s exception at the
+Phase 8 gate:** §18.14's `app/render.py` method, `ParseResponse` field, and `FolExplanation.jsx`
+may land in `api_cli`/`frontend` despite both already being over ceiling. Real before/after line
+counts for both buckets are reported in the implementation's own gate report, not estimated here.
