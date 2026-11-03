@@ -248,13 +248,19 @@ class Renderer:
         return self.text["cli"][key].format(**values)
 
     def step(self, found: Diagnosis, productive: bool | None) -> str:
-        """A diagnosed step. VALID also reports whether it shortened the proof."""
+        """A diagnosed step. VALID also reports whether it shortened the proof.
+
+        `step.VALID`'s own text ("valid.") was defined but never read here, found live -- the
+        rendered banner was just the productivity clause on its own ("that shortens the proof."),
+        missing its verb. The two are meant to read as one sentence, same as every other code's
+        messages.yaml text continues after that code's name.
+        """
         if found.code.value != "VALID":
             return self.text["step"][found.code.value].format(
                 missing=_literals(found.missing), extra=_literals(found.extra)
             )
         split = {True: "productive", False: "unproductive", None: "unknown"}[productive]
-        return self.text["productivity"][split]
+        return f"{self.text['step']['VALID']} {self.text['productivity'][split]}"
 
     def hint(self, plan: Hint, names: dict[Clause, str]) -> str:
         """A hint, filled only with what its level revealed.

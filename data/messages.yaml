@@ -71,9 +71,9 @@ fol_answer:
 # How a valid step is described, by whether it shortened the proof. `unknown` is the work-budget
 # case: the search ran out, so productivity is genuinely undecided and must not be guessed.
 productivity:
-  productive: "that shortens the proof."
-  unproductive: "legal, but no closer to a refutation."
-  unknown: "legal. (the search ran out of its budget, so I cannot say if it helps.)"
+  productive: "That shortens the proof."
+  unproductive: "Legal, but no closer to a refutation."
+  unknown: "Legal. (the search ran out of its budget, so I cannot say if it helps.)"
 
 # ------------------------------------------------------------------------ hints (sections 6.6, 6.6.1)
 # The proof ladder reveals one parent, then both, then the resolvent. The wording must not reveal

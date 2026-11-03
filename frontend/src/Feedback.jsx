@@ -1,9 +1,12 @@
 import { UI } from "./labels.js";
 
-// Shows what the server said, and nothing of its own. `code` decides the colour; `message` is
-// printed verbatim because it came from `data/messages.yaml`. A counterexample row is rendered
-// as a small table because a row of truth values is a table, and reading it is the skill the
-// does-not-follow exercises are teaching.
+// Shows what the server said, and nothing of its own. `code` decides the colour but is never
+// itself displayed -- every `messages.yaml` string is written as a lowercase continuation of its
+// own code ("VALID" + "valid."), so printing the raw code next to its own message produced a
+// visible echo a student could not make sense of ("FACTS_CONFIRMED facts confirmed...", found
+// live, 2026-11-03). `.feedback p::first-letter` (index.css) supplies the capital the code used
+// to. A counterexample row is rendered as a small table because a row of truth values is a
+// table, and reading it is the skill the does-not-follow exercises are teaching.
 const TONE = {
   VALID: "good",
   CLAIM_ACCEPTED: "good",
@@ -29,7 +32,7 @@ export function Feedback({ feedback, problem }) {
   if (problem) {
     return (
       <p className="feedback bad" role="alert">
-        <strong>{problem.code}</strong> {problem.message ?? UI.offline}
+        {problem.message ?? UI.offline}
       </p>
     );
   }
@@ -37,9 +40,7 @@ export function Feedback({ feedback, problem }) {
   const row = feedback.extras?.counterexample;
   return (
     <div className={`feedback ${TONE[feedback.code] ?? "bad"}`} role="status">
-      <p>
-        <strong>{feedback.code}</strong> {feedback.message}
-      </p>
+      <p>{feedback.message}</p>
       {row ? (
         <table className="row">
           <tbody>

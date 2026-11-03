@@ -5,6 +5,7 @@ generalizes over any clause/fact pair rather than matching content used to build
 """
 
 from src.app.render import Renderer, clause_english, clause_english_map
+from src.core.logic import Code, Diagnosis
 from src.core.models import ClauseRec, Fact, SentenceRec
 
 FACTS = (
@@ -109,3 +110,42 @@ def test_sentence_errors_covers_more_than_one_refused_sentence() -> None:
     errors = ERROR_TEXT.sentence_errors(sentences)
     assert set(errors) == {"s1", "s2"}
     assert errors["s2"] == "I cannot read that sentence."
+
+
+# ----------------------- step(): VALID dropped its own lead-in text (found live, 2026-11-03) ----
+#
+# `step()` rendered a productive/unproductive/unknown VALID step as JUST the `productivity.*`
+# text -- "that shortens the proof." on its own, with `step.VALID` ("valid.") defined in
+# messages.yaml but never read by any code path for this case. A student saw a feedback banner
+# whose rendered sentence read "VALID that shortens the proof." with no verb.
+
+STEP_TEXT = Renderer(
+    text={
+        "step": {"VALID": "valid."},
+        "productivity": {
+            # Capitalized at the source: each is concatenated as a SECOND sentence after
+            # `step.VALID`, so `.feedback::first-letter` (which only reaches the message's own
+            # first letter) can never capitalize these -- found live, 2026-11-03.
+            "productive": "That shortens the proof.",
+            "unproductive": "Legal, but no closer to a refutation.",
+            "unknown": "Legal. (the search ran out of its budget, so I cannot say if it helps.)",
+        },
+    }
+)
+
+
+def test_step_valid_productive_includes_its_own_lead_in() -> None:
+    found = Diagnosis(Code.VALID)
+    assert STEP_TEXT.step(found, productive=True) == "valid. That shortens the proof."
+
+
+def test_step_valid_unproductive_includes_its_own_lead_in() -> None:
+    found = Diagnosis(Code.VALID)
+    assert STEP_TEXT.step(found, productive=False) == "valid. Legal, but no closer to a refutation."
+
+
+def test_step_valid_unknown_includes_its_own_lead_in() -> None:
+    found = Diagnosis(Code.VALID)
+    assert STEP_TEXT.step(found, productive=None) == (
+        "valid. Legal. (the search ran out of its budget, so I cannot say if it helps.)"
+    )

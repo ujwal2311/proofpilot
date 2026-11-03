@@ -314,8 +314,14 @@ label:first-of-type {
   box-shadow: var(--shadow);
 }
 
-.feedback strong {
-  letter-spacing: 0.01em;
+/* Every messages.yaml string is written lowercase, to continue the raw code this banner no
+   longer prints -- this supplies the capital letter that code used to. Two selectors: an
+   ApiError renders `.feedback` directly on its own `<p>` (Feedback.jsx), a scored result wraps
+   a `<p>` inside a `.feedback` div -- `::first-letter` does not reach into a nested block child,
+   so the parent-only selector would silently miss the second shape. */
+.feedback.bad::first-letter,
+.feedback p::first-letter {
+  text-transform: uppercase;
 }
 
 .feedback.good {
