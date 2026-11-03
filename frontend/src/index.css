@@ -41,7 +41,7 @@ body {
 }
 
 main {
-  max-width: 920px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
 }
@@ -798,15 +798,87 @@ section > button.primary {
   font-style: normal;
   padding-left: 0.75rem;
 }
+/* The refutation tree: each derived clause's two antecedents drawn above it, connected by a
+   bar converging into a downward arrow -- the leaves (premises, the negated goal) are read
+   top-to-bottom into the single contradiction at the bottom, same arrow direction the
+   Resolution steps table above it already uses ("F1 + F4 -> F6"). */
 .fol-tree {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  font-size: 0.9em;
-  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
   margin: 0 0 1rem;
   overflow-x: auto;
-  padding: 0.75rem 1rem;
+  padding: 1.5rem 1rem 1.25rem;
+  display: flex;
+  justify-content: center;
+}
+/* NOT centered -- each node's own box is positioned explicitly (FolExplanation.jsx) at the
+   measured midpoint between its two antecedents' centers, so centering the flex container
+   itself would just fight that and reintroduce the same drift it exists to fix. */
+.fol-tree-node {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.fol-tree-pair {
+  display: flex;
+  align-items: flex-end;
+  gap: 2.5rem;
+}
+/* Sized to content, NOT forced equal -- a bare premise next to a whole accumulated derivation
+   chain is the normal shape here, and `FolTreeConnector` (FolExplanation.jsx) measures each
+   branch's actual rendered center, so the lines land exactly right either way. */
+.fol-tree-branch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.fol-tree-connector {
+  display: block;
+}
+.fol-tree-line {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.fol-tree-arrowhead {
+  fill: var(--accent);
+}
+.fol-tree-box {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  padding: 0.4rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 7rem;
+  text-align: center;
+  white-space: nowrap;
+}
+.fol-tree-box .literals {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+.fol-tree-box .id {
+  font-size: 0.72rem;
+  color: var(--faint);
+}
+.fol-tree-node.goal > .fol-tree-box {
+  border-color: var(--bad);
+  background: var(--bad-bg);
+}
+.fol-tree-node.goal > .fol-tree-box .literals {
+  color: var(--bad);
+}
+.fol-tree-node.empty > .fol-tree-box {
+  border-color: var(--good);
+  background: var(--good-bg);
+}
+.fol-tree-node.empty > .fol-tree-box .literals {
+  color: var(--good);
+  font-weight: 600;
 }
 .fol-conclusion {
   background: #f0fdf4;
