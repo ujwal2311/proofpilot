@@ -203,15 +203,15 @@ def test_fol_result_is_proved_for_socrates_through_session_analyse() -> None:
 _GRAMMAR_TABLE = [
     ("Every human is mortal", "∀x (Human(x) → Mortal(x))"),
     ("Every reptile is not a mammal", "∀x (Reptile(x) → ¬Mammal(x))"),
-    ("Some student studies", "∃x (Student(x) ∧ Studies(x))"),
+    ("Some student studies", "∃x (Student(x) ∧ Study(x))"),
     ("No cat is a dog", "∀x (Cat(x) → ¬Dog(x))"),
-    ("All students that study pass", "∀x (Students(x) ∧ Study(x) → Pass(x))"),
-    ("Alice likes Bob", "Likes(alice, bob)"),
-    ("Alice likes Bob and Carol", "Likes(alice, bob) ∧ Likes(alice, carol)"),
+    ("All students that study pass", "∀x (Student(x) ∧ Study(x) → Pass(x))"),
+    ("Alice likes Bob", "Like(alice, bob)"),
+    ("Alice likes Bob and Carol", "Like(alice, bob) ∧ Like(alice, carol)"),
     ("Socrates is a human", "Human(socrates)"),
     ("Tweety is not a penguin", "¬Penguin(tweety)"),
     ("If Alice is a human then Alice is mortal", "∀x (Human(x) → Mortal(x))"),
-    ("If Alice likes Bob then Carol likes Dave", "Likes(alice, bob) → Likes(carol, dave)"),
+    ("If Alice likes Bob then Carol likes Dave", "Like(alice, bob) → Like(carol, dave)"),
 ]
 
 
@@ -342,7 +342,7 @@ def test_every_stage_action_pair_resolves_or_raises_with_a_name() -> None:
     assert resolved + refused == len(tutor.STAGES) * len(tutor.ACTIONS)
     assert resolved == len(tutor.TRANSITIONS)
     # Spelled out, because a product nobody has counted by hand cannot catch a missing row.
-    assert (len(tutor.STAGES), len(tutor.ACTIONS)) == (5, 8)
+    assert (len(tutor.STAGES), len(tutor.ACTIONS)) == (5, 9)  # HLD S18.16: + fol_step
 
 
 def test_every_transition_lands_where_the_design_says() -> None:
@@ -363,6 +363,7 @@ def test_every_transition_lands_where_the_design_says() -> None:
         ("translate", "translate"): "translate",
         ("translate", "confirm"): "prove",
         ("prove", "step"): "prove",
+        ("prove", "fol_step"): "prove",  # HLD S18.16: the FOL board's own step submission
         ("prove", "hint"): "prove",
         ("prove", "claim_not_provable"): "prove",
         # The A4 rewind. A merge re-assigns symbols from scratch, so the proof is no longer about

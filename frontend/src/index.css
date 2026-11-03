@@ -772,3 +772,45 @@ section > button.primary {
   font-size: 1.3rem;
   font-weight: 600;
 }
+
+/* FOL Explanation, exam form (HLD S18.15.6). Reuses `.proof` for the lists; these rules only
+   add the columns `.proof` has no equivalent for -- an origin tag, the unifier, the tree. */
+.fol-legend .origin,
+.fol-steps .origin {
+  color: #6b7280;
+  font-size: 0.85em;
+  margin-left: auto;
+  padding-left: 1rem;
+  white-space: nowrap;
+}
+.fol-legend li.goal .literals {
+  font-weight: 600;
+}
+.fol-note {
+  flex-basis: 100%;
+  color: #92400e;
+  font-size: 0.85em;
+  font-style: italic;
+  padding-top: 0.25rem;
+}
+.fol-resolvent {
+  color: #374151;
+  font-style: normal;
+  padding-left: 0.75rem;
+}
+.fol-tree {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 0.9em;
+  line-height: 1.6;
+  margin: 0 0 1rem;
+  overflow-x: auto;
+  padding: 0.75rem 1rem;
+}
+.fol-conclusion {
+  background: #f0fdf4;
+  border-left: 3px solid #16a34a;
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.9rem;
+}

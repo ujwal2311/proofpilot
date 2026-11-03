@@ -67,14 +67,14 @@ def test_resolve_socrates_step_one() -> None:
     #                                  -> {Mortal(socrates)}, via x -> socrates.
     clause_a = frozenset({(False, human(x)), (True, mortal(x))})
     clause_b = frozenset({(True, human(socrates))})
-    assert resolve(clause_a, clause_b) == [frozenset({(True, mortal(socrates))})]
+    assert [r for r, _mgu in resolve(clause_a, clause_b)] == [frozenset({(True, mortal(socrates))})]
 
 
 def test_resolve_socrates_step_two_derives_the_empty_clause() -> None:
     # HLD section 18.9 Test A, step 2: {Mortal(socrates)} + {~Mortal(socrates)} -> {} (PROVED).
     clause_a = frozenset({(True, mortal(socrates))})
     clause_b = frozenset({(False, mortal(socrates))})
-    assert resolve(clause_a, clause_b) == [frozenset()]
+    assert [r for r, _mgu in resolve(clause_a, clause_b)] == [frozenset()]
 
 
 def test_resolve_teaches_knows_multi_argument() -> None:
@@ -84,7 +84,9 @@ def test_resolve_teaches_knows_multi_argument() -> None:
     knows_yx = Predicate("Knows", (y, x))
     clause_a = frozenset({(False, teaches_xy), (True, knows_yx)})
     clause_b = frozenset({(True, Predicate("Teaches", (alice, bob)))})
-    assert resolve(clause_a, clause_b) == [frozenset({(True, Predicate("Knows", (bob, alice)))})]
+    assert [r for r, _mgu in resolve(clause_a, clause_b)] == [
+        frozenset({(True, Predicate("Knows", (bob, alice)))})
+    ]
 
 
 def test_resolve_returns_no_pivot_when_no_literals_are_complementary() -> None:
@@ -117,7 +119,7 @@ def test_resolve_soundness_applies_the_mgu_to_every_surviving_literal() -> None:
     # one. The classic unsound-implementation bug leaves Wise(x) un-substituted.
     clause_a = frozenset({(False, human(x)), (True, mortal(x)), (True, Predicate("Wise", (x,)))})
     clause_b = frozenset({(True, human(socrates))})
-    (resolvent,) = resolve(clause_a, clause_b)
+    ((resolvent, _mgu),) = resolve(clause_a, clause_b)
     assert resolvent == frozenset(
         {(True, mortal(socrates)), (True, Predicate("Wise", (socrates,)))}
     )
@@ -132,7 +134,7 @@ def test_resolve_can_produce_several_resolvents_from_several_pivots() -> None:
     q_b = Predicate("Q", (Constant("b"),))
     clause_a = frozenset({(True, p_x), (True, q_y)})
     clause_b = frozenset({(False, p_a), (False, q_b)})
-    results = resolve(clause_a, clause_b)
+    results = [r for r, _mgu in resolve(clause_a, clause_b)]
     assert len(results) == 2
     assert all(not is_tautology_fol(r) for r in results)
 
@@ -149,3 +151,46 @@ def test_canonical_clause_distinguishes_different_clauses() -> None:
     a = frozenset({(True, human(x))})
     b = frozenset({(False, human(x))})
     assert canonical_clause(a) != canonical_clause(b)
+
+
+# ------------------------------- the MGU is returned, not discarded (item 4, 2026-11-02)
+
+# `resolve` computed an MGU, applied it, and threw it away. A proof trace has to SHOW the
+# substitution ("x = socrates") -- it is the marks-earning part of a resolution step -- so each
+# resolvent now travels with the unifier that produced it.
+
+
+def test_resolve_returns_the_mgu_alongside_each_resolvent() -> None:
+    clause_a = frozenset({(False, human(x)), (True, mortal(x))})
+    clause_b = frozenset({(True, human(socrates))})
+    ((resolvent, mgu),) = resolve(clause_a, clause_b)
+    assert resolvent == frozenset({(True, mortal(socrates))})
+    assert mgu == {"x": socrates}
+
+
+def test_a_ground_resolution_reports_an_empty_substitution() -> None:
+    """Nothing was substituted, so the trace must say nothing rather than invent a binding."""
+    clause_a = frozenset({(True, mortal(socrates))})
+    clause_b = frozenset({(False, mortal(socrates))})
+    ((resolvent, mgu),) = resolve(clause_a, clause_b)
+    assert resolvent == frozenset()
+    assert mgu == {}
+
+
+def test_a_multi_argument_mgu_reports_every_binding() -> None:
+    teaches_xy = Predicate("Teaches", (x, y))
+    knows_yx = Predicate("Knows", (y, x))
+    clause_a = frozenset({(False, teaches_xy), (True, knows_yx)})
+    clause_b = frozenset({(True, Predicate("Teaches", (alice, bob)))})
+    ((resolvent, mgu),) = resolve(clause_a, clause_b)
+    assert resolvent == frozenset({(True, Predicate("Knows", (bob, alice)))})
+    assert mgu == {"x": alice, "y": bob}
+
+
+def test_the_returned_mgu_actually_produces_the_returned_resolvent() -> None:
+    """The substitution shown must be the one that was applied -- not a plausible-looking one."""
+    clause_a = frozenset({(False, human(x)), (True, mortal(x))})
+    clause_b = frozenset({(True, human(socrates))})
+    ((resolvent, mgu),) = resolve(clause_a, clause_b)
+    survivors = (clause_a | clause_b) - {(False, human(x)), (True, human(socrates))}
+    assert resolvent == {apply_literal_subst(literal, mgu) for literal in survivors}

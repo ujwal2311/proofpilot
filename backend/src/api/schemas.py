@@ -142,6 +142,10 @@ class StepAction(_Body):
 class HintAction(_Body):
     type: Literal["hint"]
     level: Literal[1, 2, 3]
+    # FOL only (HLD S18.16.9): which step is hinted is picked by how many clauses the student has
+    # already derived, not by `level` -- unused by propositional's own branch, same optional,
+    # default-empty shape `FolStepAction.accepted` already uses.
+    accepted: list[str] = []
 
 
 class ClaimAction(_Body):
@@ -168,6 +172,24 @@ class TranslateAction(_Body):
     formula: str
 
 
+class FolStepAction(_Body):
+    """One proposed FOL resolution step (HLD S18.16). `resolvent` is ONE string of formal
+    clause notation (e.g. "¬Study(ravi) ∨ PassTheExam(ravi)"), not a list of single-letter
+    tokens like propositional's `StepAction.resolvent` -- a FOL literal carries a predicate name
+    and an argument list, so the propositional shape does not fit. Literals are validated by
+    core, not by a pattern here, same discipline as `StepAction`."""
+
+    type: Literal["fol_step"]
+    clause_a: str
+    clause_b: str
+    resolvent: str
+    # The student's own PREVIOUSLY-accepted clause texts, in derivation order -- echoed back by
+    # the client, never stored server-side (HLD S18.16.8, same statelessness every other action
+    # already follows). A parse failure here means the request was tampered with, since the
+    # server only ever echoed back text it had already validated.
+    accepted: list[str] = []
+
+
 class MergeAction(_Body):
     """Change the merge grouping from the Prove (or Facts) stage -- the v2.7 A4 reset.
 
@@ -184,7 +206,13 @@ class MergeAction(_Body):
 # Discriminated on `type`, so a bad action names the field that is wrong instead of reporting four
 # parallel failures (HLD section 8: one `/act` surface, not one endpoint per action).
 Action = Annotated[
-    StepAction | HintAction | ClaimAction | ConfirmFactsAction | TranslateAction | MergeAction,
+    StepAction
+    | FolStepAction
+    | HintAction
+    | ClaimAction
+    | ConfirmFactsAction
+    | TranslateAction
+    | MergeAction,
     Field(discriminator="type"),
 ]
 
@@ -218,6 +246,31 @@ class NextResponse(_Body):
     done: bool
 
 
+class FolTraceStepSchema(_Body):
+    left: str
+    right: str
+    resolvent: str
+    unifier: str = ""
+
+
+class FolTraceClauseSchema(_Body):
+    label: str
+    text: str
+    origin: str
+    note: str = ""
+
+
+class FolTraceSchema(_Body):
+    """HLD S18.14. Mirrors `app.render.FolTrace` field-for-field -- no new shape invented."""
+
+    clauses: dict[str, str]
+    steps: list[FolTraceStepSchema]
+    has_unrendered_terms: bool
+    legend: list[FolTraceClauseSchema] = []
+    conclusion: str = ""
+    tree: list[str] = []
+
+
 class ParseResponse(_Body):
     """Section 8. `error` is a top-level halt; a per-sentence refusal rides inside `state`."""
 
@@ -227,6 +280,8 @@ class ParseResponse(_Body):
     # Rendered from data/messages.yaml's `fol:` section (HLD S18.6.4, S18.7 Phase 8b) -- None
     # unless `state.fol_result` is set, same shape as `warnings` above.
     fol_message: str | None = None
+    # HLD S18.14, same None-unless-fol_result shape as fol_message above.
+    fol_trace: FolTraceSchema | None = None
 
 
 class ActResponse(_Body):

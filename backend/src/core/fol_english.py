@@ -9,17 +9,25 @@ term arguments where Atom has a raw phrase, so the two type unions stay separate
 SUPPORTED PATTERNS (HLD section 18.2.2; the two "2026-11-02" rows are a student-authorized
 extension, same bounded-grammar discipline, scoped to exactly these two forms):
   Quantified : "Every X is a Y" / "Every X is not a Y" / "Some X is a Y" / "No X is a Y" /
-               "All X that Y are Z"
+               "All X that|who Y are Z" /
+               "Anyone|Anybody|Everyone|Everybody who Y Z" (no subject class, 2026-11-02)
   Ground     : "NAME Rs NAME" / "NAME Rs NAME and NAME" / "NAME is a Y" / "NAME is not a Y" /
                "NAME VERBs" (bare intransitive, no object, 2026-11-02) /
+               "NAME VERBs the OBJECT" (verb + object phrase = one unary predicate, 2026-11-02) /
                "A or B" where A, B are each a ground pattern above (2026-11-02)
   Wh         : "If X is a Y then X is a Z" / "If NAME Rs NAME then NAME Rs NAME"
 
 GRAMMAR LIMITATIONS, stated rather than hidden (HLD section 18.2's own out-of-scope note, plus
 two more this implementation adds explicitly):
-  - No stemming/lemmatization, same choice core.english makes for facts: "students" and "student"
-    are different predicate symbols unless written identically. Merging them would be a guess
-    about what the writer meant.
+  - Predicate words ARE canonicalized for regular inflection (-s, -es, -ies), so "students"
+    and "student", "study" and "studies", "pass the exam" and "passes the exam" are one symbol
+    (see _canonical_word). This REVERSES the original "no stemming" limitation, which HLD
+    section 18.9's own worked example disproved: without it nothing in that argument unified and
+    a valid proof reported BUDGET_EXHAUSTED, which a student cannot distinguish from "no proof
+    exists" -- a silent wrong answer, far worse than the merge it was avoiding. Individual NAMES
+    are never canonicalized ("Socrates" is not a plural). IRREGULAR inflection is still out of
+    scope and is the known gap: "person"/"people" and "child"/"children" remain two symbols,
+    because no general rule reaches them and CLAUDE.md principle 1 rules out a word list.
   - The unary-predicate slot after "is"/"is not" is read as EVERYTHING remaining in the sentence,
     CamelCase-joined -- "every human is mortal" strips "is" and reads "mortal"; "some student
     studies" has no "is" to strip and reads "studies" directly. Both are one documented rule, not
@@ -93,14 +101,64 @@ class FolParseError(Exception):
 
 
 _QUANTIFIERS = ("every", "all", "some", "no")
+_INDEFINITE_QUANTIFIERS = ("anyone", "anybody", "everyone", "everybody")
+_RELATIVE_PRONOUNS = ("that", "who")
+# "the" marks an object PHRASE rather than a second individual, which is the only signal that
+# separates "Ravi passes the exam" (unary) from "Alice likes Bob" (binary). It is deliberately
+# NOT reserved: it stays readable inside the predicate it helps delimit ("PassTheExam").
+_DETERMINERS = ("the",)
 _RESERVED = frozenset(
-    {"every", "all", "some", "no", "and", "or", "that", "if", "then", "is", "not", "a", "an", "are"}
+    {
+        "every",
+        "all",
+        "some",
+        "no",
+        "and",
+        "or",
+        "that",
+        "who",
+        "if",
+        "then",
+        "is",
+        "not",
+        "a",
+        "an",
+        "are",
+    }
+    | set(_INDEFINITE_QUANTIFIERS)
 )
 _EQUALITY_MARKERS = (("equals",), ("is", "the", "same", "as"))
 
 
 def _tokenize(sentence: str) -> list[str]:
     return [token for token in normalize_text(sentence).lower().split() if token]
+
+
+# A word ending in one of these is not a regular plural -- stripping "pass" to "pas" or
+# "bus" to "bu" would invent a word the writer never used.
+_NEVER_STRIPPED = ("ss", "us", "is", "as", "os")
+
+
+def _canonical_word(word: str) -> str:
+    """Undo REGULAR English inflection so one idea is one predicate symbol.
+
+    WHY this exists at all: without it "students"/"student" and "study"/"studies" are different
+    symbols, nothing unifies, and a valid argument reports BUDGET_EXHAUSTED -- which a student
+    cannot tell apart from "no proof exists" (HLD section 18.2, 2026-11-02; this replaces the
+    original "no stemming" limitation, which that example proved untenable).
+
+    Regular patterns only, never a word list (CLAUDE.md principle 1): -ies -> -y, -es after a
+    sibilant, and a plain trailing -s. Irregular forms ("person"/"people", "child"/"children")
+    are out of reach of any general rule and stay out of scope, stated in the module docstring
+    rather than guessed at.
+    """
+    if word.endswith("ies") and len(word) > 4:
+        return word[:-3] + "y"
+    if word.endswith("es") and len(word) > 3 and word[:-2].endswith(("s", "x", "z", "ch", "sh")):
+        return word[:-2]
+    if word.endswith("s") and len(word) > 3 and not word.endswith(_NEVER_STRIPPED):
+        return word[:-1]
+    return word
 
 
 def _camel_case(words: list[str]) -> str:
@@ -113,7 +171,7 @@ def _check_reserved(words: list[str], sentence: str) -> None:
     """Refuse a name/predicate phrase that is, or contains, a structural keyword -- the guard
     that keeps a malformed sentence from being silently CamelCased into a bogus predicate (see
     the module docstring's limitations list)."""
-    if any(word in _QUANTIFIERS for word in words):
+    if any(word in _QUANTIFIERS + _INDEFINITE_QUANTIFIERS for word in words):
         raise FolParseError(FolErrorCode.FOL_NESTED_QUANTIFIER_IN_GROUND, sentence)
     if any(word in _RESERVED for word in words):
         raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
@@ -138,17 +196,27 @@ def _register(registry: Registry, word: str, role: str, arity: int, sentence: st
 
 
 def _constant(word: str, registry: Registry, sentence: str) -> Constant:
+    """An individual name. The NAME is never canonicalized -- "Socrates" is not a plural of
+    "Socrate" -- but the registry KEY is, so that the role clash in "Ravi studies or Studies is
+    a person" is still caught now that predicates are registered under their canonical form.
+    """
     _check_reserved([word], sentence)
-    _register(registry, word, "const", 0, sentence)
+    _register(registry, _canonical_word(word), "const", 0, sentence)
     return Constant(word)
 
 
 def _predicate(
     words: list[str], args: tuple[object, ...], registry: Registry, sentence: str
 ) -> Predicate:
+    """Build a predicate from `words`, canonicalized so inflection never splits one idea in two.
+
+    The registry is keyed by the CANONICAL phrase, not the written one, so the cross-sentence
+    arity check sees "students" and "student" as the one symbol they now produce.
+    """
     _check_reserved(words, sentence)
-    _register(registry, " ".join(words), "pred", len(args), sentence)
-    return Predicate(_camel_case(words), args)  # type: ignore[arg-type]
+    canonical = [_canonical_word(word) for word in words]
+    _register(registry, " ".join(canonical), "pred", len(args), sentence)
+    return Predicate(_camel_case(canonical), args)  # type: ignore[arg-type]
 
 
 def _strip_copula(tokens: list[str]) -> tuple[bool, list[str]]:
@@ -168,72 +236,122 @@ def _strip_copula(tokens: list[str]) -> tuple[bool, list[str]]:
 # --------------------------------------------------------------------------- quantified patterns
 
 
-def _parse_every(tokens: list[str], registry: Registry, sentence: str) -> FolFormula:
+def _parse_simple_quantified(
+    keyword: str, tokens: list[str], registry: Registry, sentence: str
+) -> FolFormula:
+    """ "Every X is a Y" / "Every X is not a Y" / "No X is a Y" / "Some X is a Y".
+
+    One shape behind three keywords: a subject word, then whatever the copula leaves as the
+    predicate. Only "every" accepts the negated form -- "No X is not a Y" and "Some X is not a Y"
+    are undocumented variants, so they are refused rather than guessed at (HLD section 18.2).
+    Written as one function because the three were character-for-character identical apart from
+    the node they build, and three copies drift.
+    """
     if not tokens:
         raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
     subject_word, rest = tokens[0], tokens[1:]
     negated, pred_words = _strip_copula(rest)
-    if not pred_words:
+    if not pred_words or (negated and keyword != "every"):
         raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
     v = Variable("x")
     subject = _predicate([subject_word], (v,), registry, sentence)
     pred = _predicate(pred_words, (v,), registry, sentence)
-    return ForAll(v, FolImplies(subject, FolNot(pred) if negated else pred))
+    if keyword == "some":
+        return Exists(v, FolAnd((subject, pred)))
+    if negated or keyword == "no":
+        return ForAll(v, FolImplies(subject, FolNot(pred)))
+    return ForAll(v, FolImplies(subject, pred))
 
 
-def _parse_no(tokens: list[str], registry: Registry, sentence: str) -> FolFormula:
-    if not tokens:
-        raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
-    subject_word, rest = tokens[0], tokens[1:]
-    negated, pred_words = _strip_copula(rest)
-    if negated or not pred_words:
-        raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
-    v = Variable("x")
-    subject = _predicate([subject_word], (v,), registry, sentence)
-    pred = _predicate(pred_words, (v,), registry, sentence)
-    return ForAll(v, FolImplies(subject, FolNot(pred)))
+def _relative_index(tokens: list[str]) -> int:
+    """Where the relative clause starts, or -1. "that" and "who" are the same connector here --
+    which one the writer used carries no logical difference."""
+    for index, token in enumerate(tokens):
+        if token in _RELATIVE_PRONOUNS:
+            return index
+    return -1
 
 
-def _parse_some(tokens: list[str], registry: Registry, sentence: str) -> FolFormula:
-    if not tokens:
+def _relative_clause(rest: list[str], sentence: str) -> tuple[list[str], list[str]]:
+    """The relative clause's own predicate, and whatever follows it.
+
+    ONE bounded rule, covering both "who study" and "who is lucky": the predicate is exactly one
+    word, optionally preceded by "is" and an article. Allowing more would make the split between
+    the clause and the main predicate ("...who is lucky | passes the exam") a guess.
+    """
+    index = 0
+    if rest[:1] == ["is"]:
+        index = 2 if rest[1:2] in (["a"], ["an"]) else 1
+    if len(rest) <= index:
         raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
-    subject_word, rest = tokens[0], tokens[1:]
-    negated, pred_words = _strip_copula(rest)
-    if negated or not pred_words:
-        raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
-    v = Variable("x")
-    subject = _predicate([subject_word], (v,), registry, sentence)
-    pred = _predicate(pred_words, (v,), registry, sentence)
-    return Exists(v, FolAnd((subject, pred)))
+    return [rest[index]], rest[index + 1 :]
 
 
-def _parse_all_that(tokens: list[str], registry: Registry, sentence: str) -> FolFormula:
-    if "that" not in tokens:
-        raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
-    idx = tokens.index("that")
-    subject_words, rest = tokens[:idx], tokens[idx + 1 :]
-    if len(subject_words) != 1 or not rest:
-        raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
-    mid_word, after_mid = rest[0], rest[1:]
+def _main_predicate(after_mid: list[str], sentence: str) -> list[str]:
+    """The consequent's words, with a leading copula stripped ("...are migratory")."""
     z_words = after_mid[1:] if after_mid[:1] in (["are"], ["is"]) else after_mid
     if not z_words:
         raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
+    return z_words
+
+
+def _parse_all_bare_svo(tokens: list[str], registry: Registry, sentence: str) -> FolFormula:
+    """ "All SUBJECT VERB OBJECT-PHRASE" -- no relative clause, no copula (2026-11-02). The
+    object phrase must carry the SAME signal the ground verb+object pattern requires (a
+    determiner, or its last word is a regular plural) -- reused, not re-derived, so the two
+    patterns can never disagree about what counts as an object phrase. A quantified relation to
+    a NAMED INDIVIDUAL ("All engineers like Bob") is still refused: genuinely ambiguous the same
+    way the ground pattern is, never guessed at.
+    """
+    if len(tokens) < 3:
+        raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
+    subject_word, rest = tokens[0], tokens[1:]
+    if rest[1] not in _DETERMINERS and _canonical_word(rest[-1]) == rest[-1]:
+        raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
+    v = Variable("x")
+    subject = _predicate([subject_word], (v,), registry, sentence)
+    verb_object = _predicate(rest, (v,), registry, sentence)
+    return ForAll(v, FolImplies(subject, verb_object))
+
+
+def _parse_all_that(tokens: list[str], registry: Registry, sentence: str) -> FolFormula:
+    idx = _relative_index(tokens)
+    if idx < 0:
+        return _parse_all_bare_svo(tokens, registry, sentence)
+    subject_words, rest = tokens[:idx], tokens[idx + 1 :]
+    if len(subject_words) != 1 or not rest:
+        raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
+    mid_words, after_mid = _relative_clause(rest, sentence)
+    z_words = _main_predicate(after_mid, sentence)
     v = Variable("x")
     subject = _predicate(subject_words, (v,), registry, sentence)
-    mid = _predicate([mid_word], (v,), registry, sentence)
+    mid = _predicate(mid_words, (v,), registry, sentence)
     z = _predicate(z_words, (v,), registry, sentence)
     return ForAll(v, FolImplies(FolAnd((subject, mid)), z))
 
 
+def _parse_indefinite(tokens: list[str], registry: Registry, sentence: str) -> FolFormula:
+    """ "Anyone who is lucky passes the exam" -> ForAll(x, Lucky(x) -> PassTheExam(x)).
+
+    Same shape as "All X who Y are Z" minus the subject class: "anyone" names no category, so
+    the relative clause alone is the antecedent. The relative pronoun is REQUIRED -- "anyone
+    passes the exam" has no antecedent to build an implication from and is refused rather than
+    read as a bare fact about an individual called "anyone".
+    """
+    if tokens[:1] and tokens[0] in _RELATIVE_PRONOUNS:
+        mid_words, after_mid = _relative_clause(tokens[1:], sentence)
+        z_words = _main_predicate(after_mid, sentence)
+        v = Variable("x")
+        antecedent = _predicate(mid_words, (v,), registry, sentence)
+        return ForAll(v, FolImplies(antecedent, _predicate(z_words, (v,), registry, sentence)))
+    raise FolParseError(FolErrorCode.FOL_UNKNOWN_PATTERN, sentence)
+
+
 def _parse_quantified(tokens: list[str], registry: Registry, sentence: str) -> FolFormula:
     keyword, rest = tokens[0], tokens[1:]
-    if keyword == "every":
-        return _parse_every(rest, registry, sentence)
-    if keyword == "no":
-        return _parse_no(rest, registry, sentence)
-    if keyword == "some":
-        return _parse_some(rest, registry, sentence)
-    return _parse_all_that(rest, registry, sentence)  # keyword == "all"
+    if keyword == "all":
+        return _parse_all_that(rest, registry, sentence)
+    return _parse_simple_quantified(keyword, rest, registry, sentence)
 
 
 # -------------------------------------------------------------------------------- ground patterns
@@ -262,6 +380,17 @@ def _parse_ground(tokens: list[str], registry: Registry, sentence: str) -> FolFo
         pred = _predicate(pred_words, (c1,), registry, sentence)
         return FolNot(pred) if negated else pred
     if len(rest) == 1:
+        return _predicate(rest, (c1,), registry, sentence)
+    if rest[1] in _DETERMINERS or _canonical_word(rest[-1]) != rest[-1]:
+        # "Ravi passes the exam": a determiner marks an object PHRASE, not an individual named
+        # "the" (_DETERMINERS). "Aisha solves problems" has no determiner, but its head noun is a
+        # regular plural -- checked by the LAST word so a modifier ("solves hard problems") does
+        # not hide it -- which a proper name essentially never is in this grammar's own worked
+        # examples. Both signals route to the same unary verb+object reading; neither guesses
+        # when the object is a bare, non-plural, undetermined word ("Alice likes Bob" still means
+        # two individuals). KNOWN, ACCEPTED LIMITATION, same risk already taken for
+        # _canonical_word itself: a proper name that happens to be a regular plural form (ending
+        # in "-s" the way _canonical_word strips) would be misread the same way.
         return _predicate(rest, (c1,), registry, sentence)
     return _parse_relation(c1, rest, registry, sentence)
 
@@ -349,6 +478,8 @@ def parse(sentence: str, registry: Registry | None = None) -> FolFormula:
 
     if tokens[0] in _QUANTIFIERS:
         return _parse_quantified(tokens, registry, sentence)
+    if tokens[0] in _INDEFINITE_QUANTIFIERS:
+        return _parse_indefinite(tokens[1:], registry, sentence)
     if tokens[0] == "if":
         return _parse_if(tokens[1:], registry, sentence)
     return _parse_ground(tokens, registry, sentence)
@@ -386,13 +517,29 @@ def is_fol_formula(f: FolFormula) -> bool:
     raise TypeError(f"not a FOL formula node: {f!r}")
 
 
+def _has_quantifier_word(sentence: str) -> bool:
+    """True if `sentence` lexically contains a quantifier word, whether or not THIS grammar's
+    narrower patterns can parse it into a formula (2026-11-02 fix, HLD S18.16.10).
+
+    Safe by construction: `core.english`'s own grammar refuses every one of these words
+    UNCONDITIONALLY (its own QUANTIFIER_UNSUPPORTED check), so this can never take a sentence
+    away from propositional that propositional would otherwise have accepted -- there is no such
+    sentence. Before this, a sentence this grammar could not parse at all (e.g. "All engineers
+    solve problems" -- no copula, no relative clause, a genuine pattern gap) was treated as "not
+    a FOL signal", so a paragraph containing it fell through to full propositional treatment --
+    Facts panel, relevance banner -- none of which was ever meant to see a quantifier.
+    """
+    tokens = _tokenize(sentence)
+    return any(token in _QUANTIFIERS or token in _INDEFINITE_QUANTIFIERS for token in tokens)
+
+
 def is_fol_sentence(sentence: str) -> bool:
-    """True if `sentence` would need FOL mode. A sentence this grammar cannot parse at all is
-    NOT a FOL signal -- it is core.english's problem to refuse or accept, same as today."""
+    """True if `sentence` would need FOL mode -- either it parses into a formula with a
+    quantifier, or it lexically signals one this grammar cannot (yet) parse."""
     try:
         formula = parse(sentence)
     except FolParseError:
-        return False
+        return _has_quantifier_word(sentence)
     return is_fol_formula(formula)
 
 
@@ -406,26 +553,79 @@ def detect_mode(sentences: list[str]) -> str:
 # ----------------------------------------------------------------------- display (Facts panel)
 
 
+# Binding tightness, loosest first: ↔ < → < ∨ < ∧ < ¬ < atoms. A child LOOSER than its parent
+# must be parenthesized or the text says something the tree does not -- "¬A ∧ B" read back is
+# (¬A) ∧ B, not ¬(A ∧ B). A child at least as tight needs nothing, so the conventional
+# "A ∧ B → C" keeps its conventional shape instead of drowning in brackets.
+_LOOSEST = 0
+_PRECEDENCE: dict[type, int] = {
+    FolIff: _LOOSEST,
+    FolImplies: 1,
+    FolOr: 2,
+    FolAnd: 3,
+    FolNot: 4,
+}
+_ATOMIC = 5  # predicates, and quantifiers (which bracket their own body)
+
+
+def _precedence(f: FolFormula) -> int:
+    return _PRECEDENCE.get(type(f), _ATOMIC)
+
+
+def _grouped(child: FolFormula, parent: int) -> str:
+    """`child` rendered, bracketed only when it binds LOOSER than the parent it sits inside."""
+    text = render(child)
+    return f"({text})" if _precedence(child) < parent else text
+
+
+def display_term_name(name: str) -> str:
+    """A Skolem term's name in the notation a logic course uses: sk_c0 -> C1, sk_f0 -> f1.
+
+    `core.fol_cnf` numbers Skolem terms from an internal counter, and those internal names are
+    part of clause identity -- renaming them there would change what unifies with what. This is
+    display only, the same treatment the pipeline's `c2_v0` variable names already get: a student
+    reading "sk_f0(x)" learns nothing from the prefix, and every textbook writes f1(x).
+    """
+    for prefix, shown in (("sk_c", "C"), ("sk_f", "f")):
+        suffix = name[len(prefix) :]
+        if name.startswith(prefix) and suffix.isdigit():
+            return f"{shown}{int(suffix) + 1}"
+    return name
+
+
+def _term_text(term: object) -> str:
+    """A term as text: a name, or `f(arg, ...)` for a function term, recursively."""
+    args = getattr(term, "args", None)
+    if args:
+        inner = ", ".join(_term_text(a) for a in args)
+        return f"{display_term_name(term.name)}({inner})"  # type: ignore[attr-defined]
+    return display_term_name(term.name)  # type: ignore[attr-defined]
+
+
 def render(f: FolFormula) -> str:
     """The reading `parse()` built from one sentence, in the symbols a logic course already
     uses -- shown back to the student instead of core.english's refusal (HLD section 18.7's
     Facts-panel fix: a sentence FOL understood must never be reported as propositionally wrong).
-    `parse()` never produces a `FunctionTerm` (Skolemization is a CNF-pipeline step, run only
-    after a proof attempt starts), so every argument here is a bare `Variable`/`Constant` name.
+    `parse()` never produces a `FunctionTerm`, but the CNF working display (HLD S18.15.6) hands
+    this POST-Skolemization formulas, which do -- so terms are rendered recursively via
+    `_term_text`. Printing a `FunctionTerm`'s bare `.name` would drop the arguments that are the
+    whole difference between a Skolem function and a Skolem constant.
     """
     match f:
         case Predicate(name, args):
-            return f"{name}({', '.join(a.name for a in args)})" if args else name
+            return f"{name}({', '.join(_term_text(a) for a in args)})" if args else name
         case FolNot(body):
-            return f"¬{render(body)}"
+            return f"¬{_grouped(body, _PRECEDENCE[FolNot])}"
         case FolAnd(items):
-            return " ∧ ".join(render(item) for item in items)
+            return " ∧ ".join(_grouped(item, _PRECEDENCE[FolAnd]) for item in items)
         case FolOr(items):
-            return " ∨ ".join(render(item) for item in items)
+            return " ∨ ".join(_grouped(item, _PRECEDENCE[FolOr]) for item in items)
         case FolImplies(antecedent, consequent):
-            return f"{render(antecedent)} → {render(consequent)}"
+            level = _PRECEDENCE[FolImplies]
+            return f"{_grouped(antecedent, level)} → {_grouped(consequent, level)}"
         case FolIff(left, right):
-            return f"{render(left)} ↔ {render(right)}"
+            level = _PRECEDENCE[FolIff]
+            return f"{_grouped(left, level)} ↔ {_grouped(right, level)}"
         case ForAll(var, body):
             return f"∀{var.name} ({render(body)})"
         case Exists(var, body):

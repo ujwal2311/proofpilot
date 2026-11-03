@@ -53,6 +53,7 @@ ACTIONS = (
     "confirm",
     "translate",
     "step",
+    "fol_step",
     "hint",
     "claim_not_provable",
 )
@@ -61,7 +62,7 @@ ACTIONS = (
 # confirmed. Checked by NAME here, ahead of the transition table, so that attempting one of these
 # in "facts" gets the specific FactsNotConfirmed error rather than the generic one every other
 # invalid (stage, action) pair gets.
-_PROVING_ACTIONS = frozenset({"step", "hint", "claim_not_provable", "translate"})
+_PROVING_ACTIONS = frozenset({"step", "fol_step", "hint", "claim_not_provable", "translate"})
 
 # (stage, action) -> the stage afterwards. Total by construction: a pair that is absent is a
 # TransitionError, never a silent pass, so a client that posts the wrong action in the wrong stage
@@ -85,6 +86,7 @@ TRANSITIONS: dict[tuple[str, str], str] = {
     ("translate", "translate"): "translate",
     ("translate", "confirm"): "prove",
     ("prove", "step"): "prove",
+    ("prove", "fol_step"): "prove",
     ("prove", "hint"): "prove",
     ("prove", "claim_not_provable"): "prove",
     ("prove", "merge"): "facts",

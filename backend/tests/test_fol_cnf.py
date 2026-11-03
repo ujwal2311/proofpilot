@@ -20,6 +20,7 @@ from src.core.fol_cnf import (
     standardize_apart_clauses,
     standardize_variables,
     to_fol_clauses,
+    to_fol_clauses_traced,
 )
 from src.core.fol_models import (
     Constant,
@@ -344,3 +345,84 @@ def test_to_fol_clauses_existential_produces_a_skolem_constant() -> None:
     assert polarity is True
     assert isinstance(pred.args[0], Constant)
     assert pred.args[0].name.startswith("sk_c")
+
+
+# ------------------- per-step retention: the "working" column (item 6, 2026-11-02)
+
+# `to_fol_clauses` returned only the final clause set, so the marks-earning steps of a CNF
+# conversion -- removing ->, De Morgan, dropping forall, distributing -- were invisible. The
+# traced variant keeps each intermediate formula. It is the SAME pipeline, not a copy:
+# `to_fol_clauses` now delegates to it and discards the trace, so the two can never drift.
+
+
+def test_traced_returns_the_same_clauses_as_the_untraced_pipeline() -> None:
+    formula = ForAll(x, FolImplies(Predicate("Human", (x,)), Predicate("Mortal", (x,))))
+    _steps, clauses = to_fol_clauses_traced(formula)
+    assert clauses == to_fol_clauses(formula)
+
+
+def test_traced_records_every_pipeline_step_in_order() -> None:
+    formula = ForAll(x, FolImplies(Predicate("Human", (x,)), Predicate("Mortal", (x,))))
+    steps, _clauses = to_fol_clauses_traced(formula)
+    assert [name for name, _formula in steps] == [
+        "eliminate_implications",
+        "push_negation_inward",
+        "standardize_variables",
+        "skolemize",
+        "drop_universal_quantifiers",
+        "distribute_or_over_and",
+    ]
+
+
+def test_the_implication_is_actually_gone_after_the_first_step() -> None:
+    formula = ForAll(x, FolImplies(Predicate("Human", (x,)), Predicate("Mortal", (x,))))
+    steps, _clauses = to_fol_clauses_traced(formula)
+    after = dict(steps)["eliminate_implications"]
+    assert isinstance(after, ForAll)
+    assert isinstance(after.body, FolOr)
+
+
+def test_the_quantifier_is_gone_after_the_drop_step_and_present_before_it() -> None:
+    formula = ForAll(x, FolImplies(Predicate("Human", (x,)), Predicate("Mortal", (x,))))
+    named = dict(to_fol_clauses_traced(formula)[0])
+    assert isinstance(named["skolemize"], ForAll)
+    assert not isinstance(named["drop_universal_quantifiers"], ForAll)
+
+
+def test_de_morgan_is_visible_as_its_own_step() -> None:
+    formula = FolNot(FolAnd((Predicate("P", (x,)), Predicate("Q", (x,)))))
+    named = dict(to_fol_clauses_traced(formula)[0])
+    assert isinstance(named["push_negation_inward"], FolOr)
+
+
+# ---- the existential case, built on purpose: no worked example in scope contains one, so
+# ---- Skolemization would otherwise ship instrumented but never actually exercised end to end.
+
+
+def test_skolemization_step_replaces_an_unquantified_existential_with_a_constant() -> None:
+    formula = Exists(x, Predicate("Loves", (x,)))
+    named = dict(to_fol_clauses_traced(formula)[0])
+    assert isinstance(named["standardize_variables"], Exists)
+    skolemized = named["skolemize"]
+    assert isinstance(skolemized, Predicate)
+    (arg,) = skolemized.args
+    assert isinstance(arg, Constant)
+
+
+def test_skolemization_step_under_a_forall_produces_a_function_of_it() -> None:
+    formula = ForAll(x, Exists(y, Predicate("Loves", (x, y))))
+    named = dict(to_fol_clauses_traced(formula)[0])
+    skolemized = named["skolemize"]
+    assert isinstance(skolemized, ForAll)
+    assert isinstance(skolemized.body, Predicate)
+    _outer, second = skolemized.body.args
+    assert isinstance(second, FunctionTerm)
+    assert len(second.args) == 1  # a function of the one enclosing universal
+
+
+def test_the_existential_pipeline_still_reaches_a_clause_set() -> None:
+    formula = ForAll(x, Exists(y, Predicate("Loves", (x, y))))
+    steps, clauses = to_fol_clauses_traced(formula)
+    assert len(steps) == 6
+    assert clauses == to_fol_clauses(formula)
+    assert len(clauses) == 1

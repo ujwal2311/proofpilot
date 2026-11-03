@@ -182,6 +182,7 @@ exclude = [
     "backend/src/core/unify.py",
     "backend/src/core/fol_resolve.py",
     "backend/src/core/fol_search.py",
+    "backend/src/core/fol_step.py",
 ]
 cap = 854
 ceiling = 940
@@ -211,6 +212,7 @@ patterns = [
     "backend/src/core/unify.py",
     "backend/src/core/fol_resolve.py",
     "backend/src/core/fol_search.py",
+    "backend/src/core/fol_step.py",
 ]
 cap = 849
 ceiling = 934
@@ -230,8 +232,14 @@ patterns = ["scripts/*.py"]
 cap = 284
 ceiling = 313
 
+# CSS is deliberately NOT measured (student decision, 2026-11-02). The caps exist to bound LOGIC
+# complexity -- "both members can explain every module" (HLD 13.3) -- and a stylesheet is not
+# logic. `index.css` alone was 699 of this bucket's 1704 lines, so 41% of a logic budget was
+# being spent on styling. This changes WHAT IS MEASURED, not a cap number: no cap is re-based
+# here, and the OVERRUN POLICY's "caps are never raised" is untouched. Same precedent as
+# `backend/tests`, which is unmeasured for its own stated reason (see test_loc.py MEASURED_TREES).
 [frontend]
-patterns = ["frontend/src/**/*.js", "frontend/src/**/*.jsx", "frontend/src/**/*.css"]
+patterns = ["frontend/src/**/*.js", "frontend/src/**/*.jsx"]
 cap = 787
 ceiling = 866
 

@@ -19,6 +19,9 @@ const TONE = {
   HINT_FOL_FOLLOWS_2: "hint",
   HINT_FOL_FOLLOWS_3: "hint",
   HINT_FOL_UNKNOWN: "hint",
+  HINT_FOL_STEP_1: "hint",
+  HINT_FOL_STEP_2: "hint",
+  HINT_FOL_STEP_UNAVAILABLE: "hint",
   CLAIM_UNKNOWN: "hint",
 };
 

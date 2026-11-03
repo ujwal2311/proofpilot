@@ -87,7 +87,7 @@ API_CODES = frozenset(
 SUPPLIED = {
     "step": {"missing", "extra"},
     "productivity": set(),
-    "hint": {"clauses", "resolvent"},
+    "hint": {"clauses", "resolvent", "clause_a", "clause_b", "unifier"},
     "claim": set(),
     # Not scored (section 9: a merge confirmation has no ground truth, and leaving the Facts
     # screen is agreement, not an answer), so one trigger with no placeholders.

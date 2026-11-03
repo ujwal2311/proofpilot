@@ -1180,7 +1180,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Ignored verification files created:** venv/verify_deck.py, venv/docs/report/ProofPilot_Progress_Report.pptx
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Corrected control characters in the preceding S10 log entry. Built the committed deck generator in an ignored verification environment and compared it to the committed deck: 10 slides, with matching shape counts, text, and table contents. The committed deck did not require regeneration.
 
@@ -1204,7 +1204,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** data/eval/tfl_simple_tier_15.json, data/eval/tfl_stress_set_15.json (added to git), AI_USAGE_LOG.md
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** `docs/report/CONTRIBUTION_TEMPLATE.md` and `FACTS.md` already documented and referenced these two AI-generated evaluation sets (`"source": "AI-generated (Claude)"` on every item, 15 items each), but the files themselves were never committed, so CI's dead-reference check failed on every fresh checkout for the last 3 pushes (`test_no_doc_or_workflow_points_at_a_file_that_does_not_exist`). Committed the two files as-is, no content changes. These remain distinct from `data/heldout_paragraphs.json`, which stays unwritten and human-only.
 
@@ -1216,7 +1216,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** backend/src/core/tutor.py (`translate_trigger`), backend/src/core/session.py (`record_translation`), backend/tests/test_tutor.py (tests for both, written first)
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Built the two REMAINING `core`/`core_session` items `budgets.toml` had already priced for M2 wiring: `tutor.translate_trigger` maps a `translation.check` diagnosis to its section-9 policy row (`data/policy.yaml` already has the `translate.*` rows; `app/data.py` already builds `_TRANSLATE_OUTCOMES`), and `session.record_translation` stores one Translate-stage attempt on `State.translations` (the `Translation` dataclass already existed, unused until now).
 
@@ -1230,7 +1230,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** none
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Wired the two AI-generated evaluation sets in `data/eval/` into a real check: does ProofPilot's own entailment pipeline agree with each item's `expected_follows`? Result: 15/15 agree on the simple tier. Deliberately a NEW, separately-named script rather than reusing `scripts/heldout_eval.py` -- that script is T1, dedicated to the human-only `data/heldout_paragraphs.json` (CLAUDE.md rule 6), and its docstring and schema are built around that file alone; routing AI-generated data through the same tool and the same output file was the exact blur the task asked to avoid. The stress-tier file has a different schema (per-sentence translation drills, no `conclusion` or `expected_follows` field at all), so it has nothing to agree or disagree about; the script reports its item count honestly instead of inventing a comparison. Note: there are two files in `data/eval/`, not three.
 
@@ -1242,7 +1242,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** backend/tests/test_translation.py, backend/tests/test_narrate.py, docs/experiments/mutation_log.md (the two earlier commits this block made to data/mutants.json are logged above, under "Block 2")
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Completed the mutation refresh: ran the full set for all six modules with no score on record (session.py, tutor.py, config.py, formula.py, translation.py, narrate.py) against the real test suite. 41/43 caught on the first pass; two genuine survivors (translation.py's TR6, narrate.py's N1+N2) were fixed by adding a missing test each, never by excusing the gap or weakening a mutant. Final: 43/43 caught, logged in docs/experiments/mutation_log.md with the exact commit and fingerprint.
 
@@ -1254,7 +1254,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** backend/src/core/tutor.py (`TRANSITIONS[("facts","confirm_facts")]` value only), backend/tests/test_tutor.py (two assertions updated to match, one renamed)
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Student's explicit design-change request: `confirm_facts` now routes to `"translate"` for every exercise, universally, not conditionally -- no `Exercise` schema change, since there is no per-exercise flag and none was added. Cost: zero net code lines (one dict value changed; `tools/loc.py --strict` confirms `core` unchanged at 876). `test_every_transition_lands_where_the_design_says`: value changed (`"prove"` -> `"translate"`), scope/intent unchanged -- still the full destinations table, asserted verbatim. `test_confirming_facts_leaves_for_prove_in_m1`: value changed AND renamed to `test_confirming_facts_always_leaves_for_translate` -- the old name asserted an "in M1" conditionality that no longer exists. This surfaced that `api/main.py`'s `_translate` stub and the `board` test fixture (used by ~17 tests across test_api.py/test_api_hardening.py/test_pilot_log.py) now need a real Translate implementation to reach "prove" at all -- reported to the student rather than built further; see the gate report for the full cost/design analysis and the exact bucket numbers.
 
@@ -1266,7 +1266,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `docs/HLD.md` (v2.13 -> v2.14; new §18 FOL Scope Addendum merged in, carried over from a standalone review draft `FOL_Architecture.md` the student had prepared externally), `CLAUDE.md` (version pointer; `DO NOT BUILD` list loses "first-order logic or unification", replaced by a pointer to HLD §18), `backend/tests/test_dead_references.py` (PLANNED entries added for the six not-yet-built FOL modules HLD §18 names), `README.md`, `docs/READING_GUIDE.md` (stale `v2.13` references corrected).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Claude initially refused to start implementing FOL because `CLAUDE.md`'s `DO NOT BUILD` list and the frozen `docs/HLD.md` v2.13 both explicitly excluded first-order logic, which conflicted with the external `FOL_Architecture.md` draft's claim of "professor-approved" scope -- flagged as a genuine conflict between an external, unverified document and the repo's own frozen design docs, rather than acted on unilaterally. The student confirmed the professor-approved scope change directly in chat and asked for the merge; the external draft's own content was carried into HLD §18 (correcting one internal inconsistency found while merging: it called itself an "Addendum to v2.11", but the actual frozen base was already v2.13). Re-running the baseline surfaced two more real, unrelated-to-FOL gaps the merge itself exposed: a dead-reference guard failure (the new HLD text named six modules that did not exist yet -- fixed via the guard's own existing `PLANNED` allowlist mechanism, not by weakening the test) and three stale `v2.13` version references in `README.md`/`docs/READING_GUIDE.md` that a different, unrelated test already existed to catch.
 
@@ -1280,7 +1280,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `budgets.toml` (new `[core_fol]` bucket, cap/ceiling sized off the HLD §18.10 estimate, 1 under that estimate's round number only to avoid colliding with an unrelated pre-existing number already in HLD §12/§15's history; `[core_session]`'s cap/ceiling raised for the Phase 8 session-wiring estimate; `[core]`'s exclude list gains the six new FOL module paths; `[totals]` extended), `backend/tests/test_loc.py` (frozen-bucket-list test extended to include `core_fol`, with the one-time exception documented in its own docstring), `CLAUDE.md` (`NO MORE BUCKETS` note gains this one named exception), `docs/HLD.md` (§18.10/§18.13 updated to record the gate).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Before Phase 1, `[core]` and `[core_session]` were found to have only single-digit-line ceiling headroom for reasons unrelated to FOL, which would have crossed a ceiling on the very first new module written -- stopped and asked per the sprint's explicit rule, rather than starting Phase 1 and discovering it mid-phase. Student said "approved, add the bucket" explicitly; `[core_fol]` was sized off the HLD §18.10 estimate.
 
@@ -1294,7 +1294,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/tests/test_dead_references.py` (the `fol_models.py` `PLANNED` entry removed, now that it exists)
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Data model only, per HLD §18.1 and the §18.12 phase order: `Term` (`Variable`/`Constant`/`FunctionTerm`), `Predicate`, `FolLiteral`, `FolFormula` (`FolNot`/`FolAnd`/`FolOr`/`FolImplies`/`FolIff`/`ForAll`/`Exists`), `FolClause`, `Substitution` -- all frozen dataclasses, no behaviour. Tests cover frozen-ness, structural equality/hashing, and quantifier-order distinctness (`ForAll(x, Exists(y, ...))` must not equal `Exists(y, ForAll(x, ...))`).
 
@@ -1308,7 +1308,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/tests/test_dead_references.py` (the `fol_cnf.py` `PLANNED` entry removed)
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** `eliminate_iff_implies`, `push_negation_inward`, `standardize_variables` -- the first 3 of the 8-step CNF pipeline (HLD §18.3). The quantifier De Morgan case (`push_negation_inward`) was split into a private `_push_not` helper to clear the `C901` complexity gate, not simplified away -- each of its 6 cases is a distinct De Morgan law. `standardize_variables` uses a rename map threaded through recursion so a quantifier that shadows an outer variable name gets its own fresh name without the outer rename leaking into it; verified against HLD §18.3's 3 pinned examples (nested same-name `ForAll`, mixed `ForAll`/`Exists`, free variables) and the quantifier-De-Morgan case the HLD flags as most commonly implemented wrong.
 
@@ -1322,7 +1322,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/src/core/fol_cnf.py` (`skolemize`, `drop_universal_quantifiers`, `distribute_and_over_or`, `flatten_to_clauses`, `standardize_apart_clauses`, `to_fol_clauses` added), `backend/tests/test_fol_cnf.py` (tests for all 5), `backend/src/core/config.py` (`MAX_FOL_CLAUSES` added).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** `skolemize` replaces an existential with a fresh constant (no enclosing `ForAll`) or a function of the enclosing universals; `distribute_and_over_or` carries the `FolCNFExplosionError` clause-count guard, checked once at the true top level rather than per recursive call; `standardize_apart_clauses` renames per-clause (`c0_x`/`c1_x`), ordered by a local deterministic sort key so clause-index assignment never depends on frozenset iteration. `to_fol_clauses()` was first written to run all 8 steps, including step 8 -- re-reading HLD §18.6's `fol_prove` procedure against §18.3's step list, before writing `fol_search.py`, caught that step 8 must run ONCE over the union of every premise's clauses, not once per premise (otherwise two premises' independently-numbered variables could collide before the combined set is ever seen) -- fixed at this phase, not retrofitted later.
 
@@ -1336,7 +1336,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/tests/test_dead_references.py` (the `unify.py` `PLANNED` entry removed)
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** `occurs`, `apply_subst` (chain-following), `compose`, `unify`, `unify_literals` (HLD §18.4). `unify()`'s type was deliberately widened to `Term | Predicate`: HLD §18.4.3 types it as `Term`-only but lists "Predicate vs Predicate" among its own match cases, and §18.4.4 describes `unify_literals` as returning "the MGU of the two predicates' argument lists" without re-stating a name/arity check of its own -- read together, that logic lives once in `unify()`, reused for both `FunctionTerm` and `Predicate`; documented in the module docstring as a resolved ambiguity, not a guess.
 
@@ -1350,7 +1350,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/tests/test_dead_references.py` (the `fol_resolve.py` `PLANNED` entry removed)
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** `apply_literal_subst`, `is_tautology_fol`, `resolve` (one complementary unifiable pair per pivot, MGU applied to every surviving literal from both parents -- the soundness requirement HLD §18.5 names explicitly), `canonical_literal`/`canonical_clause`. HLD §18.9 Test A (Socrates, both steps) and Test E (Teaches/Knows) were hand-traced before running. One test's own expectation was wrong on the first write (a "several pivots produce several resolvents" case that actually resolves to two tautologies, not two resolvents) -- caught by the hand trace before it could hide a real bug, fixed in the test, not the implementation.
 
@@ -1364,7 +1364,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/tests/test_dead_references.py` (the `fol_english.py` `PLANNED` entry removed), `backend/tests/test_normalisation.py` (the allowed-`.lower()`-callers list extended to include `fol_english.py`, with the reason documented in that test's own docstring).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** All 11 patterns from HLD §18.2.2 (quantified, ground/relational, wh-patterns) and the 5 named errors from §18.2.4. Two gaps found and closed during implementation, beyond the design doc: (1) a reserved-word guard, without which "Every human likes every dog" would have silently become one bogus predicate instead of being refused; (2) `FOL_AMBIGUOUS_INDIVIDUAL`/`FOL_UNSUPPORTED_ARITY` are cross-sentence checks the single-sentence design text gave no mechanism for (English never spells a bound variable's name, so "used as a constant and a variable" has no literal referent) -- implemented via an optional `registry` dict threaded across a paragraph's sentences.
 
@@ -1378,7 +1378,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/tests/test_dead_references.py` (the `fol_search.py` `PLANNED` entry removed), `backend/src/core/config.py` (`MAX_FOL_SEARCH_WORK` added).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** `fol_prove` (HLD §18.6): two phases sharing one `Work` budget -- saturate the premises ALONE first, then clausify premises + negated conclusion fresh and saturate that for PROVED/BUDGET_EXHAUSTED. A first version checked only "empty clause already present" per §18.6's literal step list, which is unreachable in practice (clausifying one formula alone can never produce a literally-empty clause); a hand-built contradictory-premises test caught it returning `PROVED` instead of `INCONSISTENT` -- fixed with the two-phase design, matching `messages.yaml`'s own "before the conclusion was even used" wording, not by weakening the test. Saturation deliberately re-examines every clause pair each round (mirroring `core.search`'s own `combinations()` precedent) rather than only new-vs-old pairs, documented as a deliberate simplicity choice.
 
@@ -1392,7 +1392,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/src/core/fol_english.py` (`is_fol_formula`, `is_fol_sentence`, `detect_mode` added), `backend/src/core/session.py` (`Analysis` gains a `logic_mode` field, computed via `detect_mode()`; the propositional pipeline itself unchanged), `backend/tests/test_fol_english.py`, `test_tutor.py` (new assertions), `docs/HLD.md` (§18.7 rewritten to record the re-scoping below).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** HLD §18.7 originally said mode is "stored on `State.mode: Literal['prop','fol']` (new field)" and FOL exercises "go through `fol_prove()` instead of `entail()`". Neither survived contact with the actual state of the repo: `State.mode` already means `"practice"|"own_question"` (a name collision the design text missed), `[core]` had 5 lines of ceiling headroom (nowhere near enough for a field safely), and `State.entailment`'s `Verdict`/boolean-`counterexample` shape is a genuine type mismatch for `FolProofOutcome`, not a missing case -- `BUDGET_EXHAUSTED` has no boolean-assignment counterexample to offer. Stopped and asked rather than guessing a fix; student chose "detection only" for this phase, full integration named and deferred as **Phase 8b**. Separately, implementing `is_fol_formula` found HLD §18.7's own detection rule ("quantifier OR an arity>0 predicate selects FOL mode") to be unreliable: "Alice likes Bob" and the ordinary propositional "We get wet" parse by the identical NAME-verb-NAME pattern, so the arity-based half flagged ordinary sentences as FOL too -- `is_fol_formula` now checks only for `ForAll`/`Exists`.
 
@@ -1406,7 +1406,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `data/messages.yaml` (`fol:` section: `proved`/`budget_exhausted`/`inconsistent` wording, per HLD §18.6.4), `docs/HLD.md` (§18.12's Phase 9/10 rows re-scoped).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Phase 9 originally also exposed `mode` over the API and added a frontend banner -- both assumed the Phase 8b session wiring Phase 8 had just deferred, so there was nothing yet to expose. Shipped only the wording, unconsumed by any code path at the time, reviewable ahead of the wiring that would need it.
 
@@ -1420,7 +1420,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** none
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** The original Phase 10 ("full integration tests") assumed the session/API-level wiring Phase 8 had just deferred to Phase 8b. Re-scoped to pipeline-level: real English paragraphs through `fol_english.parse()` -> `fol_prove()`, end to end -- Socrates (PROVED), unrelated quantified predicates (BUDGET_EXHAUSTED), contradictory ground facts (INCONSISTENT), a tiny budget (no crash), a second vocabulary (not special-cased), and a named confirmation that multiply-quantified binary relations are out of scope (HLD §18.2/§18.8) -- which is also why the Teaches/Knows premise from HLD §18.9 Test E stays a hand-built-`FolFormula` test in `test_fol_search.py` rather than a text-parsed one here.
 
@@ -1434,7 +1434,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/src/core/fol_search.py` (`FolSessionResult` added), `backend/src/core/models.py` (`State.fol_result: FolSessionResult | None` added), `backend/src/core/session.py` (`_fol_attempt()` and `_parse_sentences()` added; `analyse()` now calls `fol_prove()` for FOL-mode sessions), `backend/tests/test_models.py`, `test_state_roundtrip.py`, `test_tutor.py`, `test_api.py` (new/updated assertions), `frontend/src/ReadFacts.jsx`, `labels.js`, `index.css` (minimal display, later superseded -- see the next entry).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Student reviewed the Phase 1-10 report, said to push what was already committed without waiting for Phase 8b, and asked for Phase 8b to be built as the next block: `session.py` actually calling `fol_prove()`, the `FolSessionResult` field on `State`, the API returning it, a minimal frontend display, then the session/API-level integration tests re-run and confirmed passing. Pushed the 13 prior commits first (`f6fff12..012ed53`), separate from and before this work. Re-ran the budget check at this gate as Phase 8's own note said to: `[core]` measured 3 lines under its ceiling after the field (not crossed), and `session.analyse()` came in at 64 lines against the 60-line function gate (a blocking gate) -- fixed by extracting `_parse_sentences()`. Confirmed by running, not assumed: `TypeAdapter(State)` needed no `api/schemas.py` change to serialise the new field (the state-roundtrip property test had never generated a non-`None` `fol_result` at all -- added a generator for it, closing a real pre-existing gap in that test's "every shape" coverage) and a live `uvicorn` response (not just `TestClient`) confirmed it over real HTTP. Two of the requested session-level tests needed fixing after a first run failed: the assumed-contradictory and assumed-multi-argument-relation paragraphs had no quantifier, and `detect_mode` correctly reports "prop" for a ground-only paragraph regardless of content (Phase 8's own arity-signal correction) -- fixed by adding an incidental quantified sentence to each, noted in-test as to why.
 
@@ -1448,7 +1448,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/src/app/render.py` (`Renderer.fol_outcome()` added, filling the Phase 9 `fol:` templates), `backend/src/api/schemas.py` (`ParseResponse.fol_message: str | None` added), `backend/src/api/main.py` (`/api/parse` renders it), `backend/tests/test_api.py` (new assertions), `frontend/src/useSession.js`, `App.jsx` (carry/show `fol_message` the same way `warnings` already works), `frontend/src/ReadFacts.jsx`, `labels.js` (the prior block's raw-outcome display removed, now that the rendered sentence exists).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Student asked for the frontend to use `messages.yaml`'s existing `fol:` strings instead of the raw enum/step-count the prior block shipped, and for a live browser screenshot once the Chrome extension was connected. The rendering change was made (verified live via `curl` against a running `uvicorn` instance: `fol_message` returns the rendered sentence, not the code). The Chrome extension was checked again and was still not connected in this environment -- reported explicitly rather than skipped or substituted with a code-inspection claim. Separately confirmed, re-checked rather than assumed: the Teaches/Knows ∀x∀y binary-relation premise cannot go through the English grammar at all (only its ground, named-constants form can; `FOL_NESTED_QUANTIFIER_IN_GROUND` fires deterministically on the quantified form), matching HLD §18.2/§18.8's documented scope boundary exactly.
 
@@ -1462,7 +1462,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `AI_USAGE_LOG.md` (this file -- the three combined entries covering the doc-reconciliation gate, the budget-bucket gate, and the whole Phases 1-10 + Phase 8b sprint were split into 14 individual phase/gate entries, matching CLAUDE.md rule 5's "after every phase" requirement, which the combined form did not satisfy), `docs/HLD.md` (§18.13's sign-off checklist updated to reflect actual current state: Phases 1-10 and Phase 8b marked done and pushed, equality reasoning confirmed out of scope by explicit student statement, and -- after this entry -- the live browser screenshot item closed).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Student asked directly whether the log had an entry for every phase of the FOL sprint, as CLAUDE.md requires, and whether §18.13 reflected reality -- it did not, on both counts; fixed rather than left standing. Student then approved pushing the pending commits (`3275619`, `e1a56b6`), confirmed equality reasoning stays out of scope (closing that checklist line), and asked for the live browser screenshot. The Chrome extension was checked a third time and still did not connect in this environment; rather than substitute a code-inspection claim again, the student was offered the choice to take it themselves, chose to, and the two local dev servers were started for them. The student's own screenshot (not captured by Claude) confirms the designed behaviour exactly: the propositional grammar still refuses "Every human is mortal" with `QUANTIFIER_UNSUPPORTED` unchanged, and the FOL result renders as "Valid -- the empty clause was derived in 3 step(s)." from `messages.yaml`, not a raw code, alongside the pre-existing CONCLUSION_FACT_UNSEEN warning firing independently and correctly on the same exercise.
 
@@ -1476,7 +1476,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/src/core/fol_english.py` (`render()`, `display_readings()` added), `backend/src/core/models.py` (`SentenceRec.fol_reading` field added), `backend/src/core/session.py` (`_parse_sentences` suppresses a propositional refusal when the FOL grammar already understood the same sentence), `backend/tests/test_api.py`, `test_cli.py`, `test_state_roundtrip.py`, `test_tutor.py` (five pre-existing assertions updated that encoded the OLD behaviour as correct, plus one new parametrized test over all 11 HLD S18.2 grammar patterns), `frontend/src/ReadFacts.jsx`, `index.css` (render `fol_reading` next to the sentence instead of the suppressed error).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Student reported, with a screenshot, that "Every fish is not a mammal" showed as a red `QUANTIFIER_UNSUPPORTED` error on the Facts screen of a FOL-mode exercise, directly contradicting the `folModeNote` banner telling the student the error "doesn't apply." This is an explicit change request superseding the design decision the previous log entry recorded as correct (the student's own screenshot there showed the identical propositional refusal and the entry called it "the designed behaviour exactly") -- CLAUDE.md requires such a change to come from the student, and it did, in detail, in this message. The propositional tree is still built unconditionally per HLD S18.0 (the Prove board's clauses still come only from it); only the sentence's DISPLAYED status/error_code now defers to the FOL grammar's own, independent reading when one exists. Verified against the exact reported scenario and all 11 grammar-table patterns, live against a running `uvicorn`/`vite` pair (Chrome extension connected for this session) -- screenshots taken for 11/11 patterns across three own-question submissions, plus the PROVED, BUDGET_EXHAUSTED and INCONSISTENT fol_message banners and the Prove board, all confirmed unaffected.
 
@@ -1492,7 +1492,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/src/core/fol_search.py` (`fol_claim_accepted()`, `fol_hint_code()`), `backend/src/api/main.py` (`_hint`/`_claim` dispatch, `_is_fol` helper), `backend/src/app/data.py` (`required_messages()`'s hint set), `data/messages.yaml` (`HINT_FOL_FOLLOWS_1/2/3`, `HINT_FOL_UNKNOWN`), `frontend/src/Feedback.jsx` (`TONE` map), `backend/tests/test_fol_search.py`, `backend/tests/test_api.py`.
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Student's own screenshot of a Socrates-style exercise showed `HINT_NOT_FOLLOW_1` ("check whether the conclusion really follows") directly under a "Valid -- proved in 3 steps" FOL banner -- the Prove screen's hint/claim logic consulted only the propositional verdict, never `fol_result`, so clicking "Does not follow" would have scored `CLAIM_ACCEPTED` (correct) for an argument the FOL engine had already proved. Student specified the mapping directly (PROVED/INCONSISTENT -> wrong to claim it doesn't follow; BUDGET_EXHAUSTED -> unscored), after I flagged that their initial spec named a `NOT_ENTAILED` FOL outcome that doesn't exist in `FolProofOutcome` (checked against the actual enum before implementing, not assumed). Per the student's explicit budget instruction (see the entry below), the FOL-aware logic lives entirely in `core_fol`/`api_cli` -- `tutor.py` and `session.py` are untouched, and `core`/`core_session` measure identical before and after. Verified live: Socrates (PROVED) now hints "this argument is valid..." and rejects "does not follow"; an unrelated-predicates exercise (BUDGET_EXHAUSTED) hints and claims honestly with mastery left unscored; an ordinary propositional exercise unaffected.
 
@@ -1508,7 +1508,7 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
 
 **Files modified:** `backend/src/core/fol_english.py` (`_parse_ground`, `_RESERVED`), `backend/tests/test_fol_english.py`, `docs/HLD.md` (S18.2's pattern table).
 
-**What the student changed by hand:** to confirm.
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
 
 **Purpose:** Student pasted a real CAT-2 worked example ("All students who study pass the exam...") to use as the web demo. Verified against the live grammar (not assumed) which exact sentences failed and why: "who" needs "that" (trivial reword), and two genuine gaps with no workaround -- a bare intransitive ground verb ("Ravi studies", no "is", no object) and ground-level disjunction ("A or B" between two facts) were simply absent from HLD S18.2's pattern table. Student authorized exactly these two, nothing broader. Implemented as a thin recursive split inside `_parse_ground` (each side of "or" is the same function called again, so it composes with the existing "and" pattern for free) plus a `len(rest) == 1` case for the bare verb. Also discovered, debugging the worked example end-to-end, that the grammar's documented no-stemming rule ("students"/"student", "study"/"studies") blocks the example even after the grammar fix, until every predicate word is spelled identically across every sentence -- not a bug, the pre-existing, intentional design principle biting on a real paragraph. The reworded example proves successfully: `PROVED`, 22 saturation steps.
 
@@ -1530,3 +1530,453 @@ commit it was measured against (CLAUDE.md rule 10) — none were written by hand
   2. Bring `api_cli` and `frontend` back under their ceilings -- by simplification, not by raising the caps (CLAUDE.md's frozen OVERRUN POLICY: caps are never raised).
 
 Neither task blocks §18.14; both are scheduled after the Wednesday demo, not indefinitely deferred.
+
+---
+
+## FOL: predicate canonicalization, grammar extensions, minimal derivation | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files created:** none
+
+**Files modified:** `backend/src/core/fol_english.py` (`_canonical_word`, `_constant`, `_predicate`, `_relative_index`, `_relative_clause`, `_main_predicate`, `_parse_all_that`, `_parse_indefinite`, `_parse_ground`, dispatcher, keyword tables, module docstring), `backend/src/core/fol_search.py` (`_minimal_derivation`, `fol_prove`), `backend/tests/test_fol_english.py`, `backend/tests/test_fol_search.py`, `backend/tests/test_tutor.py`, `docs/HLD.md` (new §18.15).
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
+
+**Purpose:** The student supplied a CAT-2-style worked example as the demo centrepiece and asked for the FOL mode to teach resolution properly. Running it against the live grammar first — not assuming — found three defects, two silent:
+
+  1. **Three sentences did not parse at all.** `"All students who study pass the exam"` (only `that` was a relative pronoun), `"Anyone who is lucky passes the exam"` (no indefinite quantifier), and the conclusion `"Ravi passes the exam"` (bare intransitive was single-word only, so verb+object was unreachable).
+  2. **Nothing unified even after rewording.** The grammar's documented no-stemming rule produced `Students`/`Student` and `Study`/`Studies` as distinct symbols, so a valid argument returned `BUDGET_EXHAUSTED` — which §18.6 forbids presenting as "not provable" and which a student cannot distinguish from "no proof exists". This was the worst of the three: a silent wrong answer on the flagship example. The 2026-11-01 entry above had already observed this blocker and recorded it as intended design; running the full argument showed the trade-off was the wrong way round.
+  3. **The proof trace was a search log.** `fol_prove` returned every resolvent saturation generated — 22 steps for this argument, 3 for Socrates — where the derivations are 4 and 2. §18.14's renderer printed all of them.
+
+Fixes, all three inside `core_fol`: regular-inflection canonicalization (general rule, no word list; names never canonicalized; registry keyed canonically on both sides); the three grammar patterns; and `_minimal_derivation`, which back-chains from the empty clause through each resolvent's parents. `BUDGET_EXHAUSTED` now returns an empty derivation rather than a partial log. `app/render.py`, `api/schemas.py` and the frontend needed **no changes** — they receive a shorter, meaningful list through the existing field.
+
+**Regression found and fixed during implementation:** canonicalizing the predicate registry key but not the constant key silently broke the `FOL_AMBIGUOUS_INDIVIDUAL` cross-role check (`"Ravi studies or Studies is a person"` stopped raising). Constants now register under a canonical key while keeping their written name as the value. Covered by the pre-existing test that caught it.
+
+**Test expectations updated (spec change, not weakened assertions):** canonicalization renames grammar-derived predicates, so 13 assertions across `test_fol_english.py` and `test_tutor.py` moved to the canonical symbol (`Likes`→`Like`, `Studies`→`Study`, `Students`→`Student`, `Teaches`→`Teach`, `Knows`→`Know`, `Admires`→`Admire`, `Birds`→`Bird`). Every assertion kept its exact structure; only the expected symbol name changed. 23 new tests added (16 grammar/canonicalization, 7 derivation), including canonicalization checked against two vocabularies it had never seen.
+
+**Acceptance test (the student's own condition — run, not assumed).** The exact paragraph, end to end through `fol_english.parse` → `fol_prove` → `Renderer.fol_proof_trace`:
+
+```
+Vocabulary:  ravi Constant | student, study, lucky, pass the exam  Predicate/1
+∀x (Student(x) ∧ Study(x) → PassTheExam(x)) | Student(ravi)
+Study(ravi) ∨ Lucky(ravi) | ∀x (Lucky(x) → PassTheExam(x)) | goal PassTheExam(ravi)
+Verdict: PROVED, 4 derivation steps (was 22)
+  1. F1 + F2 => F3  ¬Study(ravi) ∨ PassTheExam(ravi)
+  2. F4 + F5 => F6  PassTheExam(ravi) ∨ Study(ravi)
+  3. F3 + F6 => F7  PassTheExam(ravi)
+  4. F8 + F7 => F9  □
+```
+
+No pipeline-internal variable name (`c2_v0`) reaches the rendered trace — the renderer's existing per-clause display naming (§18.14.2) maps them to `x`.
+
+**Budget note:** `core_fol` grew 726 → 790 code lines and stayed **under its cap** — no exception needed, unlike §18.14. `core` (939), `core_session` (191), `api_cli` (1042), `scripts` (574) and `frontend` (1598) are **unchanged**; the two over-ceiling buckets received no new lines. CORE TOTAL 2021 → 2085, under cap. Function-length gate passes (longest 58, unchanged). See `budgets.toml` for the caps.
+
+**Final state:** `pytest backend/` — 1107 passed, 1 skipped (was 1084). `ruff check` and `ruff format --check`: clean. `python tools/loc.py`: no new breach. Not committed, not pushed — awaiting the student's review.
+
+**Deferred at this gate, by the student's explicit instruction — logged so they are not lost:** per-step unifier column; sentence→clause provenance and the CNF "Sentence | Working | Clause" table; the Vocabulary panel (the registry already computes it and discards it); the static FOL Quick Reference panel (when built, engine-backed rows must be marked — the engine does binary resolution with unification only, not UI/EI/UG/EG, chaining, Horn clauses, factoring or equality); and the propositional/FOL mode dropdown. For the dropdown the student recorded the decision in advance: auto-detect with manual override and a named refusal rather than a guess. These join the two post-demo tasks in the entry above (`loc.py` strict default; bringing `api_cli`/`frontend` back under ceiling).
+
+**Open question for the student — flagged rather than guessed at.** The instruction was that canonicalization must "fail loudly when uncertain", naming the two mismatched words instead of falling through to `BUDGET_EXHAUSTED`. Canonicalization now handles every regular case, so what remains is irregular inflection (`person`/`people`, `child`/`children`). No general relatedness test was found that fires on those without also false-firing on legitimately distinct predicates sharing a stem — `Student`/`Study`, `Fly`/`Flyer` and `Pass`/`PassTheExam` all occur in the worked examples, and a prefix or edit-distance rule refuses them. Building one would have meant guessing in the opposite direction, which principle 2 forbids as firmly as the silent non-unification it was meant to prevent. **Proposal awaiting a decision:** apply the check only when the outcome is already `BUDGET_EXHAUSTED`, where a false positive costs an over-cautious message instead of a wrongly refused valid argument, and report the two candidate predicates as a possible cause rather than as a verdict.
+
+---
+
+## FOL exam-form proof trace: six items | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files created:** none
+
+**Files modified:** `backend/src/core/fol_cnf.py` (`standardize_apart_ordered`, `to_fol_clauses_traced`, `to_fol_clauses` delegates), `backend/src/core/fol_resolve.py` (`resolve` returns the MGU), `backend/src/core/fol_search.py` (`FolInputClause`, `input_clauses`, `_clausify_tagged` replacing `_clausify_all`, 4-tuple `FolProofStep`), `backend/src/core/fol_english.py` (`_term_text`, `render` fix), `backend/src/app/render.py` (`FolTraceClause`, legend, `_fol_conclusion`, `_fol_goal_text`, `_fol_unifier_text`, `_fol_tree`), `backend/src/api/schemas.py`, `data/messages.yaml`, `docs/HLD.md` (new §18.15.6), and the matching tests.
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
+
+**Purpose:** The student reviewed the §18.15 derivation output and listed what an examiner would mark down: no clause definitions, no unifiers, no CNF working, no justification for the negated goal, no exam-form conclusion, no refutation tree. Six items, specified in build order, each reported with real line counts.
+
+**Built, in order, each verified before the next:**
+
+  1. **Full clause legend** — every clause, including inputs the derivation never used. Needed `standardize_apart_ordered` in `fol_cnf` to expose the `(original, renamed)` pairing that `standardize_apart_clauses` computed and discarded, since origin can only be decided on the pre-renaming clause.
+  2. **Negated-goal caption** — wording in `messages.yaml`, not in code, matching the existing `fol:` tone.
+  3. **Exam-form conclusion** — goal recovered by flipping the negated-goal clause's polarity; emitted only for `PROVED`, never for `BUDGET_EXHAUSTED`.
+  4. **Per-step unifier** — `resolve()` now returns `(resolvent, mgu)` pairs and `FolProofStep` is a 4-tuple. Reverses §18.14.5's deferral on the student's instruction.
+  5. **Refutation tree** — plain indented text, no drawing library, no frontend dependency.
+  6. **CNF working retained** — `to_fol_clauses_traced` keeps all six intermediates; `to_fol_clauses` delegates to it, so one pipeline exists rather than two that would drift.
+
+**Defect found and fixed inside item 6:** `fol_english.render` printed a term's bare `.name`, so a Skolem `FunctionTerm` rendered as `sk_f0` with its arguments dropped. Invisible until the CNF working column began handing it post-Skolemization formulas. Now rendered recursively, with its own test.
+
+**Existential verification (the student required this explicitly, since no in-scope example has an `∃`):** two synthetic cases tested and run end to end — `∃y Loves(y)` → `Loves(sk_c0)`, and `∀x ∃y Loves(x,y)` → `∀v0 Loves(v0, sk_f0(v0))` → clause `Loves(x, sk_f0(x))`. Skolem constant and Skolem function of the enclosing universal both render correctly.
+
+**Regression safety (item 6 touches the shared CNF pipeline):** full suite after every item, not just the new tests, plus both hash seeds at the end. No regression at any point. Test expectations updated only for the deliberate shape changes (`resolve`'s return, `FolProofStep`'s arity) — every assertion kept its structure.
+
+**Acceptance, re-run on the exact paragraph:**
+
+```
+F1 ¬Lucky(x) ∨ PassTheExam(x)                [premise]
+F2 ¬PassTheExam(ravi)                        [negated_goal] <- Negated for refutation...
+F3 ¬Student(x) ∨ ¬Study(x) ∨ PassTheExam(x)  [premise]
+F4 Lucky(ravi) ∨ Study(ravi)                 [premise]
+F5 Student(ravi)                             [premise]
+1. F3 + F5 -> F6  unifier: x = ravi     2. F1 + F4 -> F7  unifier: x = ravi
+3. F6 + F7 -> F8  (none)                4. F2 + F8 -> F9 = □
+F1 ∧ F3 ∧ F4 ∧ F5 together with F2 is unsatisfiable, so PassTheExam(ravi) is proved.
+```
+
+**Budget, measured per item (code lines):**
+
+| After item | core_fol | api_cli | frontend |
+|---|---|---|---|
+| start | 805 | 1042 | 1598 |
+| 1 legend | 819 | 1061 | 1598 |
+| 2+3 caption, conclusion | 819 | 1092 | 1598 |
+| 4 unifier | 819 | 1103 | 1598 |
+| 5 tree | 819 | 1121 | 1598 |
+| 6 CNF trace | 830 | 1121 | 1598 |
+| 6 render fix (same item) | 835 | 1121 | 1598 |
+
+`core_fol` finished **under its cap** (849) with headroom to its ceiling (934). `frontend` was **never touched**. `api_cli` grew 79 lines and is further past a ceiling it already exceeded under §18.14.6's recorded exception.
+
+**STOP-AND-REPORT, per CLAUDE.md:** **CORE TOTAL crossed its cap at item 6** — 2114 → 2130 against a cap of 2121, i.e. 9 lines over, still well under the 2335 ceiling. `core_fol` alone is fine; the combined figure is not. CLAUDE.md requires a bucket between cap and ceiling be justified at a gate, and the combined CORE TOTAL exists precisely so a split bucket cannot present its cost as separate small ones. Reported, not absorbed, and no cap re-based.
+
+**Known defect found, deliberately NOT fixed (needs its own gate):** `fol_english.render` emits no parentheses around nested connectives, so an intermediate CNF step prints as `¬Student(x) ∧ Study(x) ∨ PassTheExam(x)` — correct as a tree, ambiguous as text, misleading in a working column where precedence is the whole point. Fixing it churns many expected strings across the FOL tests, so it is logged rather than absorbed into this gate.
+
+**Final state:** `pytest backend/` — 1136 passed, 1 skipped (was 1117 at the start of these six items), both hash seeds. `ruff check` + `ruff format --check`: clean. Function-length and complexity gates: pass. Not committed, not pushed.
+
+---
+
+## FOL rendering gap: the page now shows what the API already sent | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files modified:** `frontend/src/FolExplanation.jsx` (rewritten), `frontend/src/useSession.js`, `frontend/src/storage.js`, `frontend/src/ReadFacts.jsx`, `frontend/src/App.jsx`, `frontend/src/labels.js`, `frontend/src/index.css`, `backend/src/core/session.py` (one expression).
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
+
+**Purpose:** The Phase 1 fresh-eyes pass found that every exam-form field built tonight reached the browser and none of it was drawn. Five fixes, all authorized as completing Phase 1 rather than new scope:
+
+  1. **`FolExplanation.jsx` rewritten** to render the clause legend with origin tags, the negated-goal caption, per-step unifiers (plus each resolvent's own text, so a step is readable without scrolling back to the legend), the refutation tree (a `<pre>` over the server's indented text -- no drawing library), and the exam-form conclusion.
+  2. **Propositional diagnostics scoped out of FOL mode** (`session.py`): `CONCLUSION_FACT_UNSEEN` fired "the conclusion mentions X, which no premise does" directly above a FOL "Valid" verdict. Not made FOL-aware -- the propositional pipeline's findings describe a reading the session is not being judged by, so they are dropped in FOL mode.
+  3. **Restored session keeps its verdict.** `storage` now saves an envelope `{state, fol}` instead of a bare `State`; `useSession` holds the FOL pair in a ref so `keep` persists it without every caller knowing about it. A bare-State save from an older build has no `state` key and is dropped the same way an unparseable one is.
+  4. **"Next exercise" no longer appears on a self-entered argument** -- it offers "New argument" when `state.mode === "own_question"`.
+  5. **Facts panel hidden in FOL mode.** The propositional atoms are real but were never used by the proof shown above them; asking the student to vet them next to a finished first-order proof is misleading. The sentence list stays -- that is where each FOL reading is shown.
+
+**Latent bug found and fixed in passing:** `nextExercise` never cleared the FOL pair, so the previous argument's verdict rode along into the next exercise. Cleared before the request.
+
+**Verified in the running app, not by code read** (`uvicorn` + `vite`, Chrome): the Ravi argument renders legend/origins/caption/unifiers/tree/conclusion; a reload preserves verdict AND trace; the button reads "New argument"; the contradictory banner is gone; the Facts panel is absent. A propositional argument ("If it rains...") still shows facts, merge UI and confirm button unchanged -- no regression. Screenshots could not be captured: `Page.captureScreenshot` timed out three times at the CDP layer while the page itself stayed responsive to text extraction, so the verification above is from live page text rather than images.
+
+**Budget:** `frontend` 1598 -> 1704 (+106), already past its ceiling -- the student authorized this explicitly ("proceeds regardless of ceiling status, since the alternative is a demo where tonight's work doesn't exist on screen"). `api_cli` 1123, `core_session` 191, `core_fol` 867 -- all unchanged. `CORE TOTAL` 2162, unchanged.
+
+**Final state:** `pytest backend/` -- 1159 passed, 1 skipped. `ruff` clean. `npm run build` clean. Not committed, not pushed.
+
+---
+
+## §18.16 step 1: bucket cleanup -- honest simplification attempt | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files modified:** `backend/src/core/fol_english.py`, `docs/HLD.md` (§18.16 applied).
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
+
+**`core_fol` -- the harder answer worked.** 867 -> **847 code lines, back under its cap**, with the ceiling 87 lines away. One genuine consolidation, not cosmetic line-joining: `_parse_every`, `_parse_no` and `_parse_some` were character-for-character identical apart from the node they built (33 code lines across three functions). They are now one `_parse_simple_quantified` (16 lines) plus a two-branch `_parse_quantified` (4, from 8). Contract unchanged -- same ASTs, same refusals, same error codes -- and all 1159 tests stayed green through the change.
+
+Stopped there deliberately. The next candidate was `fol_cnf.py`'s five step functions, which share a recursive match-statement shape; collapsing them into a generic walker would be the single highest-risk refactor of the night, on the most correctness-sensitive module, for a bucket already under its cap. CLAUDE.md's "correctness of the logic output matters more than feature count" and the student's own framing both point the other way.
+
+**`frontend` and `api_cli` -- the gap is structural, not slack.** Honest attempt made, real shortfall reported rather than papered over:
+
+| bucket | code | ceiling | shortfall |
+|---|---|---|---|
+| `frontend` | 1704 | 866 | **838** |
+| `api_cli` | 1123 | 713 | **410** |
+
+What the measurement actually shows:
+
+  1. **`index.css` is 699 of `frontend`'s 1704 -- 41% of the bucket is a stylesheet.** The `frontend` pattern includes `**/*.css`, so a cap whose stated purpose is to bound *logic complexity* is being spent on styling. The JS/JSX alone is 1005 lines across 13 components -- still over 866, but a very different number from 1704.
+  2. **The CSS is not bloated.** Of 63 classes, exactly one (`.md`) is unreferenced by any JS/JSX. There is no dead-rule harvest to take.
+  3. **`api_cli`'s size is deliberate design.** `main.py` (319) and `cli.py` (212) overlap because HLD §4 requires the whole tutor to work with no web layer -- the CLI gate (`test_cli.py`) exists to enforce that. Deduplicating them would break a design decision to satisfy a line count.
+
+**Conclusion, stated plainly:** neither ceiling is reachable by simplification. These caps were set when the app was a fraction of its current size and were never revisited, and the frozen OVERRUN POLICY forbids raising them. The honest options are (a) exclude `*.css` from the `frontend` pattern, since a stylesheet is not the logic complexity the cap exists to bound -- a change to what is measured, not to a cap number; or (b) a recorded standing exception for both buckets, same shape as §18.14.6. **This is the student's call, not Claude's** -- flagged, not absorbed, and no cap re-based.
+
+**Final state:** `pytest backend/` -- 1159 passed, 1 skipped. `ruff` clean. Not committed, not pushed.
+
+---
+
+## §18.16 step 1b: CSS unmeasured + standing exception | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files modified:** `budgets.toml` (`[frontend]` patterns), `backend/tests/test_loc.py` (`MEASURED_TREES`), `docs/HLD.md` (§18.16.6).
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
+
+**Purpose:** Student chose option (a) from the cleanup gate and asked for it as a permanent change to how measurement works, not a one-off. Note on where it landed: the pattern lives in `budgets.toml`, not in `tools/loc.py` (which reads it), so the change is there plus the matching entry in `test_loc.py`'s `MEASURED_TREES` -- without the second, `index.css` would have matched no bucket and `test_every_source_file_is_measured_by_exactly_one_bucket` would have failed, which is that guard working correctly.
+
+**Measured result of the exclusion:** `frontend` 1704 -> **1005** code lines. Ceiling 866, so **139 over** -- the student's own estimate was "roughly 139". `api_cli` unchanged at 1123, **410 over** its ceiling, untouched by the CSS change exactly as the student said it would be.
+
+**Standing exception recorded** (HLD §18.16.6) for `frontend`'s remaining 139 and `api_cli`'s full 410, same shape as §18.14.6. Both confirmed non-simplifiable by the step-1 analysis: `frontend` has 13 components, no duplicated component, and 62 of 63 CSS classes referenced; `api_cli`'s `main.py`/`cli.py` overlap is required by HLD §4's no-web-layer guarantee and enforced by `test_cli.py`. No cap re-based, no bucket added, exception scoped to these two buckets only.
+
+**Final state:** `pytest backend/` -- 1159 passed, 1 skipped. `ruff` clean. Not committed, not pushed.
+
+---
+
+## §18.16 step 2: `fol_step` module + tests | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files created:** `backend/src/core/fol_step.py`, `backend/tests/test_fol_step.py`.
+**Files modified:** `budgets.toml` (bucket assignment).
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
+
+**Purpose:** The step validator from HLD §18.16.2. Contract written first (purpose, signatures, four invariants, a five-step diagnosis order, edge cases), then 17 tests, then the implementation.
+
+`check_fol_step(a, b, typed) -> FolStepError | None` returns `None` for exactly the clauses `resolve()` produces, and names the most specific mistake otherwise: `NOT_COMPLEMENTARY` (no literal pair shares a predicate at opposite polarity), `NO_UNIFIER` (a pair exists but nothing unifies -- the occurs check included, since that is a teachable fact, not an internal detail), `DOUBLE_RESOLVE` (two pairs cancelled in one step), `SUBST_INCOMPLETE` (§18.5's unsoundness: the MGU applied only where the clauses were resolved), and `WRONG_RESOLVENT` as the honest fallback.
+
+**Legality is decided by `resolve()` alone.** The pivot enumeration in this module exists only to classify a step `resolve` has already rejected. Two implementations of the resolution rule would eventually disagree, and the one a student is graded against would be the wrong one.
+
+**Design note on `DOUBLE_RESOLVE`:** it is computed directly rather than inferred from the legal resolvents, because a double resolution often has no legal counterpart -- cancelling either pair alone can leave a tautology, which `resolve` filters, so the legal set is empty while the student's answer still looks like an ordinary clause. Found while writing the test, not after.
+
+**Bug caught by my own test:** the fixture for "every resolvent `resolve` returns is accepted" originally resolved only into tautologies, so `resolve` returned `[]` and the test would have passed vacuously. The guard assertion written alongside it failed instead, and the fixture was replaced with one having two genuine, non-tautological pivots.
+
+**Bucket-assignment bug caught by `tools/loc.py`:** `fol_step.py` matched `[core]`'s `backend/src/core/*.py` glob, so its 48 lines were charged to `core`, pushing it from 939 to **987 -- over its 940 ceiling**. HLD §18.16.2 specified `core_fol`. Fixed by listing the file in `[core_fol]`'s patterns AND in `[core]`'s exclude, the same two-sided mechanism `core_m2` and the other FOL modules already use; `test_every_source_file_is_measured_by_exactly_one_bucket` is what makes a one-sided edit fail.
+
+**Budget:** `core_fol` 847 -> **895** (+48 for the module). Cap 849, ceiling 934 -- over cap, **39 lines under ceiling**, so the §18.16.5 prediction held and no new exception was needed. `core` back to 939, unchanged. No new bucket; the frozen bucket list stands.
+
+**Final state:** `pytest backend/` -- 1176 passed, 1 skipped (was 1159), both hash seeds. `ruff check` + `format --check` clean. Function-length and complexity gates pass. Not committed, not pushed.
+
+---
+
+## §18.16 step 3a: the full input path -- parser + translation layer | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files created:** none.
+**Files modified:** `backend/src/core/fol_step.py` (parser added), `backend/src/app/render.py` (`resolve_typed_clause`), `backend/tests/test_fol_step.py`, `backend/tests/test_render_fol.py`.
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
+
+**Purpose:** The student stopped Step 3 to ask an unscoped question: how does a student's typed answer become the `FolClause` object `check_fol_step` validates? It hadn't been designed. Investigated the propositional board's own path first (`ProveBoard.jsx` splits on whitespace into `resolvent: list[str]`; `core.logic.normalize_literal` parses each single-letter token) and confirmed it cannot be reused -- FOL literals carry predicate names and argument lists, not single letters, and the student's explicit instruction was formal clause notation (`¬Study(ravi) ∨ PassTheExam(ravi)`), not English through `fol_english.py` (that module parses whole paragraphs, a different grammar).
+
+**The design question that mattered:** `_clause_variable_names` (render.py) assigns fresh display letters INDEPENDENTLY per clause -- clause A's "x" and clause B's "x" are usually different internal `Variable` objects. A naive parser treating a typed "x" as one global `Variable("x")` would silently merge two independent variables into one, an unsound comparison the student would never see. This forced a two-layer split, confirmed correct by the student before implementation:
+
+  1. **`core.fol_step.parse_literal_text` / `parse_clause_text`** (core_fol) -- pure syntax only. Text to `(negated, predicate_name, raw_term_strings)`; raw term strings are NOT yet classified as Variable or Constant, because that classification needs render.py's naming, which core_fol does not own (HLD S18.14.2). Raises `FolAnswerSyntaxError(text)` with the offending text attached on anything malformed; semantic mismatches (wrong predicate, wrong arity) are deliberately NOT rejected here -- they surface honestly through `check_fol_step` as `NOT_COMPLEMENTARY`/`WRONG_RESOLVENT`.
+  2. **`Renderer.resolve_typed_clause`** (render.py, api_cli) -- translates raw term strings into real `Variable`/`Constant` objects using clause A's then B's own `_clause_variable_names` map (case-insensitive on the display lookup only; predicate names are never case-folded). A token matching neither clause's own display map is a `Constant` -- never guessed as a variable it is not. This is the exact case the two-layer design exists to get right, and it is tested directly: the same display letter ("x") shown by two different clauses resolves to two different internal `Variable` objects.
+
+**27 new tests total** (18 for the parser's accepted/rejected forms, 9 for the translation layer), all written before their implementation.
+
+**Bug caught by the project's own architecture test, not by me:** `parse_clause_text` originally used a bare `text.strip()` to detect blank input. `test_no_core_module_normalizes_text_itself` (`test_normalisation.py`) exists precisely to keep text handling inside the four modules that own it (`english.py`, `facts.py`, `logic.py`, `fol_english.py`); every other core module is supposed to receive already-normalized text or use only the unflagged operations. Fixed by using `.split()` (unflagged, and already needed for blankness-checking) instead of `.strip()`, with `parse_literal_text`'s own per-piece whitespace stripping doing the rest. The guard caught a real architectural violation on its own.
+
+**Pre-existing propositional gap found in passing, NOT fixed:** a malformed propositional literal (`normalize_literal` raising a bare `ValueError`) is not registered in `main.py`'s `STATUS` table, so it falls through to the generic `Exception` handler -- a 500 with no details, not a clean 400 with a message. Out of scope tonight (propositional engine is frozen; this predates all of tonight's FOL work). Flagged here so the new `fol_step` wiring (Step 3b) does not repeat it -- `FolAnswerSyntaxError` and `FolStepError` will be registered in `STATUS` properly when the API action is wired.
+
+**Budget:** `core_fol` 895 -> **921** (+26 for the parser). Cap 849, ceiling 934 -- **13 lines under ceiling**. `api_cli` 1123 -> **1145** (+22 for the translation layer), inside the §18.16.6 standing exception; real number reported as required, not absorbed silently. `CORE TOTAL` 2190 -> 2216, over cap 2121, well under ceiling 2335.
+
+**Final state:** `pytest backend/` -- 1206 passed, 1 skipped (was 1176), both hash seeds. `ruff check` + `format --check` clean. Not committed, not pushed.
+
+---
+
+## §18.16 step 3b: the API action, live-verified | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files modified:** `backend/src/api/main.py` (`_fol_step`, `_ACTIONS`), `backend/src/api/schemas.py` (`FolStepAction`), `backend/src/app/render.py` (`fol_clause_by_label`, `fol_clause_text`, `fol_step_outcome`, `fol_answer_error`, `_label_clauses` extraction), `backend/src/core/tutor.py` (transition wiring), `backend/tests/test_api.py`, `backend/tests/test_render_fol.py`, `backend/tests/test_tutor.py` (two guard assertions updated).
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
+
+**Purpose:** Wire the parser and validator built in Step 3a into a real `/api/act` action, with the six messages.yaml entries written for student-facing tone (shown and approved before implementation), and prove live that none of the six outcomes can ever 500.
+
+**A correction made and flagged before implementing, not after:** the student's instruction was to register all six new error paths in `STATUS` for a 4xx. Checking `main.py`'s own stated rule -- *"would this be true regardless of the student's answer? -> HTTP status. Is this itself the teaching content? -> 200 with a code"* -- against how propositional's own `Diagnosis`/`Code` values are handled (never exceptions, always `200 {code, message}` from `_step`) showed all six FOL codes belong in that same lane, not `STATUS`. Implemented as `200 {code, message}` for all six, matching the established pattern exactly; `UnknownClause` (a stale/tampered label) is the one genuinely structural case and is the one that raises, reusing the exact exception propositional's own `_step` already raises. This still fully satisfies the underlying concern -- no student input can reach the generic 500 handler -- confirmed by the live verification below.
+
+**One new shared labeling helper**, not two independent ones: `fol_proof_trace` and the new `fol_clause_by_label` both now read from one `_label_clauses(result)` function. A second, independent labeling pass would risk assigning different labels to the same clause between what the student sees on the trace and what the step handler resolves their submitted label to -- exactly the kind of drift this project has fixed twice already tonight (the CNF pipeline delegation, the derivation-extraction single source).
+
+**`tutor.py`: a genuine ceiling cross, stopped on and reported before proceeding.** Wiring `"fol_step"` into `TRANSITIONS` (plus `ACTIONS`/`_PROVING_ACTIONS`) is the minimum three one-line additions this table can be expressed in without hiding a transition from a reader -- `tutor.py`'s own stated design principle. This crossed `core`'s ceiling by exactly one line. Checked for simplification first: every other file in the bucket is the frozen propositional engine, explicitly off-limits for this work, so no safe reduction exists. Reported, not absorbed; the student approved a standing exception scoped to exactly this three-line change, not a general loosening.
+
+**Invariant explicitly checked, not assumed, per the student's condition:** every propositional-engine test file (`test_cnf.py`, `test_english.py`, `test_english_robustness.py`, `test_logic.py`, `test_search.py`, `test_entail.py`, `test_facts.py`, `test_cli.py`, `test_bkt.py`, `test_relevance.py`) has zero `git diff` and all 396 of their tests pass. Two `test_tutor.py` assertions DID need updating -- an action-count literal and a hardcoded copy of the full `TRANSITIONS` dict -- both are shape-pinning guards on the transition table by their own stated design ("a test that reads the table it is checking agrees with it by construction"), never propositional behaviour. Flagged and held for explicit approval before touching, per the student's instruction, rather than updated and reported after the fact.
+
+**Live verification -- real HTTP, real running `uvicorn`, from the browser's own console, not `pytest`'s in-process `TestClient`.** The interactive board (Step 4) does not exist yet, so there is no dedicated UI to click through; this is the strongest verification available before it does. All eight outcomes confirmed on the live server:
+
+| Outcome | HTTP | code |
+|---|---|---|
+| malformed answer | 200 | `FOL_ANSWER_MALFORMED` |
+| no shared complementary predicate | 200 | `FOL_STEP_NOT_COMPLEMENTARY` |
+| shared predicate, no unifier | 200 | `FOL_STEP_NO_UNIFIER` |
+| two pairs cancelled at once | 200 | `FOL_STEP_DOUBLE_RESOLVE` |
+| MGU applied to resolved literals only | 200 | `FOL_STEP_SUBST_INCOMPLETE` |
+| a legal step exists, this isn't one | 200 | `FOL_STEP_WRONG_RESOLVENT` |
+| the correct resolvent | 200 | `VALID` |
+| a stale/unknown clause label | 400 | `UNKNOWN_CLAUSE` |
+
+**Bug found by this exercise, fixed before it reached a report:** my own first `DOUBLE_RESOLVE` verification script hit `422 SCHEMA_INVALID` -- not a 500, the invariant held -- because it looked up a clause by exact rendered text and the canonical literal ordering put `Lucky(ravi)` before `Student(ravi)`, so the lookup silently returned `undefined`, which `JSON.stringify` drops from the request body, producing a genuinely malformed request. Root cause was the throwaway script, not the implementation; the equivalent `pytest` fixture already used substring matching and was unaffected.
+
+**Propositional board confirmed unaffected, both ways:** `git diff --stat` shows zero changes to `ProveBoard.jsx`, `Feedback.jsx`, `MasteryBars.jsx`, `StartScreen.jsx`, `Explanation.jsx`; and loaded live in the browser, the propositional board renders its full, unchanged shape -- clause cards, resolvent input, insert buttons, three hint levels, "Does not follow", symbol legend, clause-English sidebar.
+
+**Budget:** `core_fol` and `api_cli` unchanged in shape (api_cli absorbed the handler/schema/render additions within its existing standing exception; real number in `tools/loc.py`). `core` crossed its ceiling by one line, now under a scoped standing exception (HLD S18.16.7). `frontend` untouched -- no UI exists yet.
+
+**Final state:** `pytest backend/` -- 1222 passed, 1 skipped (was 1212), both hash seeds. `ruff check` + `format --check` clean. `npm run build` clean. Not committed, not pushed.
+
+---
+
+## §18.16 step 4: the interactive board, live-verified | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files created:** `frontend/src/FolProveBoard.jsx`.
+**Files modified:** `backend/src/api/main.py` (`_fol_board_labels`, `_fol_step`), `backend/src/api/schemas.py` (`FolStepAction.accepted`), `backend/tests/test_api.py` (board-state contract tests), `frontend/src/App.jsx`, `frontend/src/useSession.js`, `frontend/src/ReadFacts.jsx` (bug fix), `frontend/src/labels.js`.
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
+
+**Purpose:** Before any code, confirmed `data/messages.yaml`'s `fol_step:`/`fol_answer:` blocks were already fully populated (all six codes) and pasted two full live JSON responses (code + message together) proving it -- `FOL_STEP_NOT_COMPLEMENTARY` and `FOL_STEP_WRONG_RESOLVENT`, the two given extra wording care. One red herring caught and ruled out before reporting: the first live capture showed a mangled `fol_reading` field (`âˆ€x` instead of `∀x`); traced to my own `curl | python -c "print(...)"` shell pipeline's console encoding, not the server -- confirmed with a clean end-to-end `urllib` script writing UTF-8 directly to a file, which came back correct.
+
+**Checked whether `frontend`/`api_cli` had new simplification beyond §18.16.6, as instructed, rather than re-litigating settled ground:** both buckets measured byte-identical to their post-Step-3b figures (frontend 1005, api_cli 1212) -- nothing had touched either since. Reported that explicitly and skipped straight to Step 4 rather than re-auditing a question already closed.
+
+**Stopped before writing the board itself** to flag a real design gap: `_fol_step` (Step 3b) validates one step against a FIXED original legend and does not persist anything, so a student's own chosen derivation path (which does not have to match the engine's single precomputed minimal derivation) has no stable label to refer to on a second request. Confirmed this concretely: resolving F1+F2 by hand produced `Mortal(socrates)`, a clause with no label anywhere, while the engine's own path resolves F1+F3 first. Presented the gap and a proposed fix; the student approved building it, with four explicit conditions.
+
+**All four conditions addressed, each resolved before implementation, not during:**
+1. **Bucket:** the accepted-clause list lives on the action (`FolStepAction.accepted`), never on `State` -- confirmed `core_session` was at its own ceiling (191/191, zero headroom) before deciding this, so neither `core` nor `core_session` gained a field.
+2. **Ties into the existing machine:** `state.solved`/`stage="explain"` set the same direct way propositional's own `session.record_clause` already does (not a `tutor.TRANSITIONS` lookup), reusing the pre-existing `AlreadyFinished` 409 lock unmodified.
+3. **Retry/undo parity:** confirmed `ProveBoard.jsx` has no granular undo before claiming parity -- the FOL board doesn't either, and invalid steps already never mutate state.
+4. **Malformed state asserts:** reuses the existing `Tampered` exception (zero new exception types), raised when a stored `accepted` entry fails to reparse.
+
+One documented limitation stated rather than hidden: a replayed clause loses its original variable-naming context, so a genuine surviving free variable becomes a constant on replay -- can only make a later step too strict, never unsound, and no worked example tonight exercises the case.
+
+**Two real bugs found by actually using the board, neither caught by reading code:**
+1. The board's initial clause list used the FULL `fol_trace.legend`, which includes the engine's own solution-path clauses, pre-labeled -- handing the student the answer before they did anything. Fixed by showing only `origin !== "derived"` entries initially; numbering still continues from the full legend length, so the visible sequence has an honest gap rather than a silently wrong one.
+2. An earlier Phase 1 fix (hiding the Facts panel in FOL mode) had hidden the confirm-facts button in the same conditional -- no FOL session could ever leave the Facts screen at all. Fixed by splitting the confirm action out from the merge-specific UI it was wrongly bundled with.
+
+**Live verification, browser, both modes, a complete two-step proof driven end to end:** a wrong resolvent (`Mortal(plato)`) refused with the board unchanged; the correct first step (`Mortal(socrates)` from F1+F2) accepted and rendered as `F6`, continuing past the hidden F4/F5; the second step (F6+F3 -> `□`) completing the proof; `state.solved` firing App.jsx's pre-existing `useEffect([stage])` auto-navigation to the Explanation tab with zero new navigation code written. The propositional board was then re-driven through its own full flow in the same session and confirmed unchanged: clause cards, per-symbol insert buttons, "Edit facts", both sidebars.
+
+**Budget, `frontend` reported on its own, not folded into §18.16.6's number, as instructed:**
+
+| file | code lines |
+|---|---|
+| `App.jsx` | 255 |
+| `FolProveBoard.jsx` (new) | 127 |
+| `FolExplanation.jsx` | 73 |
+| `useSession.js` | 144 |
+| `ReadFacts.jsx` | 147 |
+| `labels.js` | 94 |
+
+`frontend` **1005 -> 1242 (+237)**, already under the §18.16.6 standing exception; real number reported, not absorbed. `api_cli` **1212 -> 1228 (+16, measured before the frontend work started)** for the board-state backend logic -- `core`, `core_session`, `core_fol` all unchanged.
+
+**Final state:** `pytest backend/` -- 1227 passed, 1 skipped (was 1222), both hash seeds. `ruff check` + `format --check` clean. `npm run build` clean. Not committed, not pushed.
+
+---
+
+## §18.16 step 5: the two-level hint ladder, live-verified | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files modified:** `backend/src/app/render.py` (`fol_unifier_text`, `fol_step_hint`), `backend/src/app/data.py` (`SUPPLIED["hint"]`), `backend/src/api/main.py` (`_fol_step_hint`, `_hint`), `backend/src/api/schemas.py` (`HintAction.accepted`), `data/messages.yaml` (`HINT_FOL_STEP_1/2/UNAVAILABLE`), `backend/tests/test_api.py`, `backend/tests/test_render_fol.py`, `frontend/src/App.jsx`, `frontend/src/Feedback.jsx`.
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02: every change across tonight's session came from Claude Code; nothing was hand-edited.
+
+**Purpose:** The hint ladder from HLD §18.16.3, reopened as the explicit, stated reason for building FOL interactivity at all, and the one piece missing from Step 4.
+
+**Three pre-items answered before any code**, per explicit instruction, none skipped:
+1. Retry/undo on an accepted-but-dead-end step -- checked directly (not inferred): neither board has granular undo; a valid-but-useless clause is harmless clutter on both, matching propositional exactly.
+2. The Step 4 frontend growth -- corrected the prior report's mischaracterization. §18.16.6 covered the state measured at that gate, not future growth. Checked for a real extraction (the two-clause picker, duplicated ~8 lines between the two boards) and declined it specifically because it would require editing `ProveBoard.jsx`, the one file every gate tonight has verified untouched -- not worth that risk for single digits of savings. Step 4's growth stands as its own exception.
+3. Confirmed exactly what stops the board pre-showing solution clauses: a filter on `entry.origin !== "derived"`, restated precisely rather than re-asserted.
+
+**Design, contract before code:** which step is hinted is keyed by `len(accepted)`, not `action.level` or `state.hint_level` -- the student's own derivation progress selects the target; the level controls only how much detail about that one target is revealed.
+
+**A real design gap found and resolved during the contract, not left implicit:** a student's valid path can diverge from the engine's own canonical derivation (demonstrated directly in Step 4). `_fol_step_hint` checks whether the canonical next step's two parents are visible on the student's current board; if not, it returns a new, honest `HINT_FOL_STEP_UNAVAILABLE` message rather than silently falling back to wording that would actively mislead a student who already derived something correct (`HINT_FOL_FOLLOWS_1`'s "check your assumption it doesn't follow" makes no sense to someone who just proved a step).
+
+**A real startup-contract catch, not a bug in my own logic:** `app/data.py`'s `SUPPLIED` registry rejected my first draft outright -- the two new hint templates used `{clause_a}`/`{clause_b}`/`{unifier}`, not registered as names the `hint` group supplies. This is the exact mechanism working as designed (catching a template/renderer mismatch at startup, before a student could ever see a crash); fixed by registering the three names.
+
+**One real pre-existing test updated, not reverted:** `test_hint_tells_the_student_a_proved_fol_argument_follows` asserted the OLD outcome-level code for a case where a real derivation exists -- the exact case step-level hints are now DESIGNED to take priority on. Renamed and re-asserted to the new, correct, intended behavior; the budget-exhausted fallback (a genuinely separate test) was untouched and still passes.
+
+**Two real frontend gaps found only by running it, neither visible from the backend suite:** `onHint` never sent `action.accepted`, so every hint silently acted as if nothing had been derived regardless of actual progress; `Feedback.jsx`'s tone map did not know the three new codes, so a correct hint would have rendered in the "bad" (red) error style. Both fixed -- both purely additive changes to shared components (new dict keys, one new argument on an existing call), confirmed safe by re-verifying the propositional board immediately after.
+
+**Live verification, browser, both paths:** on a fresh board, Hint 1 named the engine's own canonical first step (F1+F3); Hint 2 added the unifier (`where x = socrates`). After deriving a different, equally valid first step (F1+F2 -> `Mortal(socrates)`, not matching the canonical path), Hint 1 correctly returned the honest `HINT_FOL_STEP_UNAVAILABLE` message rather than a misleading verdict restatement. Propositional hints re-verified immediately after and found unchanged (`HINT_1 start from c2.`, "Hint 1/2/3 of 3" labels intact).
+
+**Budget:** `core`, `core_session`, `core_fol` all unchanged -- zero new lines in any of them, by design (everything reuses `_fol_board_labels`, `parse_clause_text`, `resolve_typed_clause`, `_fol_unifier_text`, none of which needed to grow). `api_cli` 1228 -> 1267 (+39). `frontend` 1242 -> 1247 (+5, the two wiring fixes only -- no new UI surface this step).
+
+**Final state:** `pytest backend/` -- 1238 passed, 1 skipped (was 1227), both hash seeds. `ruff check` + `format --check` clean. `npm run build` clean. Not committed, not pushed.
+
+---
+
+## Deferred item: clause-English half of the Vocabulary sidebar | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Decision, not an implementation:** the student asked for propositional's Prove-board sidebar ("What the letters mean" / "What each clause says") to be matched for FOL. The request splits into two independently-sized pieces, and only one is being built.
+
+**"What the letters mean" (predicate/constant -> English) -- in scope, proceeding as its own gate.** Directly buildable: the registry mapping (written word -> predicate/constant) is already computed during FOL parsing and currently discarded.
+
+**"What each clause says" (clause -> English prose) -- deferred, not built, logged so it is not silently dropped.** No FOL equivalent to `core.narrate`/the propositional `clauseEnglish` map exists. Building one would be new translation logic -- generating English prose FROM a post-CNF FOL clause, including handling Skolem terms, which HLD §18.15.4 already named out of scope for exactly this reason ("Skolem-term English naming... out of scope; the raw term plus the footnote is the whole treatment"). This is a design change, not an extension of existing rendering, and needs its own HLD gate before any code -- not something to fold into the predicate/constant legend work.
+
+---
+
+## Correctness fix: verb + bare plural object | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files modified:** `backend/src/core/fol_english.py`, `backend/tests/test_fol_english.py`.
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02.
+
+**Purpose:** Found live while investigating a reported fallback bug: "Aisha solves problems" (no "the") silently parsed as `Solve(aisha, problems)`, treating the common noun "problems" as a second individual -- a wrong answer, not a refusal. Fixed by reusing the existing `_canonical_word` regular-plural detector as a second signal alongside the existing determiner check: the LAST word of the remaining tokens being a regular plural routes to the unary verb+object reading, same as `"the"` already does. Checked the existing test suite for regression risk before writing: no ground-relation test's second individual (`Bob`, `Carol`, `Dave`) is a regular plural, so nothing was at risk of breaking, confirmed by the full suite staying green.
+
+**Known, accepted limitation, stated explicitly:** a proper name that happens to be a regular plural form (ending in "-s" the way `_canonical_word` strips) is misread as an object noun. Same risk already accepted for `_canonical_word` itself earlier tonight -- not a new standard, not silently introduced.
+
+**Budget:** `core_fol` code lines unchanged (921 -- one existing condition extended, no new lines), still under cap.
+
+**Final state:** `pytest backend/` -- 1242 passed, 1 skipped (was 1238), both hash seeds. `ruff check` + `format --check` clean. Not committed, not pushed.
+
+---
+
+## Fix: detect_mode on lexical quantifier presence | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files modified:** `backend/src/core/fol_english.py` (`_has_quantifier_word`, `is_fol_sentence`), `backend/tests/test_fol_english.py`.
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02.
+
+**Purpose:** Found live: a paragraph containing a genuinely FOL-intended but currently-unparseable sentence ("All engineers solve problems" -- no copula, no relative clause) fell through to full propositional treatment, including the relevance banner, because `detect_mode` depended on a SUCCESSFUL FOL parse rather than the lexical presence of a quantifier word. Fixed in `fol_english.py` alone: `is_fol_sentence` now signals FOL mode on lexical quantifier presence even when this grammar's narrower patterns cannot parse the sentence. Safe by construction -- confirmed, not assumed -- because `core.english`'s own grammar refuses every quantifier word unconditionally, so no sentence propositional would otherwise have accepted can be taken away by this change.
+
+**No `session.py` change needed, confirmed before writing anything there:** `core_session` is at zero headroom (191/191), so this mattered. §18.16's own earlier Phase 1 fix already suppresses `warnings` unconditionally whenever `logic_mode == "fol"` -- the one `fol_english.py` change was sufficient on its own to stop the misleading fallback.
+
+**What was NOT achieved, stated rather than silently claimed as complete:** the per-sentence refusal still shows the bare code, not FOL-flavored prose. Checked precisely: `Renderer.error()` (the method that renders a code's messages.yaml wording, rephrasing hint included) is called only from the CLI -- the web UI shows the bare `error_code` string for every sentence refusal today, propositional or FOL, a pre-existing gap unrelated to tonight's work. Building and wiring FOL-specific web prose is its own, larger, unscoped item -- logged here, not attempted.
+
+**Live-verified, both the direct pipeline and the real running server**, on the reported paragraph (now `logic_mode: fol`, `warnings: []`) and all three previously-confirmed worked examples (Ravi, Socrates, Tweety -- all unchanged), plus a genuinely-unsupported multiply-quantified paragraph (still cleanly refuses, never starts succeeding at nonsense).
+
+**Budget:** `core_fol` 921 -> 924 (+3), still under cap, 10 lines to ceiling. `core`/`core_session`/`api_cli`/`frontend` untouched.
+
+**Final state:** `pytest backend/` -- 1248 passed, 1 skipped (was 1242), both hash seeds. `ruff check` + `format --check` clean. Not committed, not pushed.
+
+---
+
+## Grammar addition: bare "All SUBJECT verb OBJECT" quantified pattern | 2026-11-02 | Claude Code (Sonnet 5)
+
+**Files modified:** `backend/src/core/fol_english.py` (`_parse_all_bare_svo`), `backend/tests/test_fol_english.py`.
+
+**What the student changed by hand:** none -- confirmed directly with the student, 2026-11-02.
+
+**Purpose:** The remaining piece of the reported paragraph: "All engineers solve problems" has no copula and no relative clause, a genuine gap in every previously-supported quantified pattern. Added as its own scoped grammar addition, same discipline as every other extension tonight -- contract first (exact accepted syntax, how it composes with the verb+object fix), tests first, then implementation.
+
+**Reuses, does not re-derive, the signal from the earlier correctness fix tonight:** the object phrase must carry a determiner or end in a regular plural -- the exact rule `_parse_ground`'s own verb+object branch already uses, so the quantified and ground forms of the same pattern can never disagree about what counts as an object phrase. A quantified relation to a named individual ("All engineers like Bob") is deliberately still refused -- the same structural ambiguity the ground pattern accepts and never guesses at, not newly claimed as supported.
+
+**One of my own earlier tests needed updating, expected consequence not a regression:** item 2's "genuinely unsupported quantifier sentence" regression test used "All engineers solve problems" as its negative example -- which this item deliberately made supported. Swapped for a multiply-quantified relation ("All engineers like every manager"), explicitly out of scope before and after every fix tonight.
+
+**Live-verified end to end on the real running server**, the exact reported paragraph: `logic_mode: fol`, `warnings: []`, all three sentences read correctly (`∀x (Engineer(x) → SolveProblem(x))`, `Engineer(aisha)`, `SolveProblem(aisha)`), and the argument **proves**: `"Valid -- the empty clause was derived in 2 step(s)."`
+
+**Budget, flagged explicitly:** `core_fol` landed at exactly its ceiling -- zero headroom remains for any further FOL engine work without a simplification pass or a recorded exception. Not a crossed ceiling (no stop triggered), but the very next line added to any of the six `core_fol` files will cross it.
+
+**Final state:** `pytest backend/` -- 1255 passed, 1 skipped (was 1248), both hash seeds. `ruff check` + `format --check` clean. Not committed, not pushed.
+
+---
+
+## Web error-prose wiring: `Renderer.sentence_errors` | 2026-11-03 | Claude Code (Sonnet 5)
+
+**Files modified:** `backend/src/app/render.py` (`sentence_errors`), `backend/src/api/main.py` (all eight `clause_english` response sites), `backend/tests/test_render.py`, `backend/tests/test_api.py`, `frontend/src/useSession.js`, `frontend/src/ReadFacts.jsx`, `frontend/src/App.jsx`.
+
+**What the student changed by hand:** none -- confirmed directly with the student.
+
+**Purpose:** Closed the gap logged two entries above: the web UI showed a refused sentence's bare error code (e.g. `QUANTIFIER_UNSUPPORTED`) with no rephrasing hint, while the CLI already rendered it through `Renderer.error()`. `sentence_errors(sentences)` reuses `error()` and the existing `error:` `messages.yaml` section verbatim -- no new wording, for propositional and FOL refusals alike, since `SentenceRec.error_code` is always one of `core.english`'s own codes regardless of `logic_mode`.
+
+**Bucket confirmed before writing:** `api_cli` only (new response key on an endpoint that declares no `response_model`, mirroring exactly how `clause_english` already works) -- zero `core`/`core_fol`/`core_session` touch.
+
+**Live-verified end to end in the real browser**, both modes, on the exact reported sentence (`"It rains. It rains and it is cold or it is windy."`): the Facts screen now shows *"mixing \"and\" with \"or\" in one sentence is ambiguous. Split it into two sentences."* next to the refused sentence, in a propositional session and inside an otherwise FOL-mode session alike -- not the bare code.
+
+**Final state:** `pytest backend/` -- 1262 passed, 1 skipped, both hash seeds. `ruff check` + `format --check` clean (also cleaned two pre-existing lint defects in `test_render.py` left over from the prior block: an import not at top of file, a line over 100 chars). Frontend build clean. Not committed, not pushed.
+
+---
+
+## Bug fix: FOL session with a quantified conclusion stuck on Read & Facts | 2026-11-03 | Claude Code (Sonnet 5)
+
+**Files modified:** `backend/src/core/session.py` (`state_of`'s stage derivation, one line), `backend/tests/test_api.py`, `frontend/src/useSession.js` (`goHome` -- separate bug, see below).
+
+**What the student changed by hand:** none -- confirmed directly with the student.
+
+**Found live, not reported by the student:** while live-verifying FOL rendering with a deliberately hard multi-quantifier paragraph ("All students who study pass. No teacher is a student. Some student studies." / "Some student passes." -- exercises `all...who`, `no`, and `some` together, independently confirmed `PROVED` in 4 steps), clicking "These facts are right -- start proving" failed with `400 WRONG_STAGE` every time.
+
+**Root cause, read off the code, not guessed:** `state_of` (session.py) set `stage="read" if found.entailment is None else "facts"` -- it only ever consulted the PROPOSITIONAL entailment. `core.english`'s grammar refuses any sentence containing a quantifier word unconditionally, regardless of FOL mode, so whenever the CONCLUSION sentence itself is quantified, the propositional parse of the conclusion fails, `entailment` is `None`, and the session is permanently stuck at `stage="read"` -- `tutor.TRANSITIONS` has no `("read", "confirm_facts")` row. Every FOL paragraph tested before tonight happened to use a ground, unquantified conclusion ("Socrates is mortal."), which is why this went unnoticed: this bug affects any FOL exercise whose goal itself uses "every"/"all"/"some"/"no".
+
+**The fix is the general rule, not a narrower patch:** `stage="read" if found.entailment is None and found.fol_result is None else "facts"` -- reads `found.fol_result`, which `analyse()` already computes generically for any paragraph whenever `logic_mode == "fol"`. No sentence-matching, no quantifier/predicate-word checks, no new logic -- strictly reading an already-computed value, same spirit as the `detect_mode` fix two entries above.
+
+**Budget, checked before writing:** `core_session` was at zero headroom (191/191, flagged explicitly by the student before authorizing this fix). Checked for a genuine simplification elsewhere in the file first; none needed -- the fix extends an existing line's condition rather than adding a new one, so `core_session` stayed at exactly 191/191, no exception required.
+
+**Separate bug found and fixed in the same pass:** `goHome` (`useSession.js`) cleared `state`/`feedback`/`warnings`/`clauseEnglish`/`sentenceErrors` but never `problem` -- so after any `ApiError` (this `WRONG_STAGE`, or any other), clicking "New argument" left the old error banner showing over the fresh start screen until the next submit. Added `setProblem(null)` to `goHome`.
+
+**Regression confirmed, not assumed:** a propositional-only session (`fol_result` always `None`) still reaches `"facts"` exactly as before -- the condition now reads `fol_result` ALONGSIDE `entailment`, never instead of it. New test asserts this explicitly.
+
+**Live-verified end to end in the real browser** on the exact paragraph above: Read & Facts shows the three readings cleanly, clicking "These facts are right -- start proving" now returns `FACTS_CONFIRMED` and reaches the Prove board with the five expected clauses (F1-F5) -- no `WRONG_STAGE`. (First two browser attempts still showed the error because the running `uvicorn` process predated the fix and was not using `--reload`; restarting it was the actual fix, not a second code change.)
+
+**Final state:** `pytest` (repo root and `backend/`) -- 1262 passed, 1 skipped, both hash seeds. `ruff check` + `format --check` clean. `python tools/loc.py` -- `core_session` unchanged at 191/191; no bucket newly crossed a ceiling. Frontend build clean. Not committed, not pushed.
+
+**Deferred, not attempted tonight -- named explicitly so it is not silently dropped:**
+1. **The broader pattern this bug is one instance of:** several propositional-only code paths were written before FOL mode existed and were never audited for whether they still make sense when `logic_mode == "fol"`. `state_of`'s stage derivation was one; there may be others (anything that branches on `entailment`/`relevant_ids`/propositional-only fields without also checking `fol_result`). Not audited tonight -- this is about speed under the submission deadline, not about tonight's fix being wrong.
+2. **The dropdown-vs-auto-detect question:** whether `logic_mode` should stay auto-detected from lexical quantifier presence (current behavior) or become an explicit student-facing choice, is unresolved and was not decided tonight.
+3. **A second, independently-discovered bug, confirmed but NOT fixed -- reported to the student instead of patched:** `Renderer.resolve_typed_clause` (`app/render.py`) unconditionally lowercases any typed token that isn't a recognized clause variable name into `Constant(token.lower())`. A Skolem constant is displayed on the board with an uppercase label (e.g. `C1`, confirmed `Constant(name='C1')`), so a student typing that exact label back -- the only thing the UI shows them to reference it by -- gets compared against `Constant(name='c1')` and is wrongly told `FOL_STEP_WRONG_RESOLVENT` for a textbook-correct step. Confirmed with a direct `Constant("C1") == Constant("c1")` check (`False`) and reproduced live in the browser on the exact multi-quantifier paragraph above. Not fixed: the correct fix likely needs case-insensitive matching against constants ALREADY appearing in clauses `a`/`b` (mirroring the existing variable-name lookup), not a blanket case change, since named individuals ("Socrates") may rely on the current lowercasing elsewhere -- needs its own careful check before touching `app/render.py` again.

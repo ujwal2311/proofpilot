@@ -6,7 +6,8 @@ search (core.fol_search), no unification machinery of its own (core.unify), no f
 CONTRACT.
   apply_literal_subst(lit, subst) -> FolLiteral  -- substitution applied to a literal's terms.
   is_tautology_fol(clause) -> bool                -- a literal and its EXACT negation coexist.
-  resolve(clause_a, clause_b) -> list[FolClause]  -- every non-tautological resolvent.
+  resolve(clause_a, clause_b) -> list[tuple[FolClause, Substitution]]  -- every non-tautological
+    resolvent, each paired with the MGU that produced it.
   canonical_literal(lit) -> str / canonical_clause(clause) -> tuple[str, ...]  -- stable sort keys.
 
 SOUNDNESS, stated here because it is the one way to get this module quietly wrong: the MGU found
@@ -35,7 +36,7 @@ def is_tautology_fol(clause: FolClause) -> bool:
     return any((not polarity, pred) in clause for polarity, pred in clause)
 
 
-def resolve(clause_a: FolClause, clause_b: FolClause) -> list[FolClause]:
+def resolve(clause_a: FolClause, clause_b: FolClause) -> list[tuple[FolClause, Substitution]]:
     """Every clause obtainable by resolving `clause_a` and `clause_b` on ONE complementary,
     unifiable literal pair. Resolving on two pairs at once is unsound (the propositional
     DOUBLE_CANCEL mistake) and is never attempted here, by construction: each iteration picks
@@ -44,6 +45,11 @@ def resolve(clause_a: FolClause, clause_b: FolClause) -> list[FolClause]:
     Returns a plain list, not a deduplicated set -- HLD section 18.5 types it that way, and
     fol_search.py's BFS (Phase 7) already deduplicates states the same way core.search does, so
     deduplicating twice would be the needless kind of abstraction CLAUDE.md principle 4 rules out.
+
+    Each resolvent travels WITH the MGU that produced it (2026-11-02). The substitution used to
+    be computed, applied and dropped on the floor; a proof trace has to show it, because "via
+    x = socrates" is the step's actual content and an empty dict ("nothing was substituted") is
+    just as much a fact worth stating as a binding is.
     """
     resolvents = []
     for pivot_a in clause_a:
@@ -56,7 +62,7 @@ def resolve(clause_a: FolClause, clause_b: FolClause) -> list[FolClause]:
             remaining = (clause_a - {pivot_a}) | (clause_b - {pivot_b})
             resolvent = frozenset(apply_literal_subst(lit, mgu) for lit in remaining)
             if not is_tautology_fol(resolvent):
-                resolvents.append(resolvent)
+                resolvents.append((resolvent, mgu))
     return resolvents
 
 

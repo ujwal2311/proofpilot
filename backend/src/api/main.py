@@ -38,9 +38,13 @@ from src.app.data import DataError
 from src.app.render import clause_english_map
 from src.core import search, session, tutor
 from src.core.bkt import is_done
-from src.core.english import ParseError
+from src.core.english import ParseError, prepare
 from src.core.entail import Verdict
-from src.core.fol_search import fol_claim_accepted, fol_hint_code
+from src.core.fol_english import FolParseError
+from src.core.fol_english import parse as fol_parse
+from src.core.fol_models import FolClause
+from src.core.fol_search import FolSearchResult, fol_claim_accepted, fol_hint_code, fol_prove
+from src.core.fol_step import FolAnswerSyntaxError, check_fol_step, parse_clause_text
 from src.core.logic import diagnose, normalize_literal
 from src.core.tutor import FactsNotConfirmed, TransitionError
 
@@ -193,8 +197,25 @@ def next_exercise(body: NextRequest) -> dict:
     return {
         "state": schemas.dump_state(fresh),
         "clause_english": clause_english_map(fresh),
+        "sentence_errors": here.render.sentence_errors(fresh.sentences),
         "done": False,
     }
+
+
+def _fol_search_result(paragraph: str, conclusion: str) -> FolSearchResult | None:
+    """The raw FOL derivation, recomputed -- not read off `State.fol_result`, which only ever
+    carries outcome+step_count (see `Renderer.fol_proof_trace`'s own docstring for why a
+    `Predicate`-bearing field cannot live on `State` at all). `core_session` has zero line budget
+    left (191/191), so this re-parses via the same `core.english.prepare` splitter `session.py`
+    uses internally, rather than growing `Analysis` to carry the raw result out.
+    """
+    registry: dict = {}
+    try:
+        premises = [fol_parse(text, registry) for text in prepare(paragraph)]
+        goal = fol_parse(prepare(conclusion)[0], registry)
+    except FolParseError:
+        return None
+    return fol_prove(premises, goal)
 
 
 @api.post("/api/parse")
@@ -222,11 +243,14 @@ def parse(body: ParseRequest, request: Request) -> dict:
     dumped = schemas.dump_state(fresh)
     code = fresh.entailment.verdict.name if fresh.entailment else "UNPLAYABLE"
     _pilot_log(request, "parse", code, dumped)
+    raw_fol = _fol_search_result(body.paragraph, body.conclusion) if fresh.fol_result else None
     return {
         "state": dumped,
         "clause_english": clause_english_map(fresh),
+        "sentence_errors": say.sentence_errors(fresh.sentences),
         "warnings": [say.warning(raw) for raw in found.warnings],
         "fol_message": say.fol_outcome(fresh.fol_result) if fresh.fol_result else None,
+        "fol_trace": say.fol_proof_trace(raw_fol) if raw_fol else None,
         "error": None,
     }
 
@@ -284,6 +308,7 @@ def _step(state, action) -> dict:
         "message": runtime().render.step(found, productive),
         "state": schemas.dump_state(after),
         "clause_english": clause_english_map(after),
+        "sentence_errors": runtime().render.sentence_errors(after.sentences),
         "extras": {"valid": found.code.value == "VALID", "productive": productive},
     }
 
@@ -300,19 +325,74 @@ def _is_fol(state) -> bool:
     return state.logic_mode == "fol" and state.fol_result is not None
 
 
+def _fol_step_hint(state, action, say) -> tuple[str, str] | None:
+    """(code, message) for the next canonical step the student has not yet derived (HLD
+    S18.16.9).
+
+    Three outcomes, not two -- collapsing them would misword the middle one:
+      1. No derivation exists at all (`proof_steps` is empty -- budget exhausted) -> `None`,
+         the caller falls back to the EXISTING outcome-level `fol_hint_code()` unchanged.
+      2. A derivation exists but does not cover where the student currently is -- they have
+         derived at least as many steps as the canonical path has, OR its next step needs a
+         clause their own (still valid) route has not produced -- `HINT_FOL_STEP_UNAVAILABLE`.
+         Falling back to case 1's wording here would be actively misleading: `HINT_FOL_FOLLOWS_1`
+         says "check your assumption that it doesn't follow", a non-sequitur to a student who
+         just derived a correct step themselves.
+      3. The canonical step's two parents are both visible on the student's current board ->
+         the real step hint.
+
+    Which step is hinted is picked by how many clauses the STUDENT has already derived
+    (`len(action.accepted)`), not by `action.level` -- asking twice without deriving anything
+    re-describes the SAME step in more detail; deriving one advances automatically.
+    """
+    raw_fol = _fol_search_result(state.paragraph, state.conclusion)
+    if raw_fol is None or not raw_fol.proof_steps:
+        return None
+    index = len(action.accepted)
+    if index >= len(raw_fol.proof_steps):
+        return "HINT_FOL_STEP_UNAVAILABLE", say.text["hint"]["HINT_FOL_STEP_UNAVAILABLE"]
+    a, b, _resolvent, mgu = raw_fol.proof_steps[index]
+    visible = {clause for clause, _origin in raw_fol.input_clauses}
+    visible |= {
+        say.resolve_typed_clause(parse_clause_text(text), frozenset(), frozenset())
+        for text in action.accepted
+    }
+    if a not in visible or b not in visible:
+        return "HINT_FOL_STEP_UNAVAILABLE", say.text["hint"]["HINT_FOL_STEP_UNAVAILABLE"]
+    by_label = _fol_board_labels(say, raw_fol, action.accepted)
+    label_of = {clause: label for label, clause in by_label.items()}
+    unifier_text = say.fol_unifier_text(a, b, mgu)
+    message = say.fol_step_hint(
+        action.level,
+        clause_a=f"{label_of[a]}: {say.fol_clause_text(a)}",
+        clause_b=f"{label_of[b]}: {say.fol_clause_text(b)}",
+        unifier=f"where {unifier_text}" if unifier_text else "no substitution needed",
+    )
+    code = "HINT_FOL_STEP_1" if action.level <= 1 else "HINT_FOL_STEP_2"
+    return code, message
+
+
 def _hint(state, action) -> dict:
     board = _board(state)
+    say = runtime().render
     if _is_fol(state):
-        plan = tutor.Hint(fol_hint_code(state.fol_result.outcome, action.level), action.level)
+        step_hint = _fol_step_hint(state, action, say)
+        if step_hint is not None:
+            code, message = step_hint
+        else:
+            plan = tutor.Hint(fol_hint_code(state.fol_result.outcome, action.level), action.level)
+            code, message = plan.code, say.hint(plan, board.names())
     else:
         plan = tutor.plan_hint(board.clauses(), _verdict_of(state), action.level)
+        code, message = plan.code, say.hint(plan, board.names())
     charged = _score(session.record_hint(state), "hint", False)
     return {
-        "code": plan.code,
-        "message": runtime().render.hint(plan, board.names()),
+        "code": code,
+        "message": message,
         "state": schemas.dump_state(charged),
         "clause_english": clause_english_map(charged),
-        "extras": {"available": True, "level": plan.level},
+        "sentence_errors": say.sentence_errors(charged.sentences),
+        "extras": {"available": True, "level": action.level},
     }
 
 
@@ -330,6 +410,7 @@ def _claim(state, _action) -> dict:
             "message": runtime().render.fol_outcome(state.fol_result),
             "state": schemas.dump_state(state),
             "clause_english": clause_english_map(state),
+            "sentence_errors": runtime().render.sentence_errors(state.sentences),
             "extras": {"accepted": None, "counterexample": None},
         }
     code, message = runtime().render.claim(accepted)
@@ -340,6 +421,7 @@ def _claim(state, _action) -> dict:
         "message": message,
         "state": schemas.dump_state(after),
         "clause_english": clause_english_map(after),
+        "sentence_errors": runtime().render.sentence_errors(after.sentences),
         "extras": {"accepted": accepted, "counterexample": counterexample},
     }
 
@@ -363,6 +445,7 @@ def _confirm_facts(state, _action) -> dict:
         "message": runtime().render.text["confirm"]["FACTS_CONFIRMED"],
         "state": schemas.dump_state(moved),
         "clause_english": clause_english_map(moved),
+        "sentence_errors": runtime().render.sentence_errors(moved.sentences),
         "extras": {"stage": moved.stage},
     }
 
@@ -394,12 +477,90 @@ def _merge(state, action) -> dict:
         "message": runtime().render.text["confirm"]["MERGE_RESET"],
         "state": schemas.dump_state(fresh),
         "clause_english": clause_english_map(fresh),
+        "sentence_errors": runtime().render.sentence_errors(fresh.sentences),
         "extras": {"stage": fresh.stage},
+    }
+
+
+def _fol_board_labels(say, raw_fol, accepted: list[str]) -> dict[str, FolClause]:
+    """The original legend plus the student's own PREVIOUSLY-accepted clauses, labeled
+    continuing that numbering, in the order they were accepted (HLD S18.16.8).
+
+    Each stored clause is reparsed with NO variable-naming context -- the two-clause pair that
+    produced it is gone once it is just text, so every lowercase token becomes a Constant. This
+    can only make a LATER step too strict (a genuine surviving free variable will not unify when
+    it should), never unsound: it cannot wrongly validate an illegal step. No worked example
+    exercised tonight ever produces an intermediate clause with a surviving free variable, so
+    this is a documented limitation, not an active bug.
+
+    A stored entry that fails to parse at all is `Tampered` -- the server only ever echoes back
+    text it already validated, so a parse failure here is not a legitimate retry.
+    """
+    by_label = dict(say.fol_clause_by_label(raw_fol))
+    base = len(by_label)
+    for index, text in enumerate(accepted):
+        try:
+            raw = parse_clause_text(text)
+        except FolAnswerSyntaxError as problem:
+            raise Tampered(f"stored FOL clause {text!r} does not parse") from problem
+        by_label[f"F{base + index + 1}"] = say.resolve_typed_clause(raw, frozenset(), frozenset())
+    return by_label
+
+
+def _fol_step(state, action) -> dict:
+    """One proposed FOL resolution step (HLD S18.16). Mirrors `_step`'s shape -- 200 with a code
+    for every answer-dependent outcome, nothing raised -- because a malformed or wrong resolvent
+    is exactly as much teaching content as a propositional WRONG_RESOLVENT is (the file's own
+    section-8 rule, above). `UnknownClause` is the one genuinely structural failure here (a stale
+    or tampered label), so it is the one case that DOES raise, reusing the same exception
+    propositional's `_step` already raises for the same reason.
+
+    Reaching the empty clause ties into the EXISTING `state.solved`/`AlreadyFinished` machine
+    (HLD S18.16.8) -- the same field and the same 409 lock propositional's own `record_clause`
+    already uses, set the same direct way (`stage="explain"` is not a `tutor.TRANSITIONS` lookup
+    for propositional either). No ad-hoc FOL-only "done" flag.
+    """
+    raw_fol = _fol_search_result(state.paragraph, state.conclusion)
+    if raw_fol is None:
+        raise UnknownClause(action.clause_a)
+    say = runtime().render
+    by_label = _fol_board_labels(say, raw_fol, action.accepted)
+    for name in (action.clause_a, action.clause_b):
+        if name not in by_label:
+            raise UnknownClause(name)
+    a, b = by_label[action.clause_a], by_label[action.clause_b]
+
+    try:
+        raw_answer = parse_clause_text(action.resolvent)
+    except FolAnswerSyntaxError as problem:
+        return {
+            "code": "FOL_ANSWER_MALFORMED",
+            "message": say.fol_answer_error(problem.text),
+            "state": schemas.dump_state(state),
+        }
+
+    typed = say.resolve_typed_clause(raw_answer, a, b)
+    outcome = check_fol_step(a, b, typed)
+    after = state
+    if outcome is None and not typed:
+        from dataclasses import replace
+
+        after = replace(state, solved=True, stage="explain")
+    return {
+        "code": outcome.value if outcome is not None else "VALID",
+        "message": say.fol_step_outcome(
+            outcome,
+            clause_a=f"{action.clause_a}: {say.fol_clause_text(a)}",
+            clause_b=f"{action.clause_b}: {say.fol_clause_text(b)}",
+            typed=say.fol_clause_text(typed),
+        ),
+        "state": schemas.dump_state(after),
     }
 
 
 _ACTIONS = {
     "step": _step,
+    "fol_step": _fol_step,
     "hint": _hint,
     "claim_not_provable": _claim,
     "confirm_facts": _confirm_facts,

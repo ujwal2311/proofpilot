@@ -400,6 +400,19 @@ def standardize_apart_clauses(clauses: frozenset[FolClause]) -> frozenset[FolCla
     Clauses are processed in a fixed, sorted order (`_clause_key`) so which clause gets which
     index -- and so the renamed result -- cannot vary between runs (rule 4).
     """
+    return frozenset(renamed for _, renamed in standardize_apart_ordered(clauses))
+
+
+def standardize_apart_ordered(
+    clauses: frozenset[FolClause],
+) -> tuple[tuple[FolClause, FolClause], ...]:
+    """The same renaming as above, but as ordered (original, renamed) pairs.
+
+    `standardize_apart_clauses` returns a frozenset, which discards which input clause became
+    which output clause. A caller that must keep track of where a clause came from -- fol_search,
+    labelling premise vs negated-goal clauses for the proof trace -- needs that pairing, and
+    recomputing it outside this module would duplicate the sort order it depends on.
+    """
     renamed = []
     for index, clause in enumerate(sorted(clauses, key=_clause_key)):
         names = frozenset().union(*(_vars_in_term(a) for _, pred in clause for a in pred.args))
@@ -410,7 +423,37 @@ def standardize_apart_clauses(clauses: frozenset[FolClause]) -> frozenset[FolCla
                 for polarity, pred in clause
             )
         )
-    return frozenset(renamed)
+    return tuple(zip(sorted(clauses, key=_clause_key), renamed, strict=True))
+
+
+# (step name, the formula AFTER that step ran). Named steps, not positions, so a caller
+# rendering the "working" column of a CNF table cannot silently mislabel one.
+FolCnfTrace = tuple[tuple[str, FolFormula], ...]
+
+
+def to_fol_clauses_traced(formula: FolFormula) -> tuple[FolCnfTrace, frozenset[FolClause]]:
+    """Steps 1-7, keeping each intermediate formula, then the clause form.
+
+    The conversion's INTERMEDIATE states are the marks-earning part of a CNF question -- removing
+    the implication, De Morgan, dropping the quantifier, distributing -- and `to_fol_clauses`
+    threw all of them away. This is the one place the pipeline is written out: `to_fol_clauses`
+    below calls this and discards the trace, so the traced and untraced orders cannot drift apart
+    (which two parallel copies of a six-step pipeline certainly would).
+    """
+    steps: list[tuple[str, FolFormula]] = []
+    current = eliminate_iff_implies(formula)
+    steps.append(("eliminate_implications", current))
+    current = push_negation_inward(current)
+    steps.append(("push_negation_inward", current))
+    current = standardize_variables(current)
+    steps.append(("standardize_variables", current))
+    current = skolemize(current)
+    steps.append(("skolemize", current))
+    current = drop_universal_quantifiers(current)
+    steps.append(("drop_universal_quantifiers", current))
+    current = distribute_and_over_or(current)
+    steps.append(("distribute_or_over_and", current))
+    return tuple(steps), flatten_to_clauses(current)
 
 
 def to_fol_clauses(formula: FolFormula) -> frozenset[FolClause]:
@@ -422,9 +465,4 @@ def to_fol_clauses(formula: FolFormula) -> frozenset[FolClause]:
     reuse the same per-formula variable names and this step's own job (telling them apart) would
     already be undone before fol_prove ever sees the combined set.
     """
-    negation_normal = push_negation_inward(eliminate_iff_implies(formula))
-    standardized = standardize_variables(negation_normal)
-    skolemized = skolemize(standardized)
-    quantifier_free = drop_universal_quantifiers(skolemized)
-    cnf = distribute_and_over_or(quantifier_free)
-    return flatten_to_clauses(cnf)
+    return to_fol_clauses_traced(formula)[1]

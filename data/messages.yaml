@@ -25,6 +25,49 @@ step:
   DUPLICATE: "that clause is already on the board."
   VALID: "valid."
 
+# ---------------------------------------------------- FOL resolution step diagnosis (HLD S18.16.2)
+# Same discipline as `step:` above: name the mistake, never "wrong". {clause_a}/{clause_b} are the
+# two clauses the student picked, pre-rendered with their board label (e.g. "F1: Student(x)");
+# {typed} is the student's own answer, rendered back so they read it next to the explanation
+# rather than having to remember what they typed. NOT_COMPLEMENTARY and WRONG_RESOLVENT are the
+# two a genuinely-trying student hits most, so both restate the resolution rule itself, not just
+# name the mistake -- a student needs enough to try again, not just to be told it was wrong.
+fol_step:
+  VALID: "valid."
+  FOL_STEP_NOT_COMPLEMENTARY: >
+    {clause_a} and {clause_b} share no predicate that is positive in one and negated in the
+    other -- there is nothing between them for resolution to cancel. Resolution needs the SAME
+    predicate name and the same number of arguments, once positive and once negated, one in each
+    clause you pick.
+  FOL_STEP_NO_UNIFIER: >
+    {clause_a} and {clause_b} do have a predicate that is positive in one and negated in the
+    other, but their arguments cannot be made equal -- two different individuals, for instance,
+    can never be unified with each other. Look at exactly what each literal's arguments are; a
+    shared predicate name is not enough on its own.
+  FOL_STEP_DOUBLE_RESOLVE: >
+    that cancels two complementary pairs at once. Resolution removes exactly ONE pair per step --
+    pick one pair now and write that resolvent; the other pair is still there to resolve on a
+    later step.
+  FOL_STEP_SUBST_INCOMPLETE: >
+    part of {clause_a} or {clause_b} still shows a variable where the substitution from this step
+    should have replaced it. Once a variable is bound to resolve one pair of literals, that SAME
+    binding has to be applied to every other literal that survives -- not only the ones that were
+    cancelled.
+  FOL_STEP_WRONG_RESOLVENT: >
+    {typed} is not what resolving {clause_a} with {clause_b} produces. Re-check which literal
+    pair you are resolving on, and what is left over from each clause once that pair is removed
+    and the substitution is applied to it.
+
+# ----------------------------------------- a typed FOL answer that is not formal notation at all
+# A syntax refusal, same family as `error:`'s UNPARSEABLE -- "I" because the SYSTEM is the one
+# that could not read it, mirroring that block's voice exactly. {text} is the exact string the
+# student typed, quoted verbatim, so a typo is visibly a typo and not a mystery.
+fol_answer:
+  FOL_ANSWER_MALFORMED: >
+    I couldn't read "{text}" as a formula. A literal looks like Pred(term, term) -- or just Pred
+    with no arguments -- optionally preceded by ¬ or ~, with clauses joined by ∨. Check for a
+    missing parenthesis, a stray symbol, or a predicate name that doesn't start with a letter.
+
 # How a valid step is described, by whether it shortened the proof. `unknown` is the work-budget
 # case: the search ran out, so productivity is genuinely undecided and must not be guessed.
 productivity:
@@ -46,14 +89,29 @@ hint:
   HINT_NOT_FOLLOW_1: "before proving, check whether the conclusion really follows."
   HINT_NOT_FOLLOW_2: "look for a situation where every premise is true and the conclusion is false."
   HINT_NOT_FOLLOW_3: "it does not follow. Say so."
-  # FOL-mode hints (HLD S18.7's Facts-panel fix, follow-up 2026-11-01): the first-order engine
-  # already decided whether the argument follows, so these never escalate a METHOD the way the
-  # propositional ladder above does -- there is no exposed proof trace to walk toward (HLD S18.8,
-  # answer extraction out of scope), only the verdict itself.
+  # Outcome-level FOL hints (HLD S18.7's Facts-panel fix, follow-up 2026-11-01). These were
+  # written when there was no exposed proof trace to walk toward -- that changed at S18.14/15,
+  # and S18.16.9 adds STEP-level hints below that walk it. These three stay as the fallback: the
+  # verdict-only message shown when a step hint genuinely does not apply (budget exhausted, or
+  # the student's own valid path has moved past what the canonical derivation can address).
   HINT_FOL_FOLLOWS_1: "this argument is valid under first-order logic -- check your assumption that it doesn't follow."
   HINT_FOL_FOLLOWS_2: "the first-order engine proved the premises entail the conclusion."
   HINT_FOL_FOLLOWS_3: "it follows. Reconsider a \"does not follow\" claim."
   HINT_FOL_UNKNOWN: "the search budget ran out before a proof was found. The system genuinely does not know whether this follows, so this hint is not scored either way."
+  # Step-level FOL hints (HLD S18.16.9). Which step is hinted is picked by how many clauses the
+  # STUDENT has already derived, not by `level` -- asking twice without deriving anything
+  # re-describes the same step in more detail; deriving one advances to the next automatically.
+  # {clause_a}/{clause_b} are pre-labeled text, matching fol_step's own wording exactly
+  # ("F1: ..."); {unifier} is pre-formatted ("where x = ravi" or "no substitution needed").
+  HINT_FOL_STEP_1: "resolve {clause_a} with {clause_b}."
+  HINT_FOL_STEP_2: "resolve {clause_a} with {clause_b}, {unifier}."
+  # The honest fallback for a genuinely different case than budget-exhausted: a real derivation
+  # exists, but its next step needs a clause the student's own (still valid) path has not
+  # produced. Never invents a hint for a path it was not computed for (never-guess, principle 2).
+  HINT_FOL_STEP_UNAVAILABLE: >
+    the worked proof's next step uses a clause your own path has not produced -- you have taken
+    a different, still-valid route. Keep resolving from what is on your board; there is no hint
+    for this specific path.
 
 # ----------------------------------------------------------------------- claims (sections 8, 9)
 claim:
@@ -171,3 +229,10 @@ fol:
     The premises alone are contradictory (the empty clause was derived from the premises before
     the conclusion was even used). This means the argument is trivially valid but the premises
     cannot all be true together.
+  # Exam-form captions for the proof trace (HLD S18.15.6). The negated goal is called out
+  # because a refutation is unreadable until you can see that the OPPOSITE of the goal was
+  # assumed on purpose; without the caption that clause looks like a fourth premise.
+  negated_goal: >
+    Negated for refutation -- this is the opposite of what we want to prove. Deriving a
+    contradiction from it is what shows the goal must be true.
+  conclusion_proved: "{premises} together with {negated} is unsatisfiable, so {goal} is proved."

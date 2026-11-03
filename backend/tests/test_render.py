@@ -4,8 +4,8 @@ Deliberately fresh vocabulary -- printers and toner, not rain or buses -- to pro
 generalizes over any clause/fact pair rather than matching content used to build it.
 """
 
-from src.app.render import clause_english, clause_english_map
-from src.core.models import ClauseRec, Fact
+from src.app.render import Renderer, clause_english, clause_english_map
+from src.core.models import ClauseRec, Fact, SentenceRec
 
 FACTS = (
     Fact("A", (("p1", "the printer is low on toner"),)),
@@ -65,3 +65,47 @@ class _FakeState:
     def __init__(self, clauses, facts) -> None:
         self.clauses = clauses
         self.facts = facts
+
+
+# ------------------------- sentence_errors: the web UI's missing error prose (2026-11-02) -------
+#
+# Renderer.error() already renders a code into its messages.yaml prose, rephrasing hint included
+# -- but it was called ONLY from the CLI. The web UI showed the bare code string for every
+# per-sentence refusal, propositional or FOL. This reuses error() as-is; no new wording.
+
+ERROR_TEXT = Renderer(
+    text={
+        "error": {
+            "QUANTIFIER_UNSUPPORTED": (
+                'words like "all" are beyond this system. Rewrite about one specific case.'
+            ),
+            "UNPARSEABLE": "I cannot read that sentence.",
+        }
+    }
+)
+
+
+def test_sentence_errors_renders_the_refused_sentences_message() -> None:
+    sentences = (
+        SentenceRec("s1", "All engineers solve problems", "error", "QUANTIFIER_UNSUPPORTED"),
+        SentenceRec("s2", "Aisha is an engineer", "ok", None),
+    )
+    assert ERROR_TEXT.sentence_errors(sentences) == {
+        "s1": 'words like "all" are beyond this system. Rewrite about one specific case.'
+    }
+
+
+def test_sentence_errors_is_empty_when_nothing_was_refused() -> None:
+    sentences = (SentenceRec("s1", "Aisha is an engineer", "ok", None),)
+    assert ERROR_TEXT.sentence_errors(sentences) == {}
+
+
+def test_sentence_errors_covers_more_than_one_refused_sentence() -> None:
+    sentences = (
+        SentenceRec("s1", "All engineers solve problems", "error", "QUANTIFIER_UNSUPPORTED"),
+        SentenceRec("s2", "garble garble", "error", "UNPARSEABLE"),
+        SentenceRec("s3", "Aisha is an engineer", "ok", None),
+    )
+    errors = ERROR_TEXT.sentence_errors(sentences)
+    assert set(errors) == {"s1", "s2"}
+    assert errors["s2"] == "I cannot read that sentence."

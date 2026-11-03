@@ -188,7 +188,12 @@ def analyse(paragraph: str, conclusion: str, merges: tuple[MergeChoice, ...] = (
         goal,
         entailment,
         relevant,
-        found.warnings + entailment.warnings,
+        # Propositional diagnostics only. In FOL mode the propositional pipeline still runs
+        # (the Prove board needs it) but its findings describe a reading this session is NOT
+        # being judged by -- CONCLUSION_FACT_UNSEEN fired "the conclusion mentions X, which no
+        # premise does" directly above a FOL "Valid" verdict, which reads as the system
+        # contradicting itself (2026-11-02 fresh-eyes pass).
+        () if logic_mode == "fol" else found.warnings + entailment.warnings,
         source_of,
         conversions,
         logic_mode,
@@ -239,7 +244,7 @@ def state_of(
         # silently, and seeing the extracted facts is the only thing that makes it visible. A
         # session that opened straight onto the board would skip it, which is how a student would
         # end up proving something about a fact they never agreed to.
-        stage="read" if found.entailment is None else "facts",
+        stage="read" if found.entailment is None and found.fol_result is None else "facts",
         paragraph=paragraph,
         conclusion=conclusion,
         facts=found.facts,

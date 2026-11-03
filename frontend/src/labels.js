@@ -10,22 +10,29 @@
 // does not belong here.
 export const UI = {
   title: "ProofPilot",
-  subtitle: "step-level feedback for propositional logic — plus a first-order verdict for quantified arguments",
+  subtitle:
+    "step-level feedback for propositional logic — plus a first-order verdict for quantified arguments",
 
-  stages: { facts: "Read & Facts", translate: "Translate", prove: "Prove", explain: "Explanation" },
+  stages: {
+    facts: "Read & Facts",
+    translate: "Translate",
+    prove: "Prove",
+    explain: "Explanation",
+  },
 
   // Start screen
   startHeading: "Prove something",
   startSub:
-    "Read an argument, check the facts it found, then build the proof yourself — ProofPilot tells you exactly where a step goes wrong instead of just marking it wrong. An argument using a quantifier (\"every\", \"some\", \"no\") is checked directly by first-order resolution and shown a verdict instead.",
+    'Read an argument, check the facts it found, then build the proof yourself — ProofPilot tells you exactly where a step goes wrong instead of just marking it wrong. An argument using a quantifier ("every", "some", "no") is checked directly by first-order resolution and shown a verdict instead.',
   practiceTitle: "Practice",
-  practiceBody: "A ready-made argument from the exercise bank. Good for a first look.",
+  practiceBody:
+    "A ready-made argument from the exercise bank. Good for a first look.",
   practiceButton: "Start practising",
   ownTitle: "Your own argument",
-  ownBody: "Type any argument in plain English and ProofPilot checks whether the conclusion follows.",
+  ownBody:
+    "Type any argument in plain English and ProofPilot checks whether the conclusion follows.",
   paragraphLabel: "Premises",
-  paragraphPlaceholder:
-    "If it rains then the match is cancelled. It rains.",
+  paragraphPlaceholder: "If it rains then the match is cancelled. It rains.",
   conclusionLabel: "Conclusion",
   conclusionPlaceholder: "The match is cancelled.",
   ownButton: "Check this argument",
@@ -43,7 +50,8 @@ export const UI = {
   sentencesHeading: "The paragraph",
   conclusionHeading: "The claimed conclusion",
   factsHeading: "Facts the system extracted",
-  factsHelp: "Check these before you prove anything. Every phrase grouped under one letter is being treated as the same fact.",
+  factsHelp:
+    "Check these before you prove anything. Every phrase grouped under one letter is being treated as the same fact.",
   mergeSame: "Same fact",
   mergeOpposite: "Opposites",
   mergeDifferent: "Different facts",
@@ -82,6 +90,29 @@ export const UI = {
   derived: "you derived",
   nextExercise: "Next exercise",
   conversionSteps: "How this became a clause",
+
+  // FOL Prove board (HLD S18.16)
+  folBoardHeading: "Clauses on the board",
+  folResolventLabel: "The resolvent you get",
+  folResolventPlaceholder:
+    "e.g. PassTheExam(ravi)  or  ¬Study(ravi) ∨ PassTheExam(ravi)",
+
+  // FOL Explanation (HLD S18.14, S18.15.6)
+  derivationHeading: "How the first-order proof was derived",
+  folClausesHeading: "The clauses",
+  folStepsHeading: "Resolution steps",
+  folTreeHeading: "Refutation tree",
+  folConclusionHeading: "Conclusion",
+  folOrigin: {
+    premise: "premise",
+    negated_goal: "negated goal",
+    derived: "derived",
+  },
+  folUnifierLabel: "where",
+  folNoUnifier: "no substitution needed",
+  folNoProof: "No derivation to show — see the verdict above for why.",
+  unrenderedTermsNote:
+    "Terms written C1, C2… or f1(x), f2(x)… above are values the system had to introduce to prove this (Skolem terms) — they weren't in your original sentences.",
 
   // pilot mode only
   pilotIdLabel: "Pilot ID",

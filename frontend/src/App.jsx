@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { PILOT_MODE, getPilotId, setPilotId } from "./api.js";
 import { Explanation } from "./Explanation.jsx";
 import { Feedback } from "./Feedback.jsx";
+import { FolExplanation } from "./FolExplanation.jsx";
+import { FolProveBoard } from "./FolProveBoard.jsx";
 import { MasteryBars } from "./MasteryBars.jsx";
 import { ProveBoard } from "./ProveBoard.jsx";
 import { ReadFacts } from "./ReadFacts.jsx";
@@ -28,7 +30,11 @@ export default function App() {
     started,
     warnings,
     folMessage,
+    folTrace,
+    folAccepted,
+    addFolAccepted,
     clauseEnglish,
+    sentenceErrors,
     nextExercise,
     parse,
     act,
@@ -83,15 +89,21 @@ export default function App() {
             {UI.retry}
           </button>
         ) : (
-          <StartScreen pending={pending} onPractice={nextExercise} onOwnQuestion={parse} />
+          <StartScreen
+            pending={pending}
+            onPractice={nextExercise}
+            onOwnQuestion={parse}
+          />
         )}
       </main>
     );
   }
 
   const showEditableFacts =
-    (stage === "facts" && activeTab === "facts") || (stage === "prove" && editingFacts);
-  const reached = (tab) => STAGE_ORDER.indexOf(stage) >= STAGE_ORDER.indexOf(tab);
+    (stage === "facts" && activeTab === "facts") ||
+    (stage === "prove" && editingFacts);
+  const reached = (tab) =>
+    STAGE_ORDER.indexOf(stage) >= STAGE_ORDER.indexOf(tab);
   const selectTab = (tab) => {
     setEditingFacts(false); // clicking any tab abandons "just looking", not a merge
     setActiveTab(tab);
@@ -119,7 +131,12 @@ export default function App() {
           </button>
           <Stepper current={currentTab} onSelect={selectTab} />
         </div>
-        <button type="button" className="ghost" onClick={goHome} disabled={pending}>
+        <button
+          type="button"
+          className="ghost"
+          onClick={goHome}
+          disabled={pending}
+        >
           {UI.backToStart}
         </button>
       </div>
@@ -138,6 +155,7 @@ export default function App() {
         <ReadFacts
           state={state}
           pending={pending}
+          sentenceErrors={sentenceErrors}
           onMerge={(merge) => {
             const merges = [...state.merges_applied, merge];
             if (stage === "prove") {
@@ -149,32 +167,65 @@ export default function App() {
             }
           }}
           onConfirm={() =>
-            stage === "prove" ? setEditingFacts(false) : act({ type: "confirm_facts" })
+            stage === "prove"
+              ? setEditingFacts(false)
+              : act({ type: "confirm_facts" })
           }
         />
       ) : null}
 
-      {!showEditableFacts && activeTab === "facts" ? <ReadFacts state={state} readOnly /> : null}
+      {!showEditableFacts && activeTab === "facts" ? (
+        <ReadFacts state={state} readOnly sentenceErrors={sentenceErrors} />
+      ) : null}
 
       {!showEditableFacts && activeTab === "prove" ? (
         reached("prove") ? (
-          <ProveBoard
-            state={state}
-            pending={pending}
-            clauseEnglish={clauseEnglish}
-            onStep={(step) => act({ type: "step", ...step })}
-            onHint={(level) => act({ type: "hint", level })}
-            onClaim={() => act({ type: "claim_not_provable" })}
-            onEditFacts={() => setEditingFacts(true)}
-          />
+          state.logic_mode === "fol" ? (
+            <FolProveBoard
+              folTrace={folTrace}
+              accepted={folAccepted}
+              onAcceptedStep={addFolAccepted}
+              pending={pending}
+              onStep={(step) => act({ type: "fol_step", ...step })}
+              onHint={(level) =>
+                act({ type: "hint", level, accepted: folAccepted })
+              }
+              onClaim={() => act({ type: "claim_not_provable" })}
+            />
+          ) : (
+            <ProveBoard
+              state={state}
+              pending={pending}
+              clauseEnglish={clauseEnglish}
+              onStep={(step) => act({ type: "step", ...step })}
+              onHint={(level) => act({ type: "hint", level })}
+              onClaim={() => act({ type: "claim_not_provable" })}
+              onEditFacts={() => setEditingFacts(true)}
+            />
+          )
         ) : (
           <NotReachedYet text={UI.notReachedProve} />
         )
       ) : null}
 
       {!showEditableFacts && activeTab === "explain" ? (
-        reached("explain") ? (
-          <Explanation state={state} pending={pending} onNext={() => nextExercise(state)} />
+        state.logic_mode === "fol" ? (
+          // The FOL verdict is computed independently of the propositional board (S18.7), so
+          // gating this behind reached("explain") -- which requires SOLVING that board -- would
+          // make the trace unreachable for exactly the exercises that need FOL to begin with.
+          <FolExplanation
+            folTrace={folTrace}
+            state={state}
+            pending={pending}
+            onNext={() => nextExercise(state)}
+            onHome={goHome}
+          />
+        ) : reached("explain") ? (
+          <Explanation
+            state={state}
+            pending={pending}
+            onNext={() => nextExercise(state)}
+          />
         ) : (
           <NotReachedYet text={UI.notReachedExplain} />
         )
@@ -222,7 +273,10 @@ function Header({ pilotId, onPilotId }) {
 // M1 has no Translate stage, so it is shown only when the session actually reaches it rather than
 // as a permanent empty promise.
 function Stepper({ current, onSelect }) {
-  const shown = STAGES.filter((stage) => stage !== "read" && (stage !== "translate" || current === "translate"));
+  const shown = STAGES.filter(
+    (stage) =>
+      stage !== "read" && (stage !== "translate" || current === "translate"),
+  );
   return (
     <nav className="stepper" aria-label="stages">
       <ol>

@@ -52,8 +52,11 @@ def board(client, facts) -> dict:
     return answer.json()["state"]
 
 
-def hint(client, state: dict, level: int = 1):
-    return client.post(ACT, json={"state": state, "action": {"type": "hint", "level": level}})
+def hint(client, state: dict, level: int = 1, accepted: list[str] | None = None):
+    action = {"type": "hint", "level": level}
+    if accepted is not None:
+        action["accepted"] = accepted
+    return client.post(ACT, json={"state": state, "action": action})
 
 
 # ========================================================================= the four endpoints
@@ -97,6 +100,7 @@ def test_parse_runs_the_whole_pipeline_and_returns_a_session(client) -> None:
     assert state["entailment"]["verdict"] == "ENTAILED"
     assert [c["id"] for c in state["clauses"]] == ["c1", "c2", "c3"]
     assert body["error"] is None
+    assert body["sentence_errors"] == {}
 
 
 def test_parse_keeps_a_refused_sentence_with_its_code(client) -> None:
@@ -116,6 +120,25 @@ def test_parse_keeps_a_refused_sentence_with_its_code(client) -> None:
     assert ("error", "AMBIGUOUS_AND_OR") in statuses
 
 
+def test_parse_renders_a_refused_sentence_s_error_as_prose(client) -> None:
+    # The gap this closes: the web UI showed the bare AMBIGUOUS_AND_OR code with no rephrasing
+    # hint, while the CLI already rendered it through Renderer.error(). `sentence_errors` is
+    # `Renderer.sentence_errors` keyed by sentence id, reusing error()'s existing wording verbatim.
+    body = client.post(
+        "/api/parse",
+        json={
+            "paragraph": "It rains. It rains and it is cold or it is windy.",
+            "conclusion": "We get wet.",
+        },
+    ).json()
+    refused = next(s for s in body["state"]["sentences"] if s["error_code"] == "AMBIGUOUS_AND_OR")
+    assert body["sentence_errors"] == {
+        refused["id"]: (
+            'mixing "and" with "or" in one sentence is ambiguous. Split it into two sentences.'
+        )
+    }
+
+
 def test_parse_carries_a_fol_result_through_the_wire(client) -> None:
     # HLD S18.7 Phase 8b, through the real API -- not calling fol_prove() or session.analyse()
     # directly. TypeAdapter(State) picks up State.fol_result automatically -- no schema change
@@ -133,6 +156,43 @@ def test_parse_carries_a_fol_result_through_the_wire(client) -> None:
     assert isinstance(fol_result["step_count"], int)
 
 
+def test_parse_reaches_facts_stage_when_the_conclusion_itself_is_quantified(client) -> None:
+    # Bug found live, 2026-11-03: `state_of`'s stage derivation (session.py) only ever checked
+    # the PROPOSITIONAL entailment, which is None whenever the conclusion sentence itself uses a
+    # quantifier word -- core.english refuses those unconditionally, regardless of FOL mode. A
+    # session stuck on "read" has no ("read", "confirm_facts") transition, so "These facts are
+    # right -- start proving" always raised WRONG_STAGE for this entire (ordinary) class of FOL
+    # exercise. Every FOL case tested before this had a ground, unquantified conclusion, which is
+    # why it went unnoticed. This paragraph exercises all three quantifier constructs the FOL
+    # grammar supports (all...who, no, some) and is independently confirmed PROVED in 4 steps.
+    body = client.post(
+        "/api/parse",
+        json={
+            "paragraph": (
+                "All students who study pass. No teacher is a student. Some student studies."
+            ),
+            "conclusion": "Some student passes.",
+        },
+    ).json()
+    assert body["state"]["logic_mode"] == "fol"
+    assert body["state"]["fol_result"] == {"outcome": "proved", "step_count": 4}
+    assert body["state"]["stage"] == "facts"
+    confirmed = client.post(ACT, json={"state": body["state"], "action": {"type": "confirm_facts"}})
+    assert confirmed.status_code == 200, confirmed.json()
+
+
+def test_parse_reaches_facts_stage_for_an_ordinary_propositional_session(client) -> None:
+    # The regression guard for the fix above: a session with NO fol_result at all must still
+    # reach "facts" exactly as before -- the stage check now reads `fol_result` ALONGSIDE
+    # `entailment`, not instead of it.
+    body = client.post(
+        "/api/parse",
+        json={"paragraph": "If it rains then we get wet. It rains.", "conclusion": "We get wet."},
+    ).json()
+    assert body["state"]["fol_result"] is None
+    assert body["state"]["stage"] == "facts"
+
+
 def test_parse_carries_logic_mode_through_the_wire(client) -> None:
     # Regression: logic_mode lived only on Analysis (session.py-local) and never reached State,
     # so state.logic_mode was always undefined on the client -- the ReadFacts.jsx framing note
@@ -145,6 +205,26 @@ def test_parse_carries_logic_mode_through_the_wire(client) -> None:
         },
     ).json()
     assert body["state"]["logic_mode"] == "fol"
+
+
+def test_parse_renders_a_refused_sentence_s_error_as_prose_in_fol_mode(client) -> None:
+    # `SentenceRec.error_code` is always one of core.english's own codes regardless of
+    # `logic_mode` (render.py's own docstring) -- so a sentence that fails BOTH grammars inside
+    # an otherwise FOL-mode session must still render through the same `error()` wording.
+    body = client.post(
+        "/api/parse",
+        json={
+            "paragraph": (
+                "Every human is mortal. Socrates is a human and it is raining or it is snowing."
+            ),
+            "conclusion": "Socrates is mortal.",
+        },
+    ).json()
+    assert body["state"]["logic_mode"] == "fol"
+    refused = next(s for s in body["state"]["sentences"] if s["error_code"] == "AMBIGUOUS_AND_OR")
+    assert body["sentence_errors"][refused["id"]] == (
+        'mixing "and" with "or" in one sentence is ambiguous. Split it into two sentences.'
+    )
 
 
 def test_parse_fol_message_is_rendered_from_messages_yaml_not_the_raw_code(client) -> None:
@@ -218,9 +298,13 @@ def test_claim_not_provable_is_unscored_when_the_fol_budget_is_exhausted(client)
     )
 
 
-def test_hint_tells_the_student_a_proved_fol_argument_follows(client) -> None:
+def test_hint_gives_the_next_step_for_a_proved_fol_argument(client) -> None:
+    # Was HINT_FOL_FOLLOWS_1 (outcome-only) before step-level hints existed (HLD S18.16.9) --
+    # a real derivation exists here, so the step hint now correctly takes priority over the
+    # outcome-level fallback. test_fol_hint_falls_back_to_outcome_level_when_budget_exhausted
+    # covers the case where it still doesn't apply.
     state = _fol_board(client, "Every human is mortal. Socrates is a human.", "Socrates is mortal.")
-    assert hint(client, state).json()["code"] == "HINT_FOL_FOLLOWS_1"
+    assert hint(client, state).json()["code"] == "HINT_FOL_STEP_1"
 
 
 def test_hint_is_honest_when_the_fol_budget_is_exhausted(client) -> None:
@@ -684,3 +768,344 @@ def test_clause_english_is_wired_through_the_real_pipeline(client) -> None:
     ).json()
     empty = next(c for c in finished["state"]["clauses"] if c["literals"] == [])
     assert finished["clause_english"][empty["id"]] == "a contradiction"
+
+
+# ============================================================ FOL step action (HLD S18.16) ===
+#
+# Six outcomes, none of which may ever reach the generic 500 handler: a malformed answer and
+# each of the five FolStepError codes are teaching content (the file's own section-8 rule), so
+# every one of them is a 200 with a named code -- proven here the same way V-2 and statelessness
+# above are proven, by a real request, not by reading the handler.
+
+
+def _label_containing(trace, *substrings) -> str:
+    """The legend label whose rendered text contains every one of `substrings` -- used instead
+    of a hardcoded "F3" so these tests do not depend on exact label numbering, only on the real
+    clauses a real paragraph produces."""
+    for entry in trace["legend"]:
+        if all(s in entry["text"] for s in substrings):
+            return entry["label"]
+    raise AssertionError(f"no legend entry contains {substrings}: {trace['legend']}")
+
+
+def _fol_act(
+    client,
+    state: dict,
+    clause_a: str,
+    clause_b: str,
+    resolvent: str,
+    accepted: list[str] | None = None,
+):
+    return client.post(
+        ACT,
+        json={
+            "state": state,
+            "action": {
+                "type": "fol_step",
+                "clause_a": clause_a,
+                "clause_b": clause_b,
+                "resolvent": resolvent,
+                "accepted": accepted or [],
+            },
+        },
+    )
+
+
+@pytest.fixture
+def socrates_fol_board(client) -> dict:
+    """F1: rule, F2: Human(socrates), F3 (negated goal): ¬Mortal(socrates) -- confirmed to the
+    Prove stage, the one place `fol_step` is a legal action (tutor.TRANSITIONS, HLD S18.16)."""
+    parsed = client.post(
+        "/api/parse",
+        json={
+            "paragraph": "Every human is mortal. Socrates is a human.",
+            "conclusion": "Socrates is mortal.",
+        },
+    ).json()
+    confirmed = client.post(
+        ACT, json={"state": parsed["state"], "action": {"type": "confirm_facts"}}
+    )
+    assert confirmed.status_code == 200, confirmed.json()
+    return confirmed.json()["state"], parsed["fol_trace"]
+
+
+def test_fol_step_with_a_malformed_answer_is_a_clean_200_not_a_500(
+    client, socrates_fol_board
+) -> None:
+    state, trace = socrates_fol_board
+    f1 = _label_containing(trace, "Human(x)", "Mortal(x)")
+    f2 = _label_containing(trace, "Human(socrates)")
+    response = _fol_act(client, state, f1, f2, "Mortal(1socrates")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["code"] == "FOL_ANSWER_MALFORMED"
+    assert "Mortal(1socrates" in body["message"]
+
+
+def test_fol_step_not_complementary_is_a_clean_200(client, socrates_fol_board) -> None:
+    state, trace = socrates_fol_board
+    f2 = _label_containing(trace, "Human(socrates)")
+    f3 = _label_containing(trace, "¬Mortal(socrates)")
+    response = _fol_act(client, state, f2, f3, "")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["code"] == "FOL_STEP_NOT_COMPLEMENTARY"
+    assert "Human(socrates)" in body["message"] and "¬Mortal(socrates)" in body["message"]
+
+
+def test_fol_step_no_unifier_is_a_clean_200(client) -> None:
+    # "Every human is mortal" is filler, present only so detect_mode() sees a quantifier and
+    # reads this paragraph as FOL at all (S18.7: an all-ground paragraph is read as propositional,
+    # which is correct behaviour, just not what this test needs) -- the pair under test is
+    # Human(socrates) against ¬Human(plato).
+    parsed = client.post(
+        "/api/parse",
+        json={
+            "paragraph": "Every human is mortal. Socrates is a human. Plato is not a human.",
+            "conclusion": "Socrates is mortal.",
+        },
+    ).json()
+    confirmed = client.post(
+        ACT, json={"state": parsed["state"], "action": {"type": "confirm_facts"}}
+    ).json()
+    trace = parsed["fol_trace"]
+    socrates_human = _label_containing(trace, "Human(socrates)")
+    not_plato_human = _label_containing(trace, "¬Human(plato)")
+    response = _fol_act(client, confirmed["state"], socrates_human, not_plato_human, "")
+    assert response.status_code == 200
+    assert response.json()["code"] == "FOL_STEP_NO_UNIFIER"
+
+
+def test_fol_step_double_resolve_is_a_clean_200(client) -> None:
+    # Student(ravi) v Lucky(ravi), and its exact double negation -- resolving on EITHER single
+    # pivot alone is a tautology (filtered), so the ONLY way to reach the empty clause here is
+    # the unsound double-cancel, which is exactly the trap a student claiming victory falls into.
+    # Same filler reason as the NO_UNIFIER test above.
+    parsed = client.post(
+        "/api/parse",
+        json={
+            "paragraph": (
+                "Every human is mortal. Ravi is a student or Ravi is lucky. "
+                "Ravi is not a student or Ravi is not lucky."
+            ),
+            "conclusion": "Ravi passes the exam.",
+        },
+    ).json()
+    confirmed = client.post(
+        ACT, json={"state": parsed["state"], "action": {"type": "confirm_facts"}}
+    ).json()
+    trace = parsed["fol_trace"]
+    positive = _label_containing(trace, "Student(ravi)", "Lucky(ravi)")
+    negative = _label_containing(trace, "¬Student(ravi)", "¬Lucky(ravi)")
+    response = _fol_act(client, confirmed["state"], positive, negative, "")
+    assert response.status_code == 200
+    assert response.json()["code"] == "FOL_STEP_DOUBLE_RESOLVE"
+
+
+def test_fol_step_subst_incomplete_is_a_clean_200(client, socrates_fol_board) -> None:
+    state, trace = socrates_fol_board
+    f1 = _label_containing(trace, "Human(x)", "Mortal(x)")
+    f2 = _label_containing(trace, "Human(socrates)")
+    response = _fol_act(client, state, f1, f2, "Mortal(x)")  # forgot x -> socrates
+    assert response.status_code == 200
+    assert response.json()["code"] == "FOL_STEP_SUBST_INCOMPLETE"
+
+
+def test_fol_step_wrong_resolvent_is_a_clean_200(client, socrates_fol_board) -> None:
+    state, trace = socrates_fol_board
+    f1 = _label_containing(trace, "Human(x)", "Mortal(x)")
+    f2 = _label_containing(trace, "Human(socrates)")
+    response = _fol_act(client, state, f1, f2, "Mortal(plato)")
+    assert response.status_code == 200
+    assert response.json()["code"] == "FOL_STEP_WRONG_RESOLVENT"
+
+
+def test_fol_step_valid_is_a_clean_200(client, socrates_fol_board) -> None:
+    state, trace = socrates_fol_board
+    f1 = _label_containing(trace, "Human(x)", "Mortal(x)")
+    f2 = _label_containing(trace, "Human(socrates)")
+    response = _fol_act(client, state, f1, f2, "Mortal(socrates)")
+    assert response.status_code == 200
+    assert response.json()["code"] == "VALID"
+
+
+def test_fol_step_with_an_unknown_clause_label_is_the_existing_unknown_clause_error(
+    client, socrates_fol_board
+) -> None:
+    """Reuses `UnknownClause`, same as propositional -- a stale/tampered label is structural,
+    not an answer-dependent outcome, so it is the one case this action DOES raise through."""
+    state, _trace = socrates_fol_board
+    response = _fol_act(client, state, "F99", "F2", "Mortal(socrates)")
+    assert response.status_code == 400
+    assert response.json()["code"] == "UNKNOWN_CLAUSE"
+
+
+# =========================================================== FOL board state (HLD S18.16.8) ===
+#
+# Stateless by design, same as the rest of this API: the client echoes back its own accumulated
+# `accepted` clause texts, never stored server-side. These tests prove a real multi-step proof
+# chains to completion, that solved ties into the EXISTING state.solved/AlreadyFinished lock
+# (not a new flag), and that a tampered `accepted` entry is refused rather than trusted.
+
+
+def test_fol_step_accepts_a_prior_derived_clause_and_chains_to_the_empty_clause(
+    client, socrates_fol_board
+) -> None:
+    state, trace = socrates_fol_board
+    f1 = _label_containing(trace, "Human(x)", "Mortal(x)")
+    f2 = _label_containing(trace, "Human(socrates)")
+    f3 = _label_containing(trace, "¬Mortal(socrates)")
+
+    # Step 1: derive Mortal(socrates) -- NOT the engine's own minimal-derivation path (which
+    # resolves F1+F3 first), proving the board does not silently depend on matching it.
+    step1 = _fol_act(client, state, f1, f2, "Mortal(socrates)")
+    assert step1.status_code == 200
+    body1 = step1.json()
+    assert body1["code"] == "VALID"
+    assert body1["state"]["solved"] is False
+
+    # Step 2: resolve the newly-accepted clause against the negated goal -> the empty clause.
+    # Its label must be new (not one of the original legend's), continuing that numbering.
+    new_label = f"F{len(trace['legend']) + 1}"
+    step2 = _fol_act(client, body1["state"], new_label, f3, "", accepted=["Mortal(socrates)"])
+    assert step2.status_code == 200
+    body2 = step2.json()
+    assert body2["code"] == "VALID"
+
+
+def test_reaching_the_empty_clause_sets_the_existing_solved_field(
+    client, socrates_fol_board
+) -> None:
+    state, trace = socrates_fol_board
+    f1 = _label_containing(trace, "Human(x)", "Mortal(x)")
+    f2 = _label_containing(trace, "Human(socrates)")
+    f3 = _label_containing(trace, "¬Mortal(socrates)")
+    new_label = f"F{len(trace['legend']) + 1}"
+
+    step1 = _fol_act(client, state, f1, f2, "Mortal(socrates)").json()
+    step2 = _fol_act(
+        client, step1["state"], new_label, f3, "", accepted=["Mortal(socrates)"]
+    ).json()
+
+    assert step2["state"]["solved"] is True
+    assert step2["state"]["stage"] == "explain"
+
+
+def test_once_solved_the_existing_already_finished_lock_applies(client, socrates_fol_board) -> None:
+    """No new enforcement was written for this -- `act()`'s pre-existing `if state.solved: raise
+    AlreadyFinished` check runs before any action handler, FOL included."""
+    state, trace = socrates_fol_board
+    f1 = _label_containing(trace, "Human(x)", "Mortal(x)")
+    f2 = _label_containing(trace, "Human(socrates)")
+    f3 = _label_containing(trace, "¬Mortal(socrates)")
+    new_label = f"F{len(trace['legend']) + 1}"
+
+    step1 = _fol_act(client, state, f1, f2, "Mortal(socrates)").json()
+    step2 = _fol_act(
+        client, step1["state"], new_label, f3, "", accepted=["Mortal(socrates)"]
+    ).json()
+    assert step2["state"]["solved"] is True
+
+    locked = _fol_act(client, step2["state"], f1, f2, "Mortal(socrates)")
+    assert locked.status_code == 409
+    assert locked.json()["code"] == "ALREADY_FINISHED"
+
+
+def test_a_tampered_accepted_entry_is_refused_not_trusted(client, socrates_fol_board) -> None:
+    state, trace = socrates_fol_board
+    f1 = _label_containing(trace, "Human(x)", "Mortal(x)")
+    f2 = _label_containing(trace, "Human(socrates)")
+    response = _fol_act(client, state, f1, f2, "Mortal(socrates)", accepted=["not valid notation("])
+    assert response.status_code == 400
+    assert response.json()["code"] == "TAMPERED_STATE"
+
+
+def test_an_invalid_step_never_mutates_state_so_retry_costs_nothing(
+    client, socrates_fol_board
+) -> None:
+    state, trace = socrates_fol_board
+    f1 = _label_containing(trace, "Human(x)", "Mortal(x)")
+    f2 = _label_containing(trace, "Human(socrates)")
+    response = _fol_act(client, state, f1, f2, "Zebra(socrates)")
+    assert response.status_code == 200
+    assert response.json()["code"] == "FOL_STEP_WRONG_RESOLVENT"
+    assert response.json()["state"] == state  # unchanged, exactly as propositional's own board
+
+
+# ============================================================ FOL step-level hints (S18.16.9) ==
+
+
+def test_fol_hint_level_1_names_the_next_canonical_step(client, socrates_fol_board) -> None:
+    state, _trace = socrates_fol_board
+    response = hint(client, state, level=1, accepted=[])
+    assert response.status_code == 200
+    body = response.json()
+    assert body["code"] == "HINT_FOL_STEP_1"
+    assert "resolve F" in body["message"]
+
+
+def test_fol_hint_level_2_adds_the_unifier(client, socrates_fol_board) -> None:
+    state, _trace = socrates_fol_board
+    response = hint(client, state, level=2, accepted=[])
+    assert response.status_code == 200
+    body = response.json()
+    assert body["code"] == "HINT_FOL_STEP_2"
+    assert "where x =" in body["message"] or "no substitution needed" in body["message"]
+
+
+def test_fol_hint_level_3_caps_at_level_2_content(client, socrates_fol_board) -> None:
+    state, _trace = socrates_fol_board
+    at_2 = hint(client, state, level=2, accepted=[]).json()
+    at_3 = hint(client, state, level=3, accepted=[]).json()
+    assert at_2["message"] == at_3["message"]
+
+
+def test_fol_hint_advances_once_a_step_is_derived(client, socrates_fol_board) -> None:
+    """Deriving a step -- not asking for a hint -- is what advances which step is hinted."""
+    state, trace = socrates_fol_board
+    f1 = _label_containing(trace, "Human(x)", "Mortal(x)")
+    f2 = _label_containing(trace, "Human(socrates)")
+    step1 = _fol_act(client, state, f1, f2, "Mortal(socrates)").json()
+
+    before = hint(client, state, level=1, accepted=[]).json()
+    after = hint(client, step1["state"], level=1, accepted=["Mortal(socrates)"]).json()
+    assert before["message"] != after["message"]
+
+
+def test_fol_hint_is_honest_when_the_students_path_has_diverged(client, socrates_fol_board) -> None:
+    """The student's own valid first step (F1+F2) is NOT the engine's own canonical first step
+    (F1+F3) -- the next canonical step therefore needs a clause the student's board does not
+    have. The hint must say so, not point at a clause they cannot see."""
+    state, trace = socrates_fol_board
+    f1 = _label_containing(trace, "Human(x)", "Mortal(x)")
+    f2 = _label_containing(trace, "Human(socrates)")
+    step1 = _fol_act(client, state, f1, f2, "Mortal(socrates)").json()
+
+    response = hint(client, step1["state"], level=1, accepted=["Mortal(socrates)"])
+    assert response.status_code == 200
+    body = response.json()
+    assert body["code"] == "HINT_FOL_STEP_UNAVAILABLE"
+
+
+def test_fol_hint_falls_back_to_outcome_level_when_budget_exhausted(client) -> None:
+    parsed = client.post(
+        "/api/parse",
+        json={
+            "paragraph": "Every human is mortal. Socrates is a human.",
+            "conclusion": "Socrates is a zebra.",
+        },
+    ).json()
+    confirmed = client.post(
+        ACT, json={"state": parsed["state"], "action": {"type": "confirm_facts"}}
+    ).json()
+    response = hint(client, confirmed["state"], level=1, accepted=[])
+    assert response.status_code == 200
+    assert response.json()["code"] == "HINT_FOL_UNKNOWN"
+
+
+def test_propositional_hints_are_unaffected_by_the_new_accepted_field(client, board) -> None:
+    """The schema addition is optional and FOL-only in effect -- confirm it changes nothing for
+    an ordinary propositional session, which never sends `accepted` at all."""
+    response = hint(client, board, level=1)
+    assert response.status_code == 200
+    assert response.json()["code"] in {"HINT_1", "HINT_2", "HINT_3", "HINT_UNAVAILABLE"}

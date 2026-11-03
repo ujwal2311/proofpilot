@@ -31,13 +31,20 @@ from enum import Enum
 from itertools import combinations
 
 from src.core.config import MAX_FOL_SEARCH_WORK
-from src.core.fol_cnf import standardize_apart_clauses, to_fol_clauses
-from src.core.fol_models import FolClause, FolFormula, FolNot
+from src.core.fol_cnf import standardize_apart_ordered, to_fol_clauses
+from src.core.fol_models import FolClause, FolFormula, FolNot, Substitution
 from src.core.fol_resolve import canonical_clause, resolve
 from src.core.search import Work
 
 EMPTY_CLAUSE: FolClause = frozenset()
-FolProofStep = tuple[FolClause, FolClause, FolClause]
+# (left, right, resolvent, mgu). The MGU rides along because it is the marks-earning content of
+# a resolution step -- "via x = socrates" -- not an implementation detail (HLD S18.15.6).
+FolProofStep = tuple[FolClause, FolClause, FolClause, Substitution]
+# (clause, origin) where origin is "premise" or "negated_goal". A proof trace has to show WHICH
+# clause is the negated goal -- without it a reader cannot see that the refutation assumed the
+# opposite of what it set out to prove (HLD S18.15.6).
+FolInputClause = tuple[FolClause, str]
+PREMISE, NEGATED_GOAL = "premise", "negated_goal"
 
 
 class FolProofOutcome(Enum):
@@ -51,6 +58,10 @@ class FolSearchResult:
     outcome: FolProofOutcome
     proof_steps: list[FolProofStep]
     clauses: frozenset[FolClause]
+    # Every clause the search STARTED from, in canonical order, each tagged with where it came
+    # from. Not derivable from `clauses` (which also holds every resolvent) nor from
+    # `proof_steps` (which omits any input the derivation never used).
+    input_clauses: tuple[FolInputClause, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -98,16 +109,47 @@ def fol_hint_code(outcome: FolProofOutcome, level: int) -> str:
     return f"HINT_FOL_FOLLOWS_{level}"
 
 
-def _clausify_all(premises: list[FolFormula], conclusion: FolFormula) -> frozenset[FolClause]:
-    """Clausify every premise and the negated conclusion SEPARATELY, then standardize apart ONCE
-    over their union -- see core.fol_cnf.to_fol_clauses's own docstring for why running
-    standardize_apart_clauses per-formula instead would let two premises' independently-numbered
-    variables collide before this function ever saw the combined set.
+def _clausify_tagged(
+    premises: list[FolFormula], conclusion: FolFormula | None
+) -> tuple[FolInputClause, ...]:
+    """Every input clause, standardized apart, tagged premise vs negated_goal.
+
+    Origin is decided on the PRE-renaming clause, which is why this needs
+    `standardize_apart_ordered`'s pairing: after renaming, a goal clause is no longer equal to
+    the clause it came from, so membership of the goal's own clause set cannot be tested.
+    A clause produced by both a premise and the negated goal is tagged `premise` (first wins),
+    so the tag is deterministic rather than dependent on set iteration order. Order is the one a
+    worked answer uses -- premises in PARAGRAPH order, then the negated goal, canonical text
+    breaking ties within a sentence -- so F1 is the first sentence's clause rather than whichever
+    clause happened to sort first.
+
+    Standardizing apart runs ONCE over the union, never per formula -- see
+    core.fol_cnf.to_fol_clauses's own docstring: per-formula renaming would let two premises
+    independently reuse the same variable names, undoing step 8's whole job before the combined
+    set ever existed. (This function replaces the former `_clausify_all`, which returned the same
+    clauses untagged.)
     """
-    per_formula = [to_fol_clauses(p) for p in premises]
-    per_formula.append(to_fol_clauses(FolNot(conclusion)))
-    combined = frozenset().union(*per_formula) if per_formula else frozenset()
-    return standardize_apart_clauses(combined)
+    # `conclusion is None` is phase 1, which checks the premises ALONE -- there is no negated
+    # goal to tag because none was ever added (that is what INCONSISTENT means).
+    goal_side = to_fol_clauses(FolNot(conclusion)) if conclusion is not None else frozenset()
+    premise_side = [to_fol_clauses(p) for p in premises]
+    combined = frozenset().union(*premise_side, goal_side) if premise_side else goal_side
+    # Rank each ORIGINAL clause: premises by the sentence they came from, the negated goal after
+    # every premise. `setdefault` means a clause produced by two sentences keeps the earlier one.
+    rank: dict[FolClause, tuple[int, int]] = {}
+    for index, clauses in enumerate(premise_side):
+        for clause in clauses:
+            rank.setdefault(clause, (0, index))
+    for clause in goal_side:
+        rank.setdefault(clause, (1, len(premise_side)))
+    ordered = sorted(
+        standardize_apart_ordered(combined),
+        key=lambda pair: (rank[pair[0]], canonical_clause(pair[1])),
+    )
+    return tuple(
+        (renamed, PREMISE if rank[original][0] == 0 else NEGATED_GOAL)
+        for original, renamed in ordered
+    )
 
 
 def _resolve_round(pool: set[FolClause], work: Work) -> tuple[list[FolProofStep], FolClause | None]:
@@ -120,12 +162,12 @@ def _resolve_round(pool: set[FolClause], work: Work) -> tuple[list[FolProofStep]
     ordered = sorted(pool, key=canonical_clause)
     steps: list[FolProofStep] = []
     for a, b in combinations(ordered, 2):
-        for resolvent in sorted(resolve(a, b), key=canonical_clause):
+        for resolvent, mgu in sorted(resolve(a, b), key=lambda pair: canonical_clause(pair[0])):
             if not work.spend():
                 return steps, None
             if resolvent in pool:
                 continue
-            steps.append((a, b, resolvent))
+            steps.append((a, b, resolvent, mgu))
             if resolvent == EMPTY_CLAUSE:
                 return steps, resolvent
     return steps, None
@@ -141,13 +183,47 @@ def _saturate(pool: set[FolClause], work: Work) -> tuple[list[FolProofStep], Fol
     while True:
         steps, found_empty = _resolve_round(pool, work)
         all_steps.extend(steps)
-        new_clauses = [resolvent for *_pair, resolvent in steps if resolvent != EMPTY_CLAUSE]
+        new_clauses = [resolvent for _a, _b, resolvent, _mgu in steps if resolvent != EMPTY_CLAUSE]
         pool.update(new_clauses)
         if found_empty is not None:
             pool.add(found_empty)
             return all_steps, found_empty
         if not new_clauses:
             return all_steps, None
+
+
+def _minimal_derivation(steps: list[FolProofStep]) -> list[FolProofStep]:
+    """Only the steps that actually reach the empty clause, in dependency order.
+
+    `_saturate` returns every resolvent it generated, which is a SEARCH LOG, not a proof -- the
+    Ravi worked example saturates in 22 steps where the derivation is 5, and Socrates in 3 where
+    it is 2. A student reading the log learns the shape of breadth-first search, not the shape of
+    resolution, so the log stays internal and only this subtree is ever returned.
+
+    Walks back from the empty clause through each resolvent's two parents. `setdefault` keeps the
+    FIRST derivation of a clause, which under round-by-round saturation is also the shallowest, so
+    the extracted subtree is the shortest one the search actually found. Post-order append puts
+    every dependency ahead of the step that consumes it.
+    """
+    parents: dict[FolClause, tuple[FolClause, FolClause, Substitution]] = {}
+    for a, b, resolvent, mgu in steps:
+        parents.setdefault(resolvent, (a, b, mgu))
+
+    derivation: list[FolProofStep] = []
+    collected: set[FolClause] = set()
+
+    def walk(clause: FolClause) -> None:
+        # Not in `parents` means an input clause: a leaf, nothing to derive.
+        if clause in collected or clause not in parents:
+            return
+        collected.add(clause)
+        a, b, mgu = parents[clause]
+        walk(a)
+        walk(b)
+        derivation.append((a, b, clause, mgu))
+
+    walk(EMPTY_CLAUSE)
+    return derivation
 
 
 def fol_prove(
@@ -170,19 +246,28 @@ def fol_prove(
     """
     work = Work(MAX_FOL_SEARCH_WORK if budget is None else budget)
 
-    premise_sets = [to_fol_clauses(p) for p in premises]
-    premise_union = frozenset().union(*premise_sets) if premise_sets else frozenset()
-    premise_clauses = standardize_apart_clauses(premise_union)
+    premise_inputs = _clausify_tagged(premises, None)
+    premise_clauses = frozenset(clause for clause, _origin in premise_inputs)
     if EMPTY_CLAUSE in premise_clauses:
-        return FolSearchResult(FolProofOutcome.INCONSISTENT, [], premise_clauses)
+        return FolSearchResult(FolProofOutcome.INCONSISTENT, [], premise_clauses, premise_inputs)
 
     premise_pool = set(premise_clauses)
     premise_steps, premises_alone_empty = _saturate(premise_pool, work)
     if premises_alone_empty is not None:
-        return FolSearchResult(FolProofOutcome.INCONSISTENT, premise_steps, frozenset(premise_pool))
+        return FolSearchResult(
+            FolProofOutcome.INCONSISTENT,
+            _minimal_derivation(premise_steps),
+            frozenset(premise_pool),
+            premise_inputs,
+        )
 
-    pool = set(_clausify_all(premises, conclusion))
-    proof_steps, found_empty = _saturate(pool, work)
+    inputs = _clausify_tagged(premises, conclusion)
+    pool = {clause for clause, _origin in inputs}
+    saturation_log, found_empty = _saturate(pool, work)
     if found_empty is not None:
-        return FolSearchResult(FolProofOutcome.PROVED, proof_steps, frozenset(pool))
-    return FolSearchResult(FolProofOutcome.BUDGET_EXHAUSTED, proof_steps, frozenset(pool))
+        return FolSearchResult(
+            FolProofOutcome.PROVED, _minimal_derivation(saturation_log), frozenset(pool), inputs
+        )
+    # No empty clause means no derivation exists to extract -- the partial log is not a proof and
+    # is never presented as one (HLD section 18.6).
+    return FolSearchResult(FolProofOutcome.BUDGET_EXHAUSTED, [], frozenset(pool), inputs)

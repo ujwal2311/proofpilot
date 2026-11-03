@@ -21,6 +21,7 @@ from src.core.fol_models import (
 from src.core.fol_search import (
     EMPTY_CLAUSE,
     FolProofOutcome,
+    FolSessionResult,
     fol_claim_accepted,
     fol_hint_code,
     fol_prove,
@@ -182,3 +183,116 @@ def test_fol_hint_code_is_honest_about_not_knowing_at_every_level() -> None:
     # wording would imply a certainty the engine does not have.
     for level in (1, 2, 3):
         assert fol_hint_code(FolProofOutcome.BUDGET_EXHAUSTED, level) == "HINT_FOL_UNKNOWN"
+
+
+# ------------------------------------- FolSessionResult.step_count invariant (HLD S18.14.1)
+# FolSessionResult itself stays outcome+step_count only -- a Predicate-bearing proof_steps field
+# would crash test_every_state_field_is_json_representable with RecursionError (its recursive
+# Term union), confirmed directly rather than assumed; the raw trace is recomputed at the API
+# edge per request instead (app/render.py's fol_proof_trace, api/main.py's _fol_search_result).
+# What stays true on FolSessionResult itself: step_count == len(the FolSearchResult it was built
+# from), for every outcome -- tested here against the real source, not restated as a second field.
+
+
+def test_session_result_step_count_matches_source_when_proved() -> None:
+    premises = [ForAll(x, FolImplies(human(x), mortal(x))), human(socrates)]
+    raw = fol_prove(premises, mortal(socrates))
+    assert FolSessionResult.of(raw).step_count == len(raw.proof_steps)
+    assert raw.proof_steps[-1][2] == EMPTY_CLAUSE
+
+
+def test_session_result_step_count_matches_source_when_budget_exhausted() -> None:
+    premises = [ForAll(x, FolImplies(human(x), mortal(x))), human(socrates)]
+    raw = fol_prove(premises, Predicate("Zebra", (socrates,)), budget=3)
+    assert raw.outcome is FolProofOutcome.BUDGET_EXHAUSTED
+    assert FolSessionResult.of(raw).step_count == len(raw.proof_steps)
+
+
+def test_session_result_step_count_matches_source_when_inconsistent() -> None:
+    premises = [human(socrates), FolNot(human(socrates))]
+    raw = fol_prove(premises, mortal(socrates))
+    assert raw.outcome is FolProofOutcome.INCONSISTENT
+    assert FolSessionResult.of(raw).step_count == len(raw.proof_steps)
+
+
+# ------------------------------------- minimal derivation, not the saturation log (2026-11-02)
+
+# `_saturate` records every resolvent it generates, which is a SEARCH LOG, not a proof: the Ravi
+# worked example saturates in 22 steps where the derivation is 5, and Socrates in 3 where it is 2.
+# `fol_prove` now returns only the subtree that actually reaches the empty clause. The invariant
+# that makes that subtree a proof -- and the one asserted below -- is CLOSURE: every clause a step
+# resolves must itself be either an input clause or the resolvent of an earlier step in the list.
+
+
+def _is_closed_derivation(result: object) -> bool:
+    """True if every step's two parents are input clauses or earlier resolvents, in order."""
+    available = set(result.clauses)  # type: ignore[attr-defined]
+    for a, b, resolvent, _mgu in result.proof_steps:  # type: ignore[attr-defined]
+        if a not in available or b not in available:
+            return False
+        available.add(resolvent)
+    return True
+
+
+def test_proved_derivation_is_closed_under_its_own_steps() -> None:
+    premises = [ForAll(x, FolImplies(human(x), mortal(x))), human(socrates)]
+    result = fol_prove(premises, mortal(socrates))
+    assert result.outcome is FolProofOutcome.PROVED
+    assert _is_closed_derivation(result)
+
+
+def test_proved_derivation_ends_in_the_empty_clause_and_nothing_follows_it() -> None:
+    premises = [ForAll(x, FolImplies(human(x), mortal(x))), human(socrates)]
+    result = fol_prove(premises, mortal(socrates))
+    assert result.proof_steps[-1][2] == EMPTY_CLAUSE
+    # The empty clause is the END of a refutation; deriving it twice would mean the log leaked in.
+    assert [step for step in result.proof_steps if step[2] == EMPTY_CLAUSE] == [
+        result.proof_steps[-1]
+    ]
+
+
+def test_socrates_derivation_is_the_two_textbook_steps_not_the_saturation_log() -> None:
+    # Resolve the rule with the fact, then the result against the negated goal. The saturation
+    # log for this same proof is longer; only the derivation is returned.
+    premises = [ForAll(x, FolImplies(human(x), mortal(x))), human(socrates)]
+    result = fol_prove(premises, mortal(socrates))
+    assert len(result.proof_steps) == 2
+
+
+def test_every_derived_clause_in_the_derivation_is_actually_used() -> None:
+    """No step may be dead weight: each resolvent is either the empty clause or a later parent."""
+    premises = [ForAll(x, FolImplies(human(x), mortal(x))), human(socrates)]
+    result = fol_prove(premises, mortal(socrates))
+    for index, (_a, _b, resolvent, _mgu) in enumerate(result.proof_steps):
+        later_parents = {p for a, b, _r, _m in result.proof_steps[index + 1 :] for p in (a, b)}
+        assert resolvent == EMPTY_CLAUSE or resolvent in later_parents
+
+
+def test_inconsistent_derivation_is_closed_and_ends_in_the_empty_clause() -> None:
+    premises = [human(socrates), FolNot(human(socrates))]
+    result = fol_prove(premises, mortal(socrates))
+    assert result.outcome is FolProofOutcome.INCONSISTENT
+    assert _is_closed_derivation(result)
+    assert result.proof_steps[-1][2] == EMPTY_CLAUSE
+
+
+def test_budget_exhausted_reports_no_derivation_at_all() -> None:
+    """There is no proof, so there is no derivation -- the partial saturation log stays internal
+    rather than being shown as if it were one (HLD section 18.6's never-call-it-unprovable rule
+    applies to the TRACE as much as to the verdict)."""
+    premises = [ForAll(x, FolImplies(human(x), mortal(x))), human(socrates)]
+    result = fol_prove(premises, Predicate("Zebra", (socrates,)), budget=3)  # type: ignore[arg-type]
+    assert result.outcome is FolProofOutcome.BUDGET_EXHAUSTED
+    assert result.proof_steps == []
+
+
+def test_teaches_knows_derivation_is_closed() -> None:
+    teaches = Predicate("Teaches", (x, y))
+    knows = Predicate("Knows", (y, x))
+    premises = [
+        ForAll(x, ForAll(y, FolImplies(teaches, knows))),
+        Predicate("Teaches", (alice, bob)),
+    ]
+    result = fol_prove(premises, Predicate("Knows", (bob, alice)))
+    assert result.outcome is FolProofOutcome.PROVED
+    assert _is_closed_derivation(result)

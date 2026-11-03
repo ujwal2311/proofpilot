@@ -320,15 +320,16 @@ def _owners() -> dict[Path, list[str]]:
     return owners
 
 
-# Every shipped or evaluated source tree. `backend/tests` is absent on purpose -- tests are not
-# capped, because capping them is an incentive to write fewer.
+# Every shipped or evaluated source tree. Two deliberate absences, each for its own stated
+# reason: `backend/tests` because capping tests is an incentive to write fewer, and
+# `frontend/src/**/*.css` because the caps bound LOGIC complexity and a stylesheet is not logic
+# (student decision, 2026-11-02 -- see the comment on [frontend] in budgets.toml).
 MEASURED_TREES = (
     "backend/src/**/*.py",
     "scripts/*.py",
     "tools/*.py",
     "frontend/src/**/*.js",
     "frontend/src/**/*.jsx",
-    "frontend/src/**/*.css",
 )
 
 
